@@ -5,7 +5,7 @@
 # Modified:    31-10-2026
 # Author:      Sebastian Toyos
 cmake_minimum_required(VERSION 3.20)
-project(outrunners VERSION 1.1.1 LANGUAGES C CXX)    # (the release's: OPTIONS shows it, the devices' packages carry it)
+project(outrunners VERSION 1.1.2 LANGUAGES C CXX)    # (the release's: OPTIONS shows it, the devices' packages carry it)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
