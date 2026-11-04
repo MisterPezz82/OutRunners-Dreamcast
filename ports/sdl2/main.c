@@ -2,9 +2,9 @@
  *    Name:        main.c
  *    Description: the game in a window: SDL2 shows its screens, plays its sound, reads the controls and
  *                 keeps the pace, around the same game and board the headless runs check
- *    Version:     0.1.0
+ *    Version:     0.1.1
  *    Created:     21-10-2026
- *    Modified:    01-11-2026
+ *    Modified:    04-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -232,9 +232,9 @@ static bool tablet;               /* the screen is a tablet's: 2 PLAYERS there, 
 static bool tablet_screen(int width, int height)
 {
 	float horizontal = 0.0f, vertical = 0.0f;
+	const int display = window ? SDL_GetWindowDisplayIndex(window) : 0;    /* (before the window, the first one's) */
 
-	if (SDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(window), NULL, &horizontal, &vertical) != 0 || horizontal <= 0.0f
-		|| vertical <= 0.0f)
+	if (SDL_GetDisplayDPI(display, NULL, &horizontal, &vertical) != 0 || horizontal <= 0.0f || vertical <= 0.0f)
 		return false;
 	return SDL_min(width / horizontal, height / vertical) >= TABLET_SIDE_INCHES;
 }
@@ -291,11 +291,17 @@ static void picture_size(int *width, int *height)
 
 static int shape_width, shape_height;    /* the screen WIDE was last chosen for */
 
-/* WIDE for a screen of 'width' x 'height': 20:9 where it is twice as wide as high or more, else 16:9 (either
-   way up: its long side across) */
+/* WIDE for a screen of 'width' x 'height' (either way up: its long side across): 20:9 where it is twice as wide
+   as high or more, 16:9 down to 3:2; a narrower one's none, the game's 4:3 picture filling it (a 4:3 handheld's:
+   issue 15), but a tablet's 16:9, the picture at the top and the controls and the route map under it (an open
+   Fold's: Sebas) */
 static int wide_for_screen(int width, int height)
 {
-	return SDL_max(width, height) >= 2 * SDL_min(width, height) ? WIDE_20_9 : WIDE_16_9;
+	const int long_side = SDL_max(width, height), short_side = SDL_min(width, height);
+
+	if (long_side >= 2 * short_side)
+		return WIDE_20_9;
+	return 2 * long_side >= 3 * short_side || tablet_screen(width, height) ? WIDE_16_9 : WIDE_OFF;
 }
 
 /* The screen's size at a frame, as the renderer has it: WIDE chosen again where it changed (the log says so) */
@@ -306,8 +312,8 @@ static void follow_screen(int width, int height)
 	shape_width = width;
 	shape_height = height;
 	console_window_settings.wide = wide_for_screen(width, height);
-	fprintf(stderr, "screen %dx%d: WIDE %s\n", width, height,
-		console_window_settings.wide == WIDE_20_9 ? "20:9" : "16:9");
+	fprintf(stderr, "screen %dx%d: WIDE %s\n", width, height, console_window_settings.wide == WIDE_20_9 ? "20:9"
+		: console_window_settings.wide == WIDE_16_9 ? "16:9" : "OFF");
 }
 #endif
 
