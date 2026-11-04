@@ -1,11 +1,18 @@
 # Name:        CMakeLists.txt
 # Description: build of the OutRunners runtime and its development tools
-# Version:     0.1.0
+# Version:     0.1.1
 # Created:     11-10-2026
-# Modified:    31-10-2026
+# Modified:    04-11-2026
 # Author:      Sebastian Toyos
 cmake_minimum_required(VERSION 3.20)
 project(outrunners VERSION 1.1.2 LANGUAGES C CXX)    # (the release's: OPTIONS shows it, the devices' packages carry it)
+
+# A generator of one configuration (Makefiles, Ninja: Linux's and macOS's by default) given no build type
+# builds the game optimized, as the packages are: without, it is slower (and issue 17's race showed)
+get_property(ORUNNERS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(NOT ORUNNERS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Release CACHE STRING "The build type: Release unless given" FORCE)
+endif()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
