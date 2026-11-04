@@ -90,6 +90,17 @@ board would, and the game reads them as it reads the board's (`console/network.c
 `console/net_udp.c`). `orunners_console_headless --real-time` runs two games on one computer for the checks
 (`tests/console/network_*.txt`).
 
+## What comes next
+
+- **4 PLAYERS on the Switch**: up to four players in one race on one console, the screen in four.
+- **iOS and the New Nintendo 3DS**: their ports, by [yoshisuga](https://github.com/yoshisuga), in
+  [pull request 14](https://github.com/cheviman/outrunners-port/pull/14).
+
+## Supporting it
+
+If you enjoy the game, you can support it on [GitHub Sponsors](https://github.com/sponsors/cheviman): it buys
+the time for what comes next. Thank you!
+
 ## Building the port
 
 The window games build as the rest of this repository does ("Getting started" below): `cmake --build` makes
