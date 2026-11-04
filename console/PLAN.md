@@ -276,6 +276,12 @@ merged here; this repository adds console/, the ports and their documents.
   the pedals' floor; the wheel's mark the way it turns (the game's left is FF), its bar and its -100% to 100%
   the port's travel (EF-0F as the game sees it). A page of its own: the wheel's axis is the menus' arrows
   too, which there do nothing.
+- The sprite graphics' lookup between the video's threads (issue 17: a segmentation fault in sprite_word on
+  a build without optimization, the README's on Linux, whose CMake has no build type): the block the last
+  lookup found is a hint the threads share, and a build that read it again after checking it could index
+  another thread's block. Read once now (runtime/src/assets_media.c). It took the first run's assets: they
+  leave the sprite chips' empty runs out (all ones, as the board reads them), five blocks, where
+  extract_assets.py's are one and never change the hint; both draw the same.
 
 ## To do
 

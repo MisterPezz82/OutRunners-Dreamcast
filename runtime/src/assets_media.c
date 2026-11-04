@@ -2,9 +2,9 @@
  *    Name:        assets_media.c
  *    Description: loads the media of the game's assets: the tilesets, the sprite sheets and the MultiPCM's
  *                 samples with their headers (game/assets.h)
- *    Version:     0.1.0
+ *    Version:     0.1.1
  *    Created:     27-10-2026
- *    Modified:    27-10-2026
+ *    Modified:    04-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -191,7 +191,9 @@ typedef struct
 
 static sprite_block *sprite_blocks;
 static size_t sprite_block_count;
-static size_t last_block;
+/* (the block the last lookup found, which the video's threads share (runtime/src/workers.c): each lookup
+   reads it once and checks it, whatever another thread wrote since; issue 17) */
+static volatile size_t last_block;
 
 static int by_word(const void *first, const void *second)
 {
@@ -203,10 +205,11 @@ static int by_word(const void *first, const void *second)
 /* The block holding 'place', or sprite_block_count when none does */
 static size_t block_of(uint32_t place)
 {
+	const size_t last = last_block;
 	size_t low = 0, high = sprite_block_count;
 
-	if (last_block < sprite_block_count && place - sprite_blocks[last_block].first < sprite_blocks[last_block].count)
-		return last_block;
+	if (last < sprite_block_count && place - sprite_blocks[last].first < sprite_blocks[last].count)
+		return last;
 	while (low < high)
 	{
 		const size_t middle = (low + high) / 2;
@@ -218,7 +221,8 @@ static size_t block_of(uint32_t place)
 	}
 	if (low == 0 || place - sprite_blocks[low - 1].first >= sprite_blocks[low - 1].count)
 		return sprite_block_count;
-	return last_block = low - 1;
+	last_block = low - 1;
+	return low - 1;
 }
 
 static uint32_t sprite_word(uint32_t place)
