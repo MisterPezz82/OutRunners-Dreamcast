@@ -63,6 +63,12 @@ What any tool makes is yours alone, with the game's data in it: never share it.
   `[` and `]` its songs; Enter starts and pauses. A game controller: the d-pad or the left stick steers,
   the right trigger or A accelerates, the left trigger or B brakes (a trigger as far as it is pressed), the
   shoulders shift. OPTIONS > CONTROLS changes them, the triggers and the sticks' buttons too.
+- **A racing wheel** (a Logitech G29, for one): the game takes it as a game controller, the wheel its left
+  stick and the pedals its triggers. OPTIONS > STEERING > WHEEL ROTATION is the wheel's own turn from end to
+  end, 270 to 1080 (900 on a G29): the game's wheel turns all the way at 135 each way, the arcade's 270, and
+  stays at its end past them; the DEAD ZONE counts within those 135 (on a wheel, 0%). STEERING's INPUT TEST
+  shows the wheel, the gas and the brake as the game sees them, to see where the wheel reaches its ends and
+  the pedals their floor.
 - **Android's touch controls**: the wheel, GAS and BRAKE, the gears' buttons with the manual transmission,
   START and the radio. On a tall screen (an open Fold, a tablet) the picture goes to the top and the controls
   under it, over the game's own route map following the car.
