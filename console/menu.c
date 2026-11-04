@@ -587,30 +587,31 @@ static void steering_frame(uint32_t pressed)
 	darken_page();
 }
 
-/* An INPUT TEST control: its name, the mark on a bar of INPUT_CELLS ('across': 0 at the left), and its
-   position's number */
-static void input_bar(int row, const char *name, uint8_t position, uint8_t across)
+/* An INPUT TEST control: its name, the mark on a bar of INPUT_CELLS ('across': 0 at the left) and how far it
+   is, in percent (Sebas: not the test mode's hexadecimal) */
+static void input_bar(int row, const char *name, uint8_t across, int percent)
 {
 	const int y = PAGE_Y + 16 + row * PAGE_STEP;
 	const int cell = across * INPUT_CELLS / 0x100;
-	char bar[INPUT_CELLS + 3], number[3];
+	char bar[INPUT_CELLS + 3], number[8];
 
 	bar[0] = '[';
 	for (int at = 0; at < INPUT_CELLS; at++)
 		bar[1 + at] = at == cell ? ' ' : '-';
 	bar[INPUT_CELLS + 1] = ']';
 	bar[INPUT_CELLS + 2] = '\0';
-	snprintf(number, sizeof(number), "%02X", position);
+	snprintf(number, sizeof(number), "%d%%", percent);
 	console_text(48, y, 1, colours.item, name);
 	console_text(INPUT_BAR_X, y, 1, colours.item, bar);
 	console_text(INPUT_BAR_X + (1 + cell) * 8, y, 1, colours.chosen, "#");
-	console_text(SCREEN_WIDTH - 48 - console_text_width(number, 1), y, 1, colours.item, number);
+	console_text(SCREEN_WIDTH - 32 - console_text_width(number, 1), y, 1, colours.item, number);
 }
 
-/* INPUT TEST: player 1's wheel, gas and brake as the game sees them (the screen's, through the calibration:
-   00-FF), as the test mode's input test draws them, to see where a racing wheel reaches its ends and a pedal
-   its floor (issue 16: WHEEL ROTATION's); but the wheel's mark the way it turns, its left at the bar's left
-   (the game's left is FF). The arrows do nothing here, the wheel's turn passing them */
+/* INPUT TEST: player 1's wheel, gas and brake as the game sees them (the screen's, through the calibration),
+   as the test mode's input test draws them, to see where a racing wheel reaches its ends and a pedal its
+   floor (issue 16: WHEEL ROTATION's); but the wheel the way it turns, its left at the bar's left (the game's
+   left is FF) and in percent of its turn, the left's under 0. The arrows do nothing here, the wheel's turn
+   passing them */
 static void input_test_frame(uint32_t pressed)
 {
 	const struct screen *seat = SCREEN(SCREEN_1);
@@ -623,9 +624,9 @@ static void input_test_frame(uint32_t pressed)
 	}
 	turn = turn < 0 ? 0 : (turn > 0xFF ? 0xFF : turn);
 	page_heading("INPUT TEST");
-	input_bar(INPUT_WHEEL, "WHEEL", seat->wheel, (uint8_t)turn);
-	input_bar(INPUT_GAS, "GAS", seat->gas, seat->gas);
-	input_bar(INPUT_BRAKE, "BRAKE", seat->brake, seat->brake);
+	input_bar(INPUT_WHEEL, "WHEEL", (uint8_t)turn, (turn - 0x80) * 100 / 0x7F);
+	input_bar(INPUT_GAS, "GAS", seat->gas, seat->gas * 100 / 0xFF);
+	input_bar(INPUT_BRAKE, "BRAKE", seat->brake, seat->brake * 100 / 0xFF);
 	line_at(INPUT_BACK, true, "BACK", NULL);
 	darken_page();
 }

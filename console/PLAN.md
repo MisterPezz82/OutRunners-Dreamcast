@@ -271,10 +271,11 @@ merged here; this repository adds console/, the ports and their documents.
   to 1080; the game's wheel all the way at 135 each way, the rest past it, the dead zone a part of those
   135. Saved in outrunners.ini (wheel_rotation).
 - STEERING's INPUT TEST (Sebas: as the arcade's test mode has it): player 1's wheel, gas and brake as the game
-  sees them (the screen's, through the calibration), each a mark on a bar of 16 cells and its number, as the
-  test mode's input test draws them, to see a racing wheel's ends and the pedals' floor; the wheel's mark the
-  way it turns (the game's left is FF), its bar the port's travel (EF-0F as the game sees it). A page of its
-  own: the wheel's axis is the menus' arrows too, which there do nothing.
+  sees them (the screen's, through the calibration), each a mark on a bar of 16 cells as the test mode's
+  input test draws them, and how far in percent (Sebas: not its hexadecimal), to see a racing wheel's ends and
+  the pedals' floor; the wheel's mark the way it turns (the game's left is FF), its bar and its -100% to 100%
+  the port's travel (EF-0F as the game sees it). A page of its own: the wheel's axis is the menus' arrows
+  too, which there do nothing.
 
 ## To do
 
