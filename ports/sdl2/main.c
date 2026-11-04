@@ -864,10 +864,10 @@ static void save_window_settings(void)
 	if (!output)
 		return;
 	fprintf(output, "window_scale=%d\nfull_screen=%d\npixels=%s\nwide=%d\ntwo_players=%s\nvolume=%d\nname=%s\n"
-		"fps=%d\ndead_zone=%d\nsensitivity=%d\nsteering_speed=%d\n",
+		"fps=%d\ndead_zone=%d\nsensitivity=%d\nwheel_rotation=%d\nsteering_speed=%d\n",
 		settings->window_scale, settings->full_screen, pixel_names[settings->pixels], settings->wide,
 		settings->vertical ? "vertical" : "horizontal", settings->volume, settings->name, settings->fps,
-		settings->dead_zone, settings->sensitivity, settings->steering_speed);
+		settings->dead_zone, settings->sensitivity, settings->wheel_rotation, settings->steering_speed);
 	fclose(output);
 }
 
@@ -898,6 +898,12 @@ static void load_window_settings(void)
 			settings->sensitivity = number;
 		else if (sscanf(line, "steering_speed=%d", &number) == 1 && number >= 1 && number <= STEERING_LEVELS)
 			settings->steering_speed = number;
+		else if (sscanf(line, "wheel_rotation=%d", &number) == 1)
+		{
+			for (int rotation = 0; rotation < WHEEL_ROTATIONS; rotation++)
+				if (console_wheel_rotations[rotation] == number)
+					settings->wheel_rotation = number;
+		}
 		else if (sscanf(line, "pixels=%31s", text) == 1)
 		{
 			for (int kind = 0; kind < PIXELS_KINDS; kind++)
@@ -1203,18 +1209,20 @@ static int steer(int position, bool left, bool right)
 
 /* A stick's travel as the wheel's, past its dead zone (false inside it). The console's from the dead zone's
    edge out, as OPTIONS > STEERING's DEAD ZONE and SENSITIVITY have it: under STEERING_NORMAL softer about the
-   centre, over it sharper (issue 1: twitchy on some controllers) */
+   centre, over it sharper (issue 1: twitchy on some controllers); a racing wheel's all the way at the game's
+   rotation of its own, WHEEL ROTATION's (issue 16), its dead zone in that part */
 static bool stick_wheel(int stick, int *position)
 {
 	const int travel = stick < 0 ? -stick : stick;
 #ifdef ORUNNERS_CONSOLE
 	static const double curves[STEERING_LEVELS] = { 2.2, 1.9, 1.6, 1.3, 1.0, 0.85, 0.72, 0.6, 0.5 };
-	const int dead = console_window_settings.dead_zone * 32767 / 100;
+	const double reach = 32767.0 * WHEEL_ROTATION_GAME / console_window_settings.wheel_rotation;
+	const int dead = (int)(console_window_settings.dead_zone * reach / 100);
 	double out;
 
 	if (travel <= dead || travel == 0)
 		return false;
-	out = SDL_min(1.0, pow((double)(travel - dead) / (32767 - dead), curves[console_window_settings.sensitivity - 1]));
+	out = SDL_min(1.0, pow((travel - dead) / (reach - dead), curves[console_window_settings.sensitivity - 1]));
 	*position = WHEEL_CENTRE + (int)lround((stick < 0 ? -out : out) * (WHEEL_RIGHT - WHEEL_CENTRE));
 	return true;
 #else

@@ -1,9 +1,9 @@
 /**
  *    Name:        console.h
  *    Description: what the console build tells the port
- *    Version:     0.1.0
+ *    Version:     0.1.1
  *    Created:     29-10-2026
- *    Modified:    01-11-2026
+ *    Modified:    04-11-2026
  *    Author:      Sebastian Toyos
  */
 #ifndef ORUNNERS_CONSOLE_H
@@ -156,6 +156,13 @@ enum
 #define STEERING_LEVELS     9
 #define STEERING_NORMAL     5
 
+/* OPTIONS > STEERING's WHEEL ROTATION: a racing wheel's turn from end to end, in degrees, as its driver has it;
+   the game's wheel turns all the way at WHEEL_ROTATION_GAME's (the arcade's; a stick's whole travel), the rest
+   of a wider one's turn past it (issue 16: a G29 at 900) */
+#define WHEEL_ROTATION_GAME 270
+#define WHEEL_ROTATIONS     7
+extern const int console_wheel_rotations[WHEEL_ROTATIONS];    /* WHEEL_ROTATION_GAME up to 1080 */
+
 typedef struct
 {
 	int window_scale;      /* 1-6: the window, in times the game's picture */
@@ -168,6 +175,7 @@ typedef struct
 	bool fps;              /* OPTIONS > FPS: the frames a second at the picture's top right, and in a window's title */
 	int dead_zone;         /* STEERING: DEAD_ZONE_* */
 	int sensitivity;       /* STEERING: the sticks', STEERING_LEVELS */
+	int wheel_rotation;    /* STEERING: a racing wheel's, one of console_wheel_rotations */
 	int steering_speed;    /* STEERING: the keys' and pads', STEERING_LEVELS */
 	bool changed;
 } console_window;

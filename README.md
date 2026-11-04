@@ -54,8 +54,8 @@ What any tool makes is yours alone, with the game's data in it: never share it.
     courses in one race), REVERSE (from a goal picked on the route map back to the start).
   - OPTIONS: CONTROLS (keys and game controller buttons for each player), DIFFICULTY, TIME (by stage),
     VIDEO (the window's size, full screen, PIXELS sharp, smooth, bilinear or CRT, WIDE off, 16:9 or 20:9,
-    2 PLAYERS' layout), VOLUME, SOUND TEST, STEERING (the sticks' dead zone and sensitivity, the keys' and
-    pads' speed), FPS (the frames a second on the picture and in the window's title); the version at its
+    2 PLAYERS' layout), VOLUME, SOUND TEST, STEERING (the sticks' dead zone and sensitivity, a racing wheel's
+    rotation, the keys' and pads' speed, and an INPUT TEST of the wheel and the pedals), FPS (the frames a second on the picture and in the window's title); the version at its
     bottom right.
 - **The pause** in a race (Escape, Enter or a game controller's Start): CONTINUE, RESTART (the same game
   again, the same cars and transmissions chosen on the car select by themselves; not in NETWORK), QUIT GAME.
