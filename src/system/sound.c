@@ -3,7 +3,7 @@
  *    Description: the sound requests to the sound program: sounds, the engine and tyre noise, the music's fade
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -17,7 +17,10 @@
    main loop run. */
 void start_sound_program(void)
 {
-	AS32(screen->sound_queue_read) = 0x100u;
+	screen->sound_queue_read = 0u;
+	screen->sound_queue_write = 1u;
+	screen->sound_queue[0] = 0u;
+	screen->sound_queue[1] = 0u;
 	io_write8(IO_1_CNT, 6u);
 	screen->sound_start_cleared = 0u;
 	SOUND_PROGRAM_HOLD = 0u;

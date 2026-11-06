@@ -4,7 +4,7 @@
  *                 game holds reaches
  *    Version:     0.1.0
  *    Created:     27-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -45,21 +45,31 @@ const char *assets_load(const char *folder);
 /* The data at an address of the program's data the game holds (a pointer it keeps): the piece's bytes
    there. The board decodes the program's chips more than once (the code's four times below 0x100000, the
    first MB again from 0xF00000), so those addresses reach the same pieces; an address of the work RAM
-   reaches the work RAM, as the bus would send it. Anywhere else, or in code, the program stops. */
+   reaches the work RAM, as the bus would send it. Anywhere else, or in code, the program stops. The pieces
+   keep each value in the host's order, at the width the asset gives it (what the C reads in place). */
 const uint8_t *data_at(uint32_t address);
+
+/* The byte at an address of the program's data as the program's chips hold it, for the board's bus
+   (s32_board.program_at): on a big-endian processor a value's bytes lie the other way round in its piece */
+const uint8_t *data_byte_at(uint32_t address);
 
 /* The same for an address of the program's chips without stopping: NULL where no piece has data (the copies
    of the ROM ram_outside makes, for a pointer the C keeps that may hold an address nothing reads through) */
 const uint8_t *data_if_any(uint32_t address);
 
-/* The address of the program's data a pointer into one of its pieces stands for (1), or 0 where it points
-   into none: the address the original holds for what a pointer the C keeps into the ROM points at */
+/* The address of the program's data a pointer into one of its pieces, or just past its end, stands for (1),
+   or 0 where it points into none: the address the original holds for what a pointer the C keeps into the ROM
+   points at (one that walks a list stands past its end before it jumps back: welcome_letter_palette_steps) */
 int program_data_address(const void *pointer, uint32_t *address);
 
 /* The sound program's data at an offset of its chip (512 KB: the Z80 sees the start at 0000-9FFF and the
    rest through its bank's window at A000-BFFF): the piece's bytes there, NULL where no piece is (its code:
    the C replaces it). For the board's sound: s32_board.sound_at */
 const uint8_t *assets_sound_data(uint32_t offset);
+
+/* The byte at an offset of the sound program's chip as the chip holds it, for the Z80's bus
+   (s32_board.sound_byte_at): on a big-endian processor a value's bytes lie the other way round in its piece */
+const uint8_t *assets_sound_byte(uint32_t offset);
 
 /* The number of the loaded pieces of the programs' data, and the bytes they hold */
 size_t assets_piece_count(void);
@@ -84,6 +94,10 @@ const char *assets_load_pack(const char *path);
 /* Every loaded piece into 'path' (a development aid: what the loader read, to compare with the ROM set):
    per piece its address and size (32 bits, little endian), then its bytes; false when it cannot be written */
 int assets_dump(const char *path);
+
+/* Where the loader lays out the program's data's values wider than a byte (each one's address and width), as
+   text: what tools/width_census.py checks the original's reads against */
+int assets_dump_units(const char *path);
 
 #ifdef __cplusplus
 }

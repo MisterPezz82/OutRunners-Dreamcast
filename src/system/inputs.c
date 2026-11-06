@@ -3,7 +3,7 @@
  *    Description: the controls: the switches and the analog inputs (wheel, pedals), each seat's inputs and the screens' new presses
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -23,7 +23,9 @@ void read_switches_and_analog(void)
 {
 	uint8_t chip_1_port_f_on = 0, chip_2_port_f_on = 0, chip_2_switches = 0, new_switches = 0, old_switches = 0, test_switch = 0;
 	uint16_t calibration_high = 0, calibration_low = 0, reading = 0;
-	uint32_t calibration = 0, converter = 0, inputs_left = 0, raw_place = 0, scaled_place = 0, screen_turn = 0;
+	uint32_t converter = 0, inputs_left = 0, screen_turn = 0;
+	uint8_t *calibration = NULL;
+	uint8_t *raw_place = NULL, *scaled_place = NULL;
 	uint8_t chip_1_port_e = 0, chip_1_port_f = 0, chip_2_port_e = 0, chip_2_port_f = 0;
 	uint16_t capped_reading = 0;
 
@@ -45,10 +47,10 @@ void read_switches_and_analog(void)
 	screen_turn = screen->index;
 	screen_turn = screen_turn & 1u;
 	converter = ANALOG_INPUTS + screen_turn * 4u;
-	raw_place = analog_raw_ADDRESS + screen_turn * 4u;
-	scaled_place = analog_inputs_ADDRESS + screen_turn * 4u;
+	raw_place = pointer_to(analog_raw_ADDRESS + screen_turn * 4u);
+	scaled_place = pointer_to(analog_inputs_ADDRESS + screen_turn * 4u);
 	inputs_left = analog_input_counts[screen_turn];
-	calibration = analog_calibration_addresses[screen_turn];
+	calibration = pointer_to(analog_calibration_addresses[screen_turn]);
 	do
 	{
 		io_write8(converter, 0xFFu);
@@ -67,10 +69,10 @@ void read_switches_and_analog(void)
 		reading = (uint16_t)(reading * 2u);
 		reading = (uint16_t)((reading & ~0xFFu) | io_read8(converter));
 		reading = reading >> 7;
-		ANALOG_VALUES(raw_place)[0] = (uint8_t)reading;
-		calibration_low = ANALOG_CALIBRATION_BYTES(calibration)[0];
+		raw_place[0] = (uint8_t)reading;
+		calibration_low = calibration[0];
 		calibration++;
-		calibration_high = ANALOG_CALIBRATION_BYTES(calibration)[0];
+		calibration_high = calibration[0];
 		raw_place++;
 		calibration++;
 		if (calibration_high < reading)
@@ -79,7 +81,7 @@ void read_switches_and_analog(void)
 		reading = (uint16_t)(capped_reading - calibration_low);
 		if ((int16_t)capped_reading < (int16_t)calibration_low)
 			reading = 0u;
-		ANALOG_VALUES(scaled_place)[0] = divide_u16((uint16_t)(reading * 0xFFu), (uint16_t)(calibration_high - calibration_low));
+		scaled_place[0] = divide_u16((uint16_t)(reading * 0xFFu), (uint16_t)(calibration_high - calibration_low));
 		inputs_left--;
 		scaled_place++;
 		converter += 2u;
@@ -212,6 +214,7 @@ void queue_seat_inputs(void)
 void queue_screen_inputs(struct screen *seat_screen, struct seat_inputs *seat_record, uint32_t io_chip)
 {
 	uint32_t input_write_place = 0, inputs = 0, seat_inputs = 0;
+	uint32_t wheel_long = 0;
 
 	if (game->isdn_mode != 0u)
 		seat_record = pointer_to(seat_screen->race_copy + 0x2Cu);
@@ -220,7 +223,11 @@ void queue_screen_inputs(struct screen *seat_screen, struct seat_inputs *seat_re
 	input_write_place = seat_screen->input_write_place;
 	seat_screen->input_ring[(int32_t)input_write_place] = (uint16_t)(inputs << 8) | (uint8_t)seat_inputs;
 	seat_screen->input_write_place = (input_write_place + 1u) & 7u;
-	AS32(seat_screen->wheel) = seat_inputs >> 8;
+	wheel_long = seat_inputs >> 8;
+	seat_screen->wheel = (uint8_t)wheel_long;
+	seat_screen->gas = (uint8_t)(wheel_long >> 8u);
+	seat_screen->brake = (uint8_t)(wheel_long >> 16u);
+	seat_screen->controls_spare = (uint8_t)(wheel_long >> 24u);
 }
 
 /* Takes the screen's inputs for the frame from its ring (input_read_place; both frame loops, before
@@ -260,7 +267,12 @@ uint32_t take_screen_inputs(void)
 		input_changes = input_changes | status_cleared;
 		screen->link_status_changed = input_changes;
 		if (screen->game_mode != 8u && (new_link_status & 0xCu) != 0u)
-			AS32(screen->game_mode) = 8u;
+		{
+			screen->game_mode = 8u;
+			screen->mode_step = 0u;
+			screen->game_step = 0u;
+			screen->game_mode_spare = 0u;
+		}
 	}
 	return input_changes;
 }

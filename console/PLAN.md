@@ -320,6 +320,18 @@ merged here; this repository adds console/, the ports and their documents.
   and forces.c alone through changes while it runs (the spring updated, erased at 0 and made again, the sine
   updated while playing, the pause's hold, the haptic let go at 0/0 and opened again). Not checked on a real
   wheel nor on Windows' DirectInput.
+- Merge outrunners-decomp up to ba27c10 (the core at arcade-decomp dfc18d9, console-original f9a4594): each
+  value at its own width on a big-endian processor, the board's memories in the host's order, the program's
+  data laid out as the code reads it. src/ written again with console/replaced.txt; console/routes.c reads
+  and writes the background's page word as its two halves (the union gone from struct tilemap_pages). The
+  first run's layout written again (extract_layout.py: the tables the decomp split, background_tile_page_lists
+  and its packed pages, the backgrounds of four scenes...), and with it the assets' version: a computer's
+  first-run folder is taken out again, and a device's pack made before is refused (another version: its
+  package is made again with this version's tools). The pack keeps the data as a little-endian host holds it,
+  with no units (only a big-endian host's chip_byte reads them). Checked: the 16 scenarios identical; the
+  first run's folder against extract_assets.py's, no difference; OutRunners Arcade's window (three video
+  threads) on coin_start and two_players, its state, picture and sound the reference's; a pack written and
+  two_players run from it with three video threads, the same; a pack made before, refused.
 
 ## To do
 

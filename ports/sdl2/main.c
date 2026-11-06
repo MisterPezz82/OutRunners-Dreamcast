@@ -2223,11 +2223,12 @@ int main(int argc, char **argv)
 	s32_board.controls_update = on_controls_update;
 	s32_board.log = on_log;
 	s32_board.frame_timing = true;
-	s32_board.program_at = data_at;
+	s32_board.program_at = data_byte_at;
 	s32_init(NULL);
 	s32_video_init_graphics(assets_graphics());
 	s32_board.frame_shown = on_frame_shown;
 	s32_board.sound_at = assets_sound_data;
+	s32_board.sound_byte_at = assets_sound_byte;
 	s32_board.pcm_at = assets_pcm_byte;
 	sound_chips_attach();
 	sound_cpu_attach();

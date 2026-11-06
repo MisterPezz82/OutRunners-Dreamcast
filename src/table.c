@@ -3,7 +3,7 @@
  *    Description: the registers the whole program shares, the code calls through memory slots reach (by address), and the reset entry
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -344,6 +344,7 @@ const game_code_entry game_code[] =
 const size_t game_code_count = 244;
 
 const void *boot_e80000_bytes_data;
+const void *boot_interrupt_control_bytes_data;
 const void *seat_credits_addresses_data;
 const void *game_mode_jumps_data;
 const void *analog_calibration_addresses_data;
@@ -372,6 +373,7 @@ const void *unused_attract_car_caption_palettes_data;
 const void *car_name_letter_state_jumps_data;
 const void *attract_car_picture_animations_data;
 const void *attract_car_scene_palettes_data;
+const void *car_presentation_backgrounds_data;
 const void *car_presentation_palette_cycle_data;
 const void *staff_credits_code_sequence_data;
 const void *attract_car_names_data;
@@ -416,6 +418,7 @@ const void *ranking_course_banner_animations_data;
 const void *ranking_course_banner_palettes_data;
 const void *certificate_course_animations_data;
 const void *certificate_course_palettes_data;
+const void *name_entry_backgrounds_data;
 const void *game_step_jumps_data;
 const void *game_start_c00074_bytes_data;
 const void *game_end_c00074_bytes_data;
@@ -439,6 +442,7 @@ const void *route_map_direction_sign_state_jumps_data;
 const void *route_map_wait_banner_state_jumps_data;
 const void *game_over_banner_state_jumps_data;
 const void *route_map_register_sets_data;
+const void *route_map_backgrounds_data;
 const void *route_map_close_up_pages_data;
 const void *route_map_routes_pages_data;
 const void *route_map_world_pages_data;
@@ -482,6 +486,7 @@ const void *entry_traffic_car_state_jumps_data;
 const void *car_pass_sounds_data;
 const void *traffic_path_data;
 const void *car_select_tilemap_setups_data;
+const void *entry_countdown_backgrounds_data;
 const void *car_select_default_cars_data;
 const void *turntable_car_looks_data;
 const void *turntable_car_frames_data;
@@ -596,6 +601,7 @@ const void *animation_order_jumps_data;
 const void *smoothed_flip_x_signs_data;
 const void *smoothed_flip_signs_data;
 const void *sprite_list_switches_data;
+const void *sprite_list_switch_records_data;
 const void *course_command_jumps_data;
 const void *unused_segment_steps_data;
 const void *unused_segment_shifts_data;
@@ -867,6 +873,7 @@ const void *boot_tile_pages_5e_data;
 const void *boot_tile_pages_29_to_4e_data;
 const void *no_background_tile_pages_data;
 const void *background_tile_page_lists_data;
+const void *background_packed_tile_pages_data;
 const void *text_sprite_words_0_1_data;
 const void *text_sprite_size_data;
 const void *text_sprite_font_data;
@@ -889,6 +896,7 @@ const void *kanji_font_data;
 const game_table game_tables[] =
 {
 	{ "boot_e80000_bytes", 0x0000B4u, &boot_e80000_bytes_data },
+	{ "boot_interrupt_control_bytes", 0x0000B8u, &boot_interrupt_control_bytes_data },
 	{ "seat_credits_addresses", 0x0008C4u, &seat_credits_addresses_data },
 	{ "game_mode_jumps", 0x0008CCu, &game_mode_jumps_data },
 	{ "analog_calibration_addresses", 0x000B0Cu, &analog_calibration_addresses_data },
@@ -917,6 +925,7 @@ const game_table game_tables[] =
 	{ "car_name_letter_state_jumps", 0x0019CCu, &car_name_letter_state_jumps_data },
 	{ "attract_car_picture_animations", 0x001A88u, &attract_car_picture_animations_data },
 	{ "attract_car_scene_palettes", 0x001A98u, &attract_car_scene_palettes_data },
+	{ "car_presentation_backgrounds", 0x001AA0u, &car_presentation_backgrounds_data },
 	{ "car_presentation_palette_cycle", 0x001AC8u, &car_presentation_palette_cycle_data },
 	{ "staff_credits_code_sequence", 0x001ADCu, &staff_credits_code_sequence_data },
 	{ "attract_car_names", 0x001CECu, &attract_car_names_data },
@@ -961,6 +970,7 @@ const game_table game_tables[] =
 	{ "ranking_course_banner_palettes", 0x002E10u, &ranking_course_banner_palettes_data },
 	{ "certificate_course_animations", 0x002E24u, &certificate_course_animations_data },
 	{ "certificate_course_palettes", 0x002E38u, &certificate_course_palettes_data },
+	{ "name_entry_backgrounds", 0x002E4Cu, &name_entry_backgrounds_data },
 	{ "game_step_jumps", 0x002E80u, &game_step_jumps_data },
 	{ "game_start_c00074_bytes", 0x003463u, &game_start_c00074_bytes_data },
 	{ "game_end_c00074_bytes", 0x003465u, &game_end_c00074_bytes_data },
@@ -984,6 +994,7 @@ const game_table game_tables[] =
 	{ "route_map_wait_banner_state_jumps", 0x0046C8u, &route_map_wait_banner_state_jumps_data },
 	{ "game_over_banner_state_jumps", 0x00477Cu, &game_over_banner_state_jumps_data },
 	{ "route_map_register_sets", 0x0047E8u, &route_map_register_sets_data },
+	{ "route_map_backgrounds", 0x004868u, &route_map_backgrounds_data },
 	{ "route_map_close_up_pages", 0x0048B8u, &route_map_close_up_pages_data },
 	{ "route_map_routes_pages", 0x0048C0u, &route_map_routes_pages_data },
 	{ "route_map_world_pages", 0x0048C8u, &route_map_world_pages_data },
@@ -1027,6 +1038,7 @@ const game_table game_tables[] =
 	{ "car_pass_sounds", 0x0067A9u, &car_pass_sounds_data },
 	{ "traffic_path", 0x0067B2u, &traffic_path_data },
 	{ "car_select_tilemap_setups", 0x006920u, &car_select_tilemap_setups_data },
+	{ "entry_countdown_backgrounds", 0x006988u, &entry_countdown_backgrounds_data },
 	{ "car_select_default_cars", 0x0069B0u, &car_select_default_cars_data },
 	{ "turntable_car_looks", 0x0069B8u, &turntable_car_looks_data },
 	{ "turntable_car_frames", 0x0069D8u, &turntable_car_frames_data },
@@ -1141,6 +1153,7 @@ const game_table game_tables[] =
 	{ "smoothed_flip_x_signs", 0x00F4E8u, &smoothed_flip_x_signs_data },
 	{ "smoothed_flip_signs", 0x00F4ECu, &smoothed_flip_signs_data },
 	{ "sprite_list_switches", 0x00F508u, &sprite_list_switches_data },
+	{ "sprite_list_switch_records", 0x00F528u, &sprite_list_switch_records_data },
 	{ "course_command_jumps", 0x00FF40u, &course_command_jumps_data },
 	{ "unused_segment_steps", 0x010309u, &unused_segment_steps_data },
 	{ "unused_segment_shifts", 0x010425u, &unused_segment_shifts_data },
@@ -1412,6 +1425,7 @@ const game_table game_tables[] =
 	{ "boot_tile_pages_29_to_4e", 0x109578u, &boot_tile_pages_29_to_4e_data },
 	{ "no_background_tile_pages", 0x109684u, &no_background_tile_pages_data },
 	{ "background_tile_page_lists", 0x109694u, &background_tile_page_lists_data },
+	{ "background_packed_tile_pages", 0x109E0Cu, &background_packed_tile_pages_data },
 	{ "text_sprite_words_0_1", 0x122B5Cu, &text_sprite_words_0_1_data },
 	{ "text_sprite_size", 0x122B60u, &text_sprite_size_data },
 	{ "text_sprite_font", 0x122B64u, &text_sprite_font_data },
@@ -1431,7 +1445,7 @@ const game_table game_tables[] =
 	{ "kanji_font", 0x1CF000u, &kanji_font_data },
 };
 
-const size_t game_table_count = 541;
+const size_t game_table_count = 548;
 
 /* the code at the reset vector */
 void game_entry(void)

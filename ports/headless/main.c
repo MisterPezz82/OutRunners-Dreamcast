@@ -5,7 +5,7 @@
  *                 format tools/core/system32/reference/s32ref uses
  *    Version:     0.1.0
  *    Created:     11-10-2026
- *    Modified:    01-11-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -588,9 +588,11 @@ int main(int argc, char **argv)
 			return 0;
 		}
 	}
-	s32_board.program_at = data_at;
+	s32_board.program_at = data_byte_at;
 	if (getenv("ORUNNERS_DUMP_ASSETS") && !assets_dump(getenv("ORUNNERS_DUMP_ASSETS")))
 		fprintf(stderr, "%s cannot be written\n", getenv("ORUNNERS_DUMP_ASSETS"));
+	if (getenv("ORUNNERS_DUMP_UNITS") && !assets_dump_units(getenv("ORUNNERS_DUMP_UNITS")))
+		fprintf(stderr, "%s cannot be written\n", getenv("ORUNNERS_DUMP_UNITS"));
 #endif
 	if (script_path)
 	{
@@ -652,6 +654,7 @@ int main(int argc, char **argv)
 		s32_board.pcm_rom = game_pcm;
 #else
 		s32_board.sound_at = assets_sound_data;
+		s32_board.sound_byte_at = assets_sound_byte;
 		s32_board.pcm_at = assets_pcm_byte;
 #endif
 		sound_chips_attach();

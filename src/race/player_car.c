@@ -3,7 +3,7 @@
  *    Description: the screen's car each frame: its place, the view, the rivals' warning, the crash physics
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -290,7 +290,7 @@ void player_car_update(void)
 					player_car->wheel_effect_1 = 2u;
 					player_car->wheel_effect_2 = 2u;
 					player_car->wheel_effect_sides = 3u;
-					AS16(player_car->brake_lights) = 2u;
+					player_car->brake_lights = 2u;
 					player_car_place_view(pointer_to(segment_record), r12, road_x, segment_fraction, segment_length);
 					player_car_move_view();
 					player_car_set_horizon();
@@ -1370,17 +1370,14 @@ void rival_alarm_update(void)
    push_decay, gravity and the address of its crash table. */
 void player_car_load_crash_physics(void)
 {
-	uint32_t crash_physics = 0;
+	const struct crash_physics *crash_physics = NULL;
 
-	crash_physics = car_crash_physics[player_car->model];
-	player_car->bounce_damping = CRASH_PHYSICS(crash_physics)->bounce_damping;
-	crash_physics += 2u;
-	player_car->speed_change_decay = CRASH_PHYSICS(crash_physics - 0x2u)->speed_change_decay;
-	crash_physics += 2u;
-	player_car->push_decay = CRASH_PHYSICS(crash_physics - 0x4u)->push_decay;
-	crash_physics += 2u;
-	player_car->gravity = CRASH_PHYSICS(crash_physics - 0x6u)->gravity;
-	player_car->crash_table = crash_physics + 2u;
+	crash_physics = rom_pointer(car_crash_physics[player_car->model]);
+	player_car->bounce_damping = crash_physics->bounce_damping;
+	player_car->speed_change_decay = crash_physics->speed_change_decay;
+	player_car->push_decay = crash_physics->push_decay;
+	player_car->gravity = crash_physics->gravity;
+	player_car->crash_table = address_of(&crash_physics->gravity) + 2u;
 }
 
 /* The crash playing out, each frame of player_car_update's state 5 and the frame a hit starts it: at the

@@ -4,7 +4,7 @@
  *                 (extract.c), without their bytes
  *    Version:     0.1.0
  *    Created:     29-10-2026
- *    Modified:    29-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -19,7 +19,8 @@ const extract_piece extract_program_pieces[] = {
 	{ 0x000000u, 0x6u, "data_000000" },
 	{ 0x0000A3u, 0x1u, "data_0000A3" },
 	{ 0x0000A4u, 0x10u, "boot_e00000_bytes" },
-	{ 0x0000B4u, 0x10u, "boot_e80000_bytes" },
+	{ 0x0000B4u, 0x4u, "boot_e80000_bytes" },
+	{ 0x0000B8u, 0xCu, "boot_interrupt_control_bytes" },
 	{ 0x00010Cu, 0x30u, "signature_text" },
 	{ 0x0004C0u, 0x80u, "default_settings" },
 	{ 0x0008C4u, 0x8u, "seat_credits_addresses" },
@@ -65,7 +66,8 @@ const extract_piece extract_program_pieces[] = {
 	{ 0x001A78u, 0x4u, "car_presentation_objects" },
 	{ 0x001A7Cu, 0xCu, "car_presentation_object_handlers" },
 	{ 0x001A88u, 0x10u, "attract_car_picture_animations" },
-	{ 0x001A98u, 0x30u, "attract_car_scene_palettes" },
+	{ 0x001A98u, 0x8u, "attract_car_scene_palettes" },
+	{ 0x001AA0u, 0x28u, "car_presentation_backgrounds" },
 	{ 0x001AC8u, 0x14u, "car_presentation_palette_cycle" },
 	{ 0x001ADCu, 0xCu, "staff_credits_code_sequence" },
 	{ 0x001AE8u, 0x204u, "staff_credits_texts" },
@@ -129,7 +131,8 @@ const extract_piece extract_program_pieces[] = {
 	{ 0x002DFCu, 0x14u, "ranking_course_banner_animations" },
 	{ 0x002E10u, 0x14u, "ranking_course_banner_palettes" },
 	{ 0x002E24u, 0x14u, "certificate_course_animations" },
-	{ 0x002E38u, 0x3Cu, "certificate_course_palettes" },
+	{ 0x002E38u, 0x14u, "certificate_course_palettes" },
+	{ 0x002E4Cu, 0x28u, "name_entry_backgrounds" },
 	{ 0x002E80u, 0x74u, "game_step_jumps" },
 	{ 0x003463u, 0x2u, "game_start_c00074_bytes" },
 	{ 0x003465u, 0x2u, "game_end_c00074_bytes" },
@@ -170,7 +173,8 @@ const extract_piece extract_program_pieces[] = {
 	{ 0x0046C6u, 0x2u, "data_0046C6" },
 	{ 0x0046C8u, 0x10u, "route_map_wait_banner_state_jumps" },
 	{ 0x00477Cu, 0xCu, "game_over_banner_state_jumps" },
-	{ 0x0047E8u, 0xD0u, "route_map_register_sets" },
+	{ 0x0047E8u, 0x80u, "route_map_register_sets" },
+	{ 0x004868u, 0x50u, "route_map_backgrounds" },
 	{ 0x0048B8u, 0x8u, "route_map_close_up_pages" },
 	{ 0x0048C0u, 0x8u, "route_map_routes_pages" },
 	{ 0x0048C8u, 0x8u, "route_map_world_pages" },
@@ -228,7 +232,8 @@ const extract_piece extract_program_pieces[] = {
 	{ 0x0067A9u, 0x9u, "car_pass_sounds" },
 	{ 0x0067B2u, 0x14Cu, "traffic_path" },
 	{ 0x00691Du, 0x3u, "data_00691D" },
-	{ 0x006920u, 0x90u, "car_select_tilemap_setups" },
+	{ 0x006920u, 0x68u, "car_select_tilemap_setups" },
+	{ 0x006988u, 0x28u, "entry_countdown_backgrounds" },
 	{ 0x0069B0u, 0x8u, "car_select_default_cars" },
 	{ 0x0069B8u, 0x20u, "turntable_car_looks" },
 	{ 0x0069D8u, 0x40u, "turntable_car_frames" },
@@ -400,7 +405,8 @@ const extract_piece extract_program_pieces[] = {
 	{ 0x00F34Bu, 0x1u, "data_00F34B" },
 	{ 0x00F34Cu, 0xCu, "animation_order_jumps" },
 	{ 0x00F4E8u, 0x20u, "smoothed_flip_x_signs" },
-	{ 0x00F508u, 0xC0u, "sprite_list_switches" },
+	{ 0x00F508u, 0x20u, "sprite_list_switches" },
+	{ 0x00F528u, 0xA0u, "sprite_list_switch_records" },
 	{ 0x00F90Bu, 0x1u, "data_00F90B" },
 	{ 0x00FF40u, 0x1Cu, "course_command_jumps" },
 	{ 0x010309u, 0x11Cu, "unused_segment_steps" },
@@ -834,7 +840,8 @@ const extract_piece extract_program_pieces[] = {
 	{ 0x109420u, 0x158u, "boot_tile_pages_5d" },
 	{ 0x109578u, 0x10Cu, "boot_tile_pages_29_to_4e" },
 	{ 0x109684u, 0x10u, "no_background_tile_pages" },
-	{ 0x109694u, 0x192E8u, "background_tile_page_lists" },
+	{ 0x109694u, 0x778u, "background_tile_page_lists" },
+	{ 0x109E0Cu, 0x18B70u, "background_packed_tile_pages" },
 	{ 0x12297Cu, 0x1E0u, "solid_colour_blocks" },
 	{ 0x122B5Cu, 0x4u, "text_sprite_words_0_1" },
 	{ 0x122B60u, 0x4u, "text_sprite_size" },

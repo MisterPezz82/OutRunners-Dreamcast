@@ -3,7 +3,7 @@
  *    Description: the text: the fonts, the text layer's strings, numbers in hexadecimal and BCD, text in sprites
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -25,9 +25,11 @@ void load_shadowed_text_font(void)
 {
 	uint32_t carry = 0;
 	uint8_t row_bits = 0;
-	uint32_t characters_left = 0, destination = 0, font_rows = 0, pen = 0, pixel_mask = 0, pixel_pairs_left = 0, row_pixels = 0, rows_left = 0, shadow = 0, shadow_pixels = 0;
+	uint32_t characters_left = 0, destination = 0, pen = 0, pixel_mask = 0, pixel_pairs_left = 0, row_pixels = 0, rows_left = 0, shadow = 0, shadow_pixels = 0;
+	const uint8_t *font_rows = NULL;
+	uint32_t text_layer_font_words_long = 0;
 
-	font_rows = one_bit_font_ADDRESS;
+	font_rows = rom_pointer(one_bit_font_ADDRESS);
 	destination = VIDEO_RAM + 0x18000u;
 	pen = 1u;
 	characters_left = 0x80u;
@@ -37,7 +39,7 @@ void load_shadowed_text_font(void)
 		shadow = 0u;
 		do
 		{
-			row_bits = TEXT_FONT_ROWS(font_rows)[0];
+			row_bits = font_rows[0];
 			pixel_pairs_left = 4u;
 			row_pixels = 0u;
 			font_rows++;
@@ -55,7 +57,9 @@ void load_shadowed_text_font(void)
 			shadow_pixels = row_pixels;
 			pixel_mask = row_pixels * 0xFu;
 			row_pixels = row_pixels * pen;
-			TEXT_LAYER_FONT_ROWS(destination)[0] = byte_swap32((shadow & ~pixel_mask) | row_pixels);
+			text_layer_font_words_long = byte_swap32((shadow & ~pixel_mask) | row_pixels);
+			TEXT_LAYER_FONT_WORDS(destination)[0] = (uint16_t)text_layer_font_words_long;
+			TEXT_LAYER_FONT_WORDS(destination)[1] = (uint16_t)(text_layer_font_words_long >> 16u);
 			shadow = (row_pixels + shadow_pixels) >> 4;
 			destination += 4u;
 			rows_left--;
@@ -315,7 +319,7 @@ uint32_t draw_text(const struct sprite_text_record *text_record)
 	sprite_copy = sprite + 0x3000u;
 	sprite_words_0 = text_sprite_words_0_1;
 	sprite_size = text_sprite_size | ((uint32_t)screen->sprite_screen_bit << 16);
-	place = text_record->place;
+	place = (text_record->x | ((uint32_t)text_record->y << 16u));
 	place = (place << 16) | (place >> 16);
 	font = text_sprite_font;
 	attribute = text_sprite_palette | text_record->attribute;
@@ -340,16 +344,22 @@ uint32_t draw_text_sprites(uint32_t sprite_words_0_1, uint32_t sprite_size, uint
 	do
 	{
 		character = (uint16_t)(((uint32_t)character << 3) + font);
-		AS32(SPRITE_WORDS(sprite)[0]) = sprite_words_0_1;
-		AS32(SPRITE_WORDS(sprite_copy)[0]) = sprite_words_0_1;
+		SPRITE_WORDS(sprite)[0] = (uint16_t)sprite_words_0_1;
+		SPRITE_WORDS(sprite)[1] = (uint16_t)(sprite_words_0_1 >> 16u);
+		SPRITE_WORDS(sprite_copy)[0] = (uint16_t)sprite_words_0_1;
+		SPRITE_WORDS(sprite_copy)[1] = (uint16_t)(sprite_words_0_1 >> 16u);
 		sprite_copy += 4u;
 		sprite += 4u;
-		AS32(SPRITE_WORDS(sprite)[0]) = sprite_size;
-		AS32(SPRITE_WORDS(sprite_copy)[0]) = sprite_size;
+		SPRITE_WORDS(sprite)[0] = (uint16_t)sprite_size;
+		SPRITE_WORDS(sprite)[1] = (uint16_t)(sprite_size >> 16u);
+		SPRITE_WORDS(sprite_copy)[0] = (uint16_t)sprite_size;
+		SPRITE_WORDS(sprite_copy)[1] = (uint16_t)(sprite_size >> 16u);
 		sprite_copy += 4u;
 		sprite += 4u;
-		AS32(SPRITE_WORDS(sprite)[0]) = place;
-		AS32(SPRITE_WORDS(sprite_copy)[0]) = place;
+		SPRITE_WORDS(sprite)[0] = (uint16_t)place;
+		SPRITE_WORDS(sprite)[1] = (uint16_t)(place >> 16u);
+		SPRITE_WORDS(sprite_copy)[0] = (uint16_t)place;
+		SPRITE_WORDS(sprite_copy)[1] = (uint16_t)(place >> 16u);
 		sprite_copy += 4u;
 		sprite += 4u;
 		SPRITE_WORDS(sprite)[0] = character;
@@ -370,8 +380,10 @@ uint32_t draw_text_sprites(uint32_t sprite_words_0_1, uint32_t sprite_size, uint
 	if (text_depth_list_head == 0u)
 		depth_layer->text_depth_list_tail = sprite;
 	first_sprite = screen->sprite_list_last + 0x10u;
-	AS32(SPRITE_WORDS(sprite)[0]) = text_depth_list_head;
-	AS32(SPRITE_WORDS(sprite_copy)[0]) = (uint16_t)(text_depth_list_head + 0x300u);
+	SPRITE_WORDS(sprite)[0] = (uint16_t)text_depth_list_head;
+	SPRITE_WORDS(sprite)[1] = (uint16_t)(text_depth_list_head >> 16u);
+	SPRITE_WORDS(sprite_copy)[0] = (uint16_t)(text_depth_list_head + 0x300u);
+	SPRITE_WORDS(sprite_copy)[1] = 0u;
 	screen->sprite_list_last = sprite;
 	depth_layer->text_depth_list_head = (first_sprite >> 4) | 0x8000u;
 	screen->sprite_groups++;

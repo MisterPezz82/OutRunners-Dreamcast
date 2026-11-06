@@ -3,7 +3,7 @@
  *    Description: the interrupts: the VBLANK (the tasks, the mixer and scrolls, the test button, the sound requests, the lamps), the timers and the link
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -27,7 +27,7 @@
 void int_vector_40(void)
 {
 	uint8_t tile_bank_bits = 0;
-	uint32_t screen_vblank_counter = 0;
+	uint8_t *screen_vblank_counter = NULL;
 	uint32_t saved_screen = 0, saved_r12 = 0, saved_screen_2 = 0;
 
 	saved_screen = address_of(screen);
@@ -88,8 +88,8 @@ void int_vector_40(void)
 	game->frame_ready = 0xFFu;
 	if (game->single_task == 0u && ((game->test_mode_on != 0u && screen->index == 0u) || game->task_swapping != 0u))
 		swap_tasks();
-	screen_vblank_counter = screen_vblank_counters[screen->index];
-	VBLANK_COUNT(screen_vblank_counter)[0]++;
+	screen_vblank_counter = pointer_to(screen_vblank_counters[screen->index]);
+	screen_vblank_counter[0]++;
 	r12 = saved_r12;
 	screen = pointer_to(saved_screen);
 	io_write8(IRQ_ACKNOWLEDGE, 0xFEu);
@@ -135,40 +135,57 @@ void vblank_update_mixer(void)
 /* In the vertical blank, the tilemaps' scrolls (two per screen): those of the screen whose task was
    running from video_registers[8] and video_registers[16] as they are; those of the other screen
    half-way between the values they have (video_registers[8], video_registers[16] by screen) and the new
-   ones (scroll_targets, scroll_targets[4]), which become their values: the in-between frame of the
+   ones (scroll_targets, scroll_targets[8]), which become their values: the in-between frame of the
    screen whose task did not run (each task's scrolls change every other frame); and the byte at 31FF05
    from video_registers[2]'s second byte, which steps by 4 (bits 2-3). */
 void vblank_update_scrolls(void)
 {
 	uint8_t control_byte = 0;
 	uint32_t new_scroll = 0, old_scroll = 0, other_layer = 0, running_layer = 0;
+	uint32_t nbg0_scroll_x_long = 0, nbg0_scroll_y_long = 0, nbg2_scroll_x_long = 0, nbg2_scroll_y_long = 0;
 
 	running_layer = screen->index * 2u;
-	NBG0_SCROLL_X[running_layer] = AS32(game->video_registers[8 + running_layer * 2u]);
-	NBG0_SCROLL_Y[running_layer] = AS32(game->video_registers[10 + running_layer * 2u]);
+	NBG0_SCROLL_X[running_layer * 2u] = game->video_registers[8 + running_layer * 2u];
+	NBG0_SCROLL_X[running_layer * 2u + 1] = game->video_registers[9 + running_layer * 2u];
+	NBG0_SCROLL_Y[running_layer * 2u] = game->video_registers[10 + running_layer * 2u];
+	NBG0_SCROLL_Y[running_layer * 2u + 1] = game->video_registers[11 + running_layer * 2u];
 	other_layer = 0u - running_layer + 2u;
-	old_scroll = AS32(game->video_registers[8 + other_layer * 2u]);
-	new_scroll = game->scroll_targets[other_layer];
-	AS32(game->video_registers[8 + other_layer * 2u]) = new_scroll;
+	old_scroll = (game->video_registers[8 + other_layer * 2u] | ((uint32_t)game->video_registers[9 + other_layer * 2u] << 16u));
+	new_scroll = (game->scroll_targets[other_layer * 2u] | ((uint32_t)game->scroll_targets[other_layer * 2u + 1] << 16u));
+	game->video_registers[8 + other_layer * 2u] = (uint16_t)new_scroll;
+	game->video_registers[9 + other_layer * 2u] = (uint16_t)(new_scroll >> 16u);
 	new_scroll = new_scroll << 6;
-	NBG0_SCROLL_X[other_layer] = (((int32_t)((old_scroll << 6) - new_scroll) >> 1) + new_scroll) >> 6;
-	old_scroll = AS32(game->video_registers[10 + other_layer * 2u]);
-	new_scroll = game->scroll_targets[1 + other_layer];
-	AS32(game->video_registers[10 + other_layer * 2u]) = new_scroll;
+	nbg0_scroll_x_long = (((int32_t)((old_scroll << 6) - new_scroll) >> 1) + new_scroll) >> 6;
+	NBG0_SCROLL_X[other_layer * 2u] = (uint16_t)nbg0_scroll_x_long;
+	NBG0_SCROLL_X[other_layer * 2u + 1] = (uint16_t)(nbg0_scroll_x_long >> 16u);
+	old_scroll = (game->video_registers[10 + other_layer * 2u] | ((uint32_t)game->video_registers[11 + other_layer * 2u] << 16u));
+	new_scroll = (game->scroll_targets[2 + other_layer * 2u] | ((uint32_t)game->scroll_targets[3 + other_layer * 2u] << 16u));
+	game->video_registers[10 + other_layer * 2u] = (uint16_t)new_scroll;
+	game->video_registers[11 + other_layer * 2u] = (uint16_t)(new_scroll >> 16u);
 	new_scroll = new_scroll << 7;
-	NBG0_SCROLL_Y[other_layer] = (((int32_t)((old_scroll << 7) - new_scroll) >> 1) + new_scroll) >> 7;
-	NBG2_SCROLL_X[running_layer] = AS32(game->video_registers[16 + running_layer * 2u]);
-	NBG2_SCROLL_Y[running_layer] = AS32(game->video_registers[18 + running_layer * 2u]);
-	old_scroll = AS32(game->video_registers[16 + other_layer * 2u]);
-	new_scroll = game->scroll_targets[4 + other_layer];
-	AS32(game->video_registers[16 + other_layer * 2u]) = new_scroll;
+	nbg0_scroll_y_long = (((int32_t)((old_scroll << 7) - new_scroll) >> 1) + new_scroll) >> 7;
+	NBG0_SCROLL_Y[other_layer * 2u] = (uint16_t)nbg0_scroll_y_long;
+	NBG0_SCROLL_Y[other_layer * 2u + 1] = (uint16_t)(nbg0_scroll_y_long >> 16u);
+	NBG2_SCROLL_X[running_layer * 2u] = game->video_registers[16 + running_layer * 2u];
+	NBG2_SCROLL_X[running_layer * 2u + 1] = game->video_registers[17 + running_layer * 2u];
+	NBG2_SCROLL_Y[running_layer * 2u] = game->video_registers[18 + running_layer * 2u];
+	NBG2_SCROLL_Y[running_layer * 2u + 1] = game->video_registers[19 + running_layer * 2u];
+	old_scroll = (game->video_registers[16 + other_layer * 2u] | ((uint32_t)game->video_registers[17 + other_layer * 2u] << 16u));
+	new_scroll = (game->scroll_targets[8 + other_layer * 2u] | ((uint32_t)game->scroll_targets[9 + other_layer * 2u] << 16u));
+	game->video_registers[16 + other_layer * 2u] = (uint16_t)new_scroll;
+	game->video_registers[17 + other_layer * 2u] = (uint16_t)(new_scroll >> 16u);
 	new_scroll = new_scroll << 6;
-	NBG2_SCROLL_X[other_layer] = (((int32_t)((old_scroll << 6) - new_scroll) >> 1) + new_scroll) >> 6;
-	old_scroll = AS32(game->video_registers[18 + other_layer * 2u]);
-	new_scroll = game->scroll_targets[5 + other_layer];
-	AS32(game->video_registers[18 + other_layer * 2u]) = new_scroll;
+	nbg2_scroll_x_long = (((int32_t)((old_scroll << 6) - new_scroll) >> 1) + new_scroll) >> 6;
+	NBG2_SCROLL_X[other_layer * 2u] = (uint16_t)nbg2_scroll_x_long;
+	NBG2_SCROLL_X[other_layer * 2u + 1] = (uint16_t)(nbg2_scroll_x_long >> 16u);
+	old_scroll = (game->video_registers[18 + other_layer * 2u] | ((uint32_t)game->video_registers[19 + other_layer * 2u] << 16u));
+	new_scroll = (game->scroll_targets[10 + other_layer * 2u] | ((uint32_t)game->scroll_targets[11 + other_layer * 2u] << 16u));
+	game->video_registers[18 + other_layer * 2u] = (uint16_t)new_scroll;
+	game->video_registers[19 + other_layer * 2u] = (uint16_t)(new_scroll >> 16u);
 	new_scroll = new_scroll << 7;
-	NBG2_SCROLL_Y[other_layer] = (((int32_t)((old_scroll << 7) - new_scroll) >> 1) + new_scroll) >> 7;
+	nbg2_scroll_y_long = (((int32_t)((old_scroll << 7) - new_scroll) >> 1) + new_scroll) >> 7;
+	NBG2_SCROLL_Y[other_layer * 2u] = (uint16_t)nbg2_scroll_y_long;
+	NBG2_SCROLL_Y[other_layer * 2u + 1] = (uint16_t)(nbg2_scroll_y_long >> 16u);
 	control_byte = (uint8_t)(game->video_registers[2] >> 8u);
 	VIDEO_LINE_CONTROL_HIGH = control_byte;
 	game->video_registers[2] = (game->video_registers[2] & 0xFFu) | (((control_byte + 4u) & 0xECu & 0xFFu) << 8u);

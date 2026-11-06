@@ -2,9 +2,9 @@
  *    Name:        routes.c
  *    Description: & KNUCKLES' routes: REVERSE, from a goal the player picks back to the pre-stage, and FULL,
  *                 the 31 stages one after another from the pre-stage to the last goal
- *    Version:     0.1.0
+ *    Version:     0.1.1
  *    Created:     29-10-2026
- *    Modified:    01-11-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -807,20 +807,32 @@ void road_object_stream_read(void)
    its 320 columns, which WIDE's sides show. The sides keep the whole one shown in the middle instead: the
    first of the set through the left column's swap, the last from the right one's on (the palettes' fades
    cover the change, as the game's) */
+/* The background's page word, as the game writes it: its two halves, the upper pages the low one */
+static uint32_t page_word(const struct tilemap_pages *pages)
+{
+	return pages->upper_pages | (uint32_t)pages->lower_pages << 16u;
+}
+
+static void set_page_word(struct tilemap_pages *pages, uint32_t word)
+{
+	pages->upper_pages = (uint16_t)word;
+	pages->lower_pages = (uint16_t)(word >> 16u);
+}
+
 static void wide_background_pages(uint32_t pages_before)
 {
 	const uint32_t written = current_object->race_background.next_page_words - 4u;
 	struct tilemap_pages *const pages = TILEMAP_PAGES(current_object->race_background.page_word_address);
 	uint32_t entry;
 
-	if (console_wide_side() == 0 || pages->pages == pages_before || written < background_page_words_ADDRESS
+	if (console_wide_side() == 0 || page_word(pages) == pages_before || written < background_page_words_ADDRESS
 		|| written >= background_page_words_ADDRESS + 8u * 4u * 4u)
 		return;
 	entry = (written - background_page_words_ADDRESS) / 4u % 4u;
 	if (entry == 1u)
-		pages->pages = BACKGROUND_PAGE_WORD_STEPS(written - 4u)[0];
+		set_page_word(pages, BACKGROUND_PAGE_WORD_STEPS(written - 4u)[0]);
 	else if (entry == 2u)
-		pages->pages = BACKGROUND_PAGE_WORD_STEPS(written + 4u)[0];
+		set_page_word(pages, BACKGROUND_PAGE_WORD_STEPS(written + 4u)[0]);
 }
 
 /* A change's columns swapped in the order the view's turn takes them out of sight, on a route's (FULL and
@@ -835,12 +847,13 @@ static void turn_background_pages(uint32_t pages_before)
 	const int16_t turn = (int16_t)((uint32_t)player_car->view_yaw << 4) >> 4;
 	uint32_t set;
 
-	if (!route_here() || TILEMAP_PAGES(current_object->race_background.page_word_address)->pages == pages_before
+	if (!route_here() || page_word(TILEMAP_PAGES(current_object->race_background.page_word_address)) == pages_before
 		|| written < background_page_words_ADDRESS || written >= background_page_words_ADDRESS + 8u * 4u * 4u
 		|| (written - background_page_words_ADDRESS) / 4u % 4u != 1u)
 		return;
 	set = background_page_words_ADDRESS + (current_object->race_background.page_half * 2u + (turn < 0 ? 1u : 0u)) * 4u * 4u;
-	TILEMAP_PAGES(current_object->race_background.page_word_address)->pages = BACKGROUND_PAGE_WORD_STEPS(set + 4u)[0];
+	set_page_word(TILEMAP_PAGES(current_object->race_background.page_word_address),
+		BACKGROUND_PAGE_WORD_STEPS(set + 4u)[0]);
 	current_object->race_background.next_page_words = set + 8u;
 }
 
@@ -877,7 +890,8 @@ static void fork_background_update(void)
 void race_background_update(void)
 {
 	const bool changing = current_object->state == 2u;
-	const uint32_t pages_before = changing ? TILEMAP_PAGES(current_object->race_background.page_word_address)->pages : 0u;
+	const uint32_t pages_before = changing
+		? page_word(TILEMAP_PAGES(current_object->race_background.page_word_address)) : 0u;
 
 	fork_background_update();
 	if (changing && current_object->state == 2u)

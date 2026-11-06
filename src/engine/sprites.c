@@ -3,7 +3,7 @@
  *    Description: drawing an object: its draw modes, its sprites from its animation's frame, the rows of sprites along the road
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -75,8 +75,10 @@ uint16_t draw_object(uint32_t routine_then_layer)
 		depth_list->tail = sprite_entry;
 	r12 = screen->sprite_list_last + 0x10u;
 	layer_head = depth_list->head;
-	AS32(SPRITE_WORDS(sprite_entry)[0]) = layer_head;
-	AS32(SPRITE_WORDS(sprite_entry)[6144]) = (uint16_t)(layer_head + 0x300u);
+	SPRITE_WORDS(sprite_entry)[0] = (uint16_t)layer_head;
+	SPRITE_WORDS(sprite_entry)[1] = (uint16_t)(layer_head >> 16u);
+	SPRITE_WORDS(sprite_entry + 0x3000u)[0] = (uint16_t)(layer_head + 0x300u);
+	SPRITE_WORDS(sprite_entry + 0x3000u)[1] = 0u;
 	screen->sprite_list_last = sprite_entry;
 	r12 = r12 >> 4;
 	r12 = r12 | 0x8000u;
@@ -425,7 +427,9 @@ void put_object_sprites(uint16_t y, uint32_t height_scale, uint32_t width_scale,
 	uint16_t x = (uint16_t)*p_x;
 	uint32_t sprite_entry = *p_sprite_entry;
 	uint16_t attributes = 0, flip_bits = 0, frame_x = 0, frame_y = 0, sprite_height = 0, sprite_palette_word = 0, sprite_rom_offset = 0, sprite_source_size = 0, sprite_width = 0, sprite_x = 0, sprite_y = 0;
-	uint32_t flip_index = 0, frame = 0, frame_height_scale = 0, frame_width_scale = 0, palette_words = 0, piece_count = 0, signed_height_scale = 0, signed_width_scale = 0, size_step = 0, size_step_offset = 0;
+	uint32_t flip_index = 0, frame = 0, frame_height_scale = 0, frame_width_scale = 0, piece_count = 0, signed_height_scale = 0, signed_width_scale = 0, size_step_offset = 0;
+	const uint16_t *palette_words = NULL;
+	const struct sprite_size_step *size_step = NULL;
 	uint16_t source_size = 0, rom_offset = 0, palette_word = 0, height = 0, height_bits = 0, width = 0;
 
 	frame_x = (uint16_t)x;
@@ -433,7 +437,7 @@ void put_object_sprites(uint16_t y, uint32_t height_scale, uint32_t width_scale,
 	frame_height_scale = height_scale;
 	frame_width_scale = width_scale;
 	frame = SPRITE_ANIMATION(sprite_animations[current_object->animation])->frames[current_object->frame];
-	palette_words = sprite_palettes[current_object->palette];
+	palette_words = rom_pointer(sprite_palettes[current_object->palette]);
 	flip_bits = (current_object->flags | ((uint32_t)current_object->flags_high << 8u)) & 0xC0u;
 	flip_index = flip_bits;
 	flip_index = flip_index >> 5;
@@ -446,49 +450,45 @@ void put_object_sprites(uint16_t y, uint32_t height_scale, uint32_t width_scale,
 		attributes = SPRITE_PIECE(frame)->attributes ^ flip_bits;
 		size_step_offset = current_object->size_step * 3u;
 		frame += 2u;
-		size_step = sprite_size_steps_ADDRESS + (uint16_t)(size_step_offset + SPRITE_PIECE(frame - 0x2u)->sprite) * 4u;
-		source_size = SPRITE_SIZE_STEP(size_step)->source_size;
-		size_step += 2u;
+		size_step = rom_pointer(sprite_size_steps_ADDRESS + (uint16_t)(size_step_offset + SPRITE_PIECE(frame - 0x2u)->sprite) * 4u);
+		source_size = size_step->source_size;
 		sprite_source_size = source_size;
-		rom_offset = SPRITE_SIZE_STEP(size_step - 0x2u)->rom_offset;
-		size_step += 2u;
+		rom_offset = size_step->rom_offset;
 		sprite_rom_offset = rom_offset;
-		palette_word = SPRITE_PALETTE_WORDS(palette_words)[0];
-		palette_words += 2u;
+		palette_word = palette_words[0];
+		palette_words++;
 		sprite_palette_word = palette_word;
-		height = SPRITE_SIZE_STEP(size_step - 0x4u)->height;
-		size_step += 2u;
-		height_bits = SPRITE_SIZE_STEP(size_step - 0x6u)->height_bits;
-		size_step += 2u;
+		height = size_step->height;
+		height_bits = size_step->height_bits;
 		sprite_height = (((height * frame_height_scale) >> 8) & 0x3FFu) | height_bits;
-		width = SPRITE_SIZE_STEP(size_step - 0x8u)->width;
-		sprite_width = (((width * frame_width_scale) >> 8) & 0x3FFu) | SPRITE_SIZE_STEP(size_step - 0x8u)->width_bits | screen->sprite_screen_bit;
+		width = size_step->width;
+		sprite_width = (((width * frame_width_scale) >> 8) & 0x3FFu) | size_step->width_bits | screen->sprite_screen_bit;
 		frame += 2u;
 		sprite_y = (uint16_t)(((int32_t)(SPRITE_PIECE(frame - 0x4u)->y_offset * signed_height_scale) >> 8) + frame_y);
 		frame += 2u;
 		sprite_x = (uint16_t)(((int32_t)(SPRITE_PIECE(frame - 0x6u)->x_offset * signed_width_scale) >> 8) + frame_x);
-		SPRITE_WORDS(sprite_entry)[6144] = attributes;
+		SPRITE_WORDS(sprite_entry + 0x3000u)[0] = attributes;
 		SPRITE_WORDS(sprite_entry)[0] = attributes;
 		sprite_entry += 2u;
-		SPRITE_WORDS(sprite_entry)[6144] = sprite_source_size;
+		SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_source_size;
 		SPRITE_WORDS(sprite_entry)[0] = sprite_source_size;
 		sprite_entry += 2u;
-		SPRITE_WORDS(sprite_entry)[6144] = sprite_height;
+		SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_height;
 		SPRITE_WORDS(sprite_entry)[0] = sprite_height;
 		sprite_entry += 2u;
-		SPRITE_WORDS(sprite_entry)[6144] = sprite_width;
+		SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_width;
 		SPRITE_WORDS(sprite_entry)[0] = sprite_width;
 		sprite_entry += 2u;
-		SPRITE_WORDS(sprite_entry)[6144] = sprite_y;
+		SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_y;
 		SPRITE_WORDS(sprite_entry)[0] = sprite_y;
 		sprite_entry += 2u;
-		SPRITE_WORDS(sprite_entry)[6144] = sprite_x;
+		SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_x;
 		SPRITE_WORDS(sprite_entry)[0] = sprite_x;
 		sprite_entry += 2u;
-		SPRITE_WORDS(sprite_entry)[6144] = sprite_rom_offset;
+		SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_rom_offset;
 		SPRITE_WORDS(sprite_entry)[0] = sprite_rom_offset;
 		sprite_entry += 2u;
-		SPRITE_WORDS(sprite_entry)[6144] = sprite_palette_word;
+		SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_palette_word;
 		SPRITE_WORDS(sprite_entry)[0] = sprite_palette_word;
 		sprite_entry += 2u;
 		piece_count--;
@@ -497,7 +497,7 @@ void put_object_sprites(uint16_t y, uint32_t height_scale, uint32_t width_scale,
 	*p_x = (*p_x & 0xFFFF0000u) | attributes;
 	*p_sprite_entry = sprite_entry;
 	*p_last_frame = frame;
-	*p_last_size_step = size_step;
+	*p_last_size_step = address_of(&size_step->width);
 }
 
 /* Draw mode 8: the first piece of the animation's frame at its own size (no zoom, no flip), at x, y on
@@ -524,28 +524,28 @@ void draw_object_one_piece(uint32_t *p_leftover, uint32_t *p_sprite_entry, uint3
 	sprite_width = sprite_width | size_step->width_bits | screen->sprite_screen_bit;
 	sprite_y = (uint16_t)(piece->y_offset + (current_object->y - screen->sprite_origin_y));
 	sprite_x = (uint16_t)(piece->x_offset + (current_object->x - screen->sprite_origin_x));
-	SPRITE_WORDS(sprite_entry)[6144] = attributes;
+	SPRITE_WORDS(sprite_entry + 0x3000u)[0] = attributes;
 	SPRITE_WORDS(sprite_entry)[0] = attributes;
 	sprite_entry += 2u;
-	SPRITE_WORDS(sprite_entry)[6144] = source_size;
+	SPRITE_WORDS(sprite_entry + 0x3000u)[0] = source_size;
 	SPRITE_WORDS(sprite_entry)[0] = source_size;
 	sprite_entry += 2u;
-	SPRITE_WORDS(sprite_entry)[6144] = sprite_height;
+	SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_height;
 	SPRITE_WORDS(sprite_entry)[0] = sprite_height;
 	sprite_entry += 2u;
-	SPRITE_WORDS(sprite_entry)[6144] = sprite_width;
+	SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_width;
 	SPRITE_WORDS(sprite_entry)[0] = sprite_width;
 	sprite_entry += 2u;
-	SPRITE_WORDS(sprite_entry)[6144] = sprite_y;
+	SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_y;
 	SPRITE_WORDS(sprite_entry)[0] = sprite_y;
 	sprite_entry += 2u;
-	SPRITE_WORDS(sprite_entry)[6144] = sprite_x;
+	SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_x;
 	SPRITE_WORDS(sprite_entry)[0] = sprite_x;
 	sprite_entry += 2u;
-	SPRITE_WORDS(sprite_entry)[6144] = rom_offset;
+	SPRITE_WORDS(sprite_entry + 0x3000u)[0] = rom_offset;
 	SPRITE_WORDS(sprite_entry)[0] = rom_offset;
 	sprite_entry += 2u;
-	SPRITE_WORDS(sprite_entry)[6144] = palette_word;
+	SPRITE_WORDS(sprite_entry + 0x3000u)[0] = palette_word;
 	SPRITE_WORDS(sprite_entry)[0] = palette_word;
 	sprite_entry += 2u;
 	piece++;
@@ -563,8 +563,8 @@ uint32_t draw_object_entry(uint32_t sprite_entry)
 {
 	move_halfwords(sprite_entry, (current_object->animation | ((uint32_t)current_object->palette << 16u)), 8u);
 	move_halfwords(sprite_entry + 0x3000u, (current_object->animation | ((uint32_t)current_object->palette << 16u)), 8u);
-	SPRITE_WORDS(sprite_entry)[3] |= screen->sprite_screen_bit;
-	SPRITE_WORDS(sprite_entry)[6147] |= screen->sprite_screen_bit;
+	SPRITE_WORDS(sprite_entry + 0x6u)[0] |= screen->sprite_screen_bit;
+	SPRITE_WORDS(sprite_entry + 0x3006u)[0] |= screen->sprite_screen_bit;
 	sprite_entry += 0x10u;
 	return sprite_entry;
 }
@@ -591,7 +591,8 @@ void draw_object_smoothed(uint32_t *p_leftover, uint32_t *p_sprite_entry, uint32
 {
 	uint32_t sprite_entry = *p_sprite_entry;
 	uint16_t entry_word = 0, flip_bits = 0, halfway_width = 0, halfway_x = 0, halfway_y = 0, piece_height_bits = 0, piece_width_bits = 0, sprite_rom_offset = 0, sprite_screen_bit = 0, sprite_source_size = 0;
-	uint32_t copy_entry = 0, flip_index = 0, frame = 0, halfway_height_scale = 0, halfway_width_scale = 0, height_scale = 0, offset_sign = 0, offset_x = 0, offset_y = 0, palette_words = 0, piece_height = 0, piece_width = 0, previous_place = 0, size_step_offset = 0, width_scale = 0, x = 0, y = 0;
+	uint32_t copy_entry = 0, flip_index = 0, frame = 0, halfway_height_scale = 0, halfway_width_scale = 0, height_scale = 0, offset_sign = 0, offset_x = 0, offset_y = 0, piece_height = 0, piece_width = 0, previous_place = 0, size_step_offset = 0, width_scale = 0, x = 0, y = 0;
+	const uint16_t *palette_words = NULL;
 	struct sprite_place *sprite_place = NULL;
 	const struct sprite_size_step *size_step = NULL;
 	uint16_t source_size = 0, rom_offset = 0, height = 0, height_bits = 0, width = 0, width_bits = 0, palette_word = 0;
@@ -634,7 +635,7 @@ void draw_object_smoothed(uint32_t *p_leftover, uint32_t *p_sprite_entry, uint32
 	sprite_place++;
 	screen->next_sprite_place = LINKED(address_of(sprite_place), address_of(sprite_place) & 0xEFFFu);
 	frame = SPRITE_ANIMATION(sprite_animations[current_object->animation])->frames[current_object->frame];
-	palette_words = sprite_palettes[current_object->palette];
+	palette_words = rom_pointer(sprite_palettes[current_object->palette]);
 	flip_bits = (current_object->flags | ((uint32_t)current_object->flags_high << 8u)) & 0xC0u;
 	flip_index = flip_bits;
 	offset_sign = smoothed_flip_signs[flip_index >> 5];
@@ -696,8 +697,8 @@ void draw_object_smoothed(uint32_t *p_leftover, uint32_t *p_sprite_entry, uint32
 		sprite_entry += 2u;
 		SPRITE_WORDS(copy_entry)[0] = sprite_rom_offset;
 		copy_entry += 2u;
-		palette_word = SPRITE_PALETTE_WORDS(palette_words)[0];
-		palette_words += 2u;
+		palette_word = palette_words[0];
+		palette_words++;
 		entry_word = palette_word;
 		SPRITE_WORDS(sprite_entry)[0] = entry_word;
 		sprite_entry += 2u;
@@ -809,8 +810,10 @@ void finish_sprite_list(void)
 				new_head = cleared_head;
 				layer_head = depth_list->head;
 				depth_list->head = new_head;
-				AS32(SPRITE_WORDS(chain_tail)[0]) = layer_head;
-				AS32(SPRITE_WORDS(chain_tail)[6144]) = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail)[0] = (uint16_t)layer_head;
+				SPRITE_WORDS(chain_tail)[1] = (uint16_t)(layer_head >> 16u);
+				SPRITE_WORDS(chain_tail + 0x3000u)[0] = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail + 0x3000u)[1] = 0u;
 				chain_tail = LINKED(chain_tail, depth_list->tail);
 				cleared_head = empty_head;
 			}
@@ -820,8 +823,10 @@ void finish_sprite_list(void)
 				new_head_2 = cleared_head;
 				layer_head = depth_list->head;
 				depth_list->head = new_head_2;
-				AS32(SPRITE_WORDS(chain_tail)[0]) = layer_head;
-				AS32(SPRITE_WORDS(chain_tail)[6144]) = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail)[0] = (uint16_t)layer_head;
+				SPRITE_WORDS(chain_tail)[1] = (uint16_t)(layer_head >> 16u);
+				SPRITE_WORDS(chain_tail + 0x3000u)[0] = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail + 0x3000u)[1] = 0u;
 				chain_tail = LINKED(chain_tail, depth_list->tail);
 				cleared_head = empty_head;
 			}
@@ -831,8 +836,10 @@ void finish_sprite_list(void)
 				new_head_3 = cleared_head;
 				layer_head = depth_list->head;
 				depth_list->head = new_head_3;
-				AS32(SPRITE_WORDS(chain_tail)[0]) = layer_head;
-				AS32(SPRITE_WORDS(chain_tail)[6144]) = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail)[0] = (uint16_t)layer_head;
+				SPRITE_WORDS(chain_tail)[1] = (uint16_t)(layer_head >> 16u);
+				SPRITE_WORDS(chain_tail + 0x3000u)[0] = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail + 0x3000u)[1] = 0u;
 				chain_tail = LINKED(chain_tail, depth_list->tail);
 				cleared_head = empty_head;
 			}
@@ -842,8 +849,10 @@ void finish_sprite_list(void)
 				new_head_4 = cleared_head;
 				layer_head = depth_list->head;
 				depth_list->head = new_head_4;
-				AS32(SPRITE_WORDS(chain_tail)[0]) = layer_head;
-				AS32(SPRITE_WORDS(chain_tail)[6144]) = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail)[0] = (uint16_t)layer_head;
+				SPRITE_WORDS(chain_tail)[1] = (uint16_t)(layer_head >> 16u);
+				SPRITE_WORDS(chain_tail + 0x3000u)[0] = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail + 0x3000u)[1] = 0u;
 				chain_tail = LINKED(chain_tail, depth_list->tail);
 				cleared_head = empty_head;
 			}
@@ -853,8 +862,10 @@ void finish_sprite_list(void)
 				new_head_5 = cleared_head;
 				layer_head = depth_list->head;
 				depth_list->head = new_head_5;
-				AS32(SPRITE_WORDS(chain_tail)[0]) = layer_head;
-				AS32(SPRITE_WORDS(chain_tail)[6144]) = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail)[0] = (uint16_t)layer_head;
+				SPRITE_WORDS(chain_tail)[1] = (uint16_t)(layer_head >> 16u);
+				SPRITE_WORDS(chain_tail + 0x3000u)[0] = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail + 0x3000u)[1] = 0u;
 				chain_tail = LINKED(chain_tail, depth_list->tail);
 				cleared_head = empty_head;
 			}
@@ -864,8 +875,10 @@ void finish_sprite_list(void)
 				new_head_6 = cleared_head;
 				layer_head = depth_list->head;
 				depth_list->head = new_head_6;
-				AS32(SPRITE_WORDS(chain_tail)[0]) = layer_head;
-				AS32(SPRITE_WORDS(chain_tail)[6144]) = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail)[0] = (uint16_t)layer_head;
+				SPRITE_WORDS(chain_tail)[1] = (uint16_t)(layer_head >> 16u);
+				SPRITE_WORDS(chain_tail + 0x3000u)[0] = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail + 0x3000u)[1] = 0u;
 				chain_tail = LINKED(chain_tail, depth_list->tail);
 				cleared_head = empty_head;
 			}
@@ -875,8 +888,10 @@ void finish_sprite_list(void)
 				new_head_7 = cleared_head;
 				layer_head = depth_list->head;
 				depth_list->head = new_head_7;
-				AS32(SPRITE_WORDS(chain_tail)[0]) = layer_head;
-				AS32(SPRITE_WORDS(chain_tail)[6144]) = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail)[0] = (uint16_t)layer_head;
+				SPRITE_WORDS(chain_tail)[1] = (uint16_t)(layer_head >> 16u);
+				SPRITE_WORDS(chain_tail + 0x3000u)[0] = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail + 0x3000u)[1] = 0u;
 				chain_tail = LINKED(chain_tail, depth_list->tail);
 				cleared_head = empty_head;
 			}
@@ -886,8 +901,10 @@ void finish_sprite_list(void)
 				new_head_8 = cleared_head;
 				layer_head = depth_list->head;
 				depth_list->head = new_head_8;
-				AS32(SPRITE_WORDS(chain_tail)[0]) = layer_head;
-				AS32(SPRITE_WORDS(chain_tail)[6144]) = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail)[0] = (uint16_t)layer_head;
+				SPRITE_WORDS(chain_tail)[1] = (uint16_t)(layer_head >> 16u);
+				SPRITE_WORDS(chain_tail + 0x3000u)[0] = (uint16_t)(layer_head + copy_distance);
+				SPRITE_WORDS(chain_tail + 0x3000u)[1] = 0u;
 				chain_tail = LINKED(chain_tail, depth_list->tail);
 				cleared_head = empty_head;
 			}
@@ -896,7 +913,7 @@ void finish_sprite_list(void)
 		} while (layer_octets != 0u);
 	}
 	SPRITE_WORDS(chain_tail)[0] = sprite_list_switch->end_word;
-	SPRITE_WORDS(chain_tail)[6144] = sprite_list_switch->end_word;
+	SPRITE_WORDS(chain_tail + 0x3000u)[0] = sprite_list_switch->end_word;
 	SPRITE_SCREEN_1_LIST_JUMP = sprite_list_switch->entry_2_jump;
 	SPRITE_SCREEN_2_LIST_JUMP = sprite_list_switch->entry_3_jump;
 	game->sprite_list_buffers = sprite_list_switch->next_buffers;
@@ -924,6 +941,7 @@ void road_row_draw(uint32_t rom_offset_and_palette, uint32_t piece_width, uint32
 	struct depth_list *depth_list = NULL;
 	struct projected_segment *projected_segment = NULL;
 	struct road_segment *ring_segment = NULL;
+	const struct sprite_piece *piece = NULL;
 	uint16_t items_in_view = 0;
 	uint32_t flags = 0, flags_long = 0, previous_first_position = 0;
 
@@ -938,195 +956,207 @@ void road_row_draw(uint32_t rom_offset_and_palette, uint32_t piece_width, uint32
 		current_object->flags_high = 0u;
 		return;
 	}
-	if ((int16_t)item_position < (int16_t)view_end)
-	{
-		while ((int16_t)item_position < (int16_t)window_then_width_bits)
-		{
-			item_position = (uint16_t)(item_position + spacing);
-		}
-		if ((int16_t)view_end < (int16_t)item_count)
-			item_count = view_end;
-		first_position = (uint16_t)current_object->road_row.first_position;
-		current_object->road_row.first_position = item_position;
-		item_count = (uint16_t)(item_count - item_position);
-		item_count = (uint16_t)(item_count + spacing);
-		item_count = (uint16_t)(item_count - 1u);
-		items_in_view = divide_u16(item_count, spacing);
-		item_count = items_in_view;
-		if ((int16_t)items_in_view <= 0)
-		{
-			return;
-		}
-		previous_sprites = 0x100000u;
-		sprite_place = screen->next_sprite_place;
-		places_mask = 0xEFFFu;
-		flags = (current_object->flags | ((uint32_t)current_object->flags_high << 8u) | ((uint32_t)current_object->flags_upper << 16u));
-		flags_long = flags | 0x20u;
-		current_object->flags = (uint8_t)flags_long;
-		current_object->flags_high = (uint8_t)(flags_long >> 8u);
-		current_object->flags_upper = (uint16_t)(flags_long >> 16u);
-		if ((flags & 0x20u) != 0u)
-		{
-			previous_sprites = current_object->road_row.previous_sprites;
-			previous_first_position = first_position;
-			positions_moved = previous_first_position - item_position;
-			if (previous_first_position != item_position)
-			{
-				previous_sprites -= divide_s32(positions_moved, spacing) << 3;
-				previous_sprites = LINKED(previous_sprites, previous_sprites & places_mask);
-			}
-		}
-		current_object->road_row.previous_sprites = sprite_place;
-		ring_segment = pointer_to(address_of(screen) + 0x2000u + ((item_position << 5) & 0xFFFu));
-		projected_segment = pointer_to(address_of(screen) + 0x3000u + ((item_position - window_then_width_bits) << 4));
-		projected_step = spacing << 4;
-		ring_step = spacing << 5;
-		items_left = item_count;
-		*p_last_piece = SPRITE_ANIMATION(sprite_animations[current_object->animation])->frames[current_object->frame] + 2u;
-		palette_word = (uint32_t)SPRITE_PALETTE_WORDS(sprite_palettes[current_object->palette])[0] << 16;
-		attributes_and_size = (current_object->flags | ((uint32_t)current_object->flags_high << 8u));
-		attributes_and_size = attributes_and_size & 0xC0u;
-		attributes_and_size = attributes_and_size ^ SPRITE_PIECE(*p_last_piece)->attributes;
-		sprite_then_height_bits = SPRITE_PIECE(*p_last_piece)->sprite;
-		size_steps = sprite_size_steps_ADDRESS + sprite_then_height_bits * 4u;
-		sprite_entry = screen->sprite_list_last + 0x10u;
-		current_object->size_step = 0xFFu;
-		do
-		{
-			size = projected_segment->scale;
-			if (size != 0u && size <= 0x1200u)
-			{
-				x = (uint16_t)((int32_t)(((uint32_t)ring_segment->half_width * current_object->side + current_object->x_offset) * size) >> 12);
-				y = (uint16_t)(((int32_t)(current_object->y_offset * size) >> 12) + projected_segment->y);
-				if (current_object->road_row.screen_centered == 0u)
-					x += projected_segment->x;
-				if ((int16_t)x > 0x1E0 || (int16_t)x < -0x1E0 || (int16_t)y > 0x80 || (int16_t)y < -0x160)
-					SPRITE_PLACE(sprite_place)->place = 0xF800F800u;
-				else
-				{
-					size = shift_by(size, current_object->scale_shift, 32);
-					size_index = size;
-					if (size_index >= 0x1000u)
-						size_index = 0xFFFu;
-					size_index = size_index >> 5;
-					size_table = current_object->road_row.size_table;
-					size = shift_by(size, (uint8_t)ROAD_ROW_SIZE_SHIFTS(road_row_size_shift_lists[size_table])[(int32_t)size_index], 32);
-					sprite_size_step = ROAD_ROW_SIZE_STEPS(road_row_size_step_lists[size_table])[(int32_t)size_index];
-					if (sprite_size_step != current_object->size_step)
-					{
-						current_object->size_step = sprite_size_step;
-						sprite_size_step = size_steps + sprite_size_step * 3u * 4u;
-						attributes_and_size = (attributes_and_size & 0xFFFFu) | ((uint32_t)SPRITE_SIZE_STEP(sprite_size_step)->source_size << 16);
-						sprite_size_step += 2u;
-						rom_offset_and_palette = SPRITE_SIZE_STEP(sprite_size_step - 0x2u)->rom_offset;
-						sprite_size_step += 2u;
-						*p_step_height = SPRITE_SIZE_STEP(sprite_size_step - 0x4u)->height;
-						sprite_size_step += 2u;
-						sprite_then_height_bits = SPRITE_SIZE_STEP(sprite_size_step - 0x6u)->height_bits;
-						sprite_size_step += 2u;
-						piece_width = SPRITE_SIZE_STEP(sprite_size_step - 0x8u)->width;
-						window_then_width_bits = SPRITE_SIZE_STEP(sprite_size_step - 0x8u)->width_bits | screen->sprite_screen_bit;
-						rom_offset_and_palette |= palette_word;
-					}
-					sprite_width = (uint16_t)((size * piece_width) >> 8);
-					size = ((size * *p_step_height) >> 8) & 0x3FFu;
-					sprite_width &= 0x3FFu;
-					if (screen->sprite_list_limit <= sprite_entry)
-					{
-						blank_place = blank_sprite_places;
-						SPRITE_PLACE(sprite_place)->size = blank_place;
-						sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
-						SPRITE_PLACE_WORDS(sprite_place)[0] = blank_place;
-						sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
-						SPRITE_PLACE_WORDS(sprite_place)[0] = blank_place;
-						sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
-						SPRITE_PLACE_WORDS(sprite_place)[0] = blank_place;
-						screen->next_sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
-						return;
-					}
-					AS32(SPRITE_WORDS(sprite_entry)[6144]) = attributes_and_size;
-					AS32(SPRITE_WORDS(sprite_entry)[0]) = attributes_and_size;
-					SPRITE_PLACE(sprite_place)->rom_offset = rom_offset_and_palette;
-					sprite_entry += 4u;
-					if (SPRITE_WORDS(previous_sprites)[4] == (uint16_t)rom_offset_and_palette)
-					{
-						previous_word = SPRITE_WORDS(previous_sprites)[0];
-						SPRITE_PLACE(sprite_place)->height = size;
-						SPRITE_WORDS(sprite_entry)[6144] = ((uint16_t)(previous_word + size) >> 1) | sprite_then_height_bits;
-						SPRITE_WORDS(sprite_entry)[0] = size | sprite_then_height_bits;
-						previous_word = SPRITE_WORDS(previous_sprites)[1];
-						SPRITE_PLACE(sprite_place)->width = sprite_width;
-						sprite_entry += 2u;
-						SPRITE_WORDS(sprite_entry)[6144] = ((uint16_t)(previous_word + sprite_width) >> 1) | window_then_width_bits;
-						SPRITE_WORDS(sprite_entry)[0] = sprite_width | window_then_width_bits;
-						previous_word = SPRITE_WORDS(previous_sprites)[2];
-						SPRITE_PLACE(sprite_place)->y = y;
-						sprite_entry += 2u;
-						SPRITE_WORDS(sprite_entry)[6144] = (int16_t)(previous_word + y) >> 1;
-						SPRITE_WORDS(sprite_entry)[0] = y;
-						previous_word = SPRITE_WORDS(previous_sprites)[3];
-						SPRITE_PLACE(sprite_place)->x = x;
-						sprite_entry += 2u;
-						SPRITE_WORDS(sprite_entry)[6144] = (int16_t)(previous_word + x) >> 1;
-						SPRITE_WORDS(sprite_entry)[0] = x;
-						sprite_entry += 2u;
-					}
-					else
-					{
-						SPRITE_PLACE(sprite_place)->height = size;
-						size = size | sprite_then_height_bits;
-						SPRITE_WORDS(sprite_entry)[6144] = size;
-						SPRITE_WORDS(sprite_entry)[0] = size;
-						SPRITE_PLACE(sprite_place)->width = sprite_width;
-						sprite_width |= window_then_width_bits;
-						sprite_entry += 2u;
-						SPRITE_WORDS(sprite_entry)[6144] = sprite_width;
-						SPRITE_WORDS(sprite_entry)[0] = sprite_width;
-						SPRITE_PLACE(sprite_place)->y = y;
-						sprite_entry += 2u;
-						SPRITE_WORDS(sprite_entry)[6144] = y;
-						SPRITE_WORDS(sprite_entry)[0] = y;
-						SPRITE_PLACE(sprite_place)->x = x;
-						sprite_entry += 2u;
-						SPRITE_WORDS(sprite_entry)[6144] = x;
-						SPRITE_WORDS(sprite_entry)[0] = x;
-						sprite_entry += 2u;
-					}
-					AS32(SPRITE_WORDS(sprite_entry)[6144]) = rom_offset_and_palette;
-					AS32(SPRITE_WORDS(sprite_entry)[0]) = rom_offset_and_palette;
-					depth_list = pointer_to(address_of(screen) + 0x5000u + projected_segment->depth_layer * 4u);
-					sprite_entry += 4u;
-					if (depth_list->head == 0u)
-						depth_list->tail = sprite_entry;
-					layer_head = depth_list->head;
-					AS32(SPRITE_WORDS(sprite_entry)[0]) = layer_head;
-					AS32(SPRITE_WORDS(sprite_entry)[6144]) = (uint16_t)(layer_head + 0x300u);
-					depth_list->head = ((sprite_entry - 0x10u) >> 4) | 0x8000u;
-					screen->sprite_groups++;
-					sprite_entry += 0x10u;
-				}
-			}
-			ring_segment = pointer_to(address_of(ring_segment) + ring_step);
-			projected_segment = pointer_to(address_of(projected_segment) + projected_step);
-			ring_segment = pointer_to(LINKED(address_of(ring_segment), address_of(ring_segment) & 0xAFFFu));
-			sprite_place = LINKED(sprite_place, (uint16_t)(sprite_place + 0x10u));
-			previous_sprites = LINKED(previous_sprites, (uint16_t)(previous_sprites + 0x10u));
-			sprite_place = LINKED(sprite_place, sprite_place & places_mask);
-			previous_sprites = LINKED(previous_sprites, previous_sprites & places_mask);
-			items_left--;
-		} while (items_left != 0u);
-		screen->sprite_list_last = sprite_entry;
-		blank_place = blank_sprite_places;
-		SPRITE_PLACE(sprite_place)->size = blank_place;
-		sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
-		SPRITE_PLACE_WORDS(sprite_place)[0] = blank_place;
-		sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
-		SPRITE_PLACE_WORDS(sprite_place)[0] = blank_place;
-		sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
-		SPRITE_PLACE_WORDS(sprite_place)[0] = blank_place;
-		screen->next_sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
+	if ((int16_t)view_end <= (int16_t)item_position)
 		return;
+	while ((int16_t)item_position < (int16_t)window_then_width_bits)
+	{
+		item_position = (uint16_t)(item_position + spacing);
 	}
+	if ((int16_t)view_end < (int16_t)item_count)
+		item_count = view_end;
+	first_position = (uint16_t)current_object->road_row.first_position;
+	current_object->road_row.first_position = item_position;
+	item_count = (uint16_t)(item_count - item_position);
+	item_count = (uint16_t)(item_count + spacing);
+	item_count = (uint16_t)(item_count - 1u);
+	items_in_view = divide_u16(item_count, spacing);
+	item_count = items_in_view;
+	if ((int16_t)items_in_view <= 0)
+		return;
+	previous_sprites = 0x100000u;
+	sprite_place = screen->next_sprite_place;
+	places_mask = 0xEFFFu;
+	flags = (current_object->flags | ((uint32_t)current_object->flags_high << 8u) | ((uint32_t)current_object->flags_upper << 16u));
+	flags_long = flags | 0x20u;
+	current_object->flags = (uint8_t)flags_long;
+	current_object->flags_high = (uint8_t)(flags_long >> 8u);
+	current_object->flags_upper = (uint16_t)(flags_long >> 16u);
+	if ((flags & 0x20u) != 0u)
+	{
+		previous_sprites = current_object->road_row.previous_sprites;
+		previous_first_position = first_position;
+		positions_moved = previous_first_position - item_position;
+		if (previous_first_position != item_position)
+		{
+			previous_sprites -= divide_s32(positions_moved, spacing) << 3;
+			previous_sprites = LINKED(previous_sprites, previous_sprites & places_mask);
+		}
+	}
+	current_object->road_row.previous_sprites = sprite_place;
+	ring_segment = pointer_to(address_of(screen) + 0x2000u + ((item_position << 5) & 0xFFFu));
+	projected_segment = pointer_to(address_of(screen) + 0x3000u + ((item_position - window_then_width_bits) << 4));
+	projected_step = spacing << 4;
+	ring_step = spacing << 5;
+	items_left = item_count;
+	piece = rom_pointer(SPRITE_ANIMATION(sprite_animations[current_object->animation])->frames[current_object->frame] + 2u);
+	palette_word = (uint32_t)SPRITE_PALETTE_WORDS(sprite_palettes[current_object->palette])[0] << 16;
+	attributes_and_size = (current_object->flags | ((uint32_t)current_object->flags_high << 8u));
+	attributes_and_size = attributes_and_size & 0xC0u;
+	attributes_and_size = attributes_and_size ^ piece->attributes;
+	sprite_then_height_bits = piece->sprite;
+	size_steps = sprite_size_steps_ADDRESS + sprite_then_height_bits * 4u;
+	sprite_entry = screen->sprite_list_last + 0x10u;
+	current_object->size_step = 0xFFu;
+	for (;;)
+	{
+		size = projected_segment->scale;
+		if (size != 0u && size <= 0x1200u)
+		{
+			x = (uint16_t)((int32_t)(((uint32_t)ring_segment->half_width * current_object->side + current_object->x_offset) * size) >> 12);
+			y = (uint16_t)(((int32_t)(current_object->y_offset * size) >> 12) + projected_segment->y);
+			if (current_object->road_row.screen_centered == 0u)
+				x += projected_segment->x;
+			if ((int16_t)x > 0x1E0 || (int16_t)x < -0x1E0 || (int16_t)y > 0x80 || (int16_t)y < -0x160)
+			{
+				SPRITE_PLACE(sprite_place)->y = 0xF800u;
+				SPRITE_PLACE(sprite_place)->x = 0xF800u;
+				ring_segment = pointer_to(address_of(ring_segment) + ring_step);
+				projected_segment = pointer_to(address_of(projected_segment) + projected_step);
+				ring_segment = pointer_to(LINKED(address_of(ring_segment), address_of(ring_segment) & 0xAFFFu));
+				sprite_place = LINKED(sprite_place, (uint16_t)(sprite_place + 0x10u));
+				previous_sprites = LINKED(previous_sprites, (uint16_t)(previous_sprites + 0x10u));
+				sprite_place = LINKED(sprite_place, sprite_place & places_mask);
+				previous_sprites = LINKED(previous_sprites, previous_sprites & places_mask);
+				items_left--;
+				if (items_left != 0u)
+					continue;
+				screen->sprite_list_last = sprite_entry;
+				break;
+			}
+			size = shift_by(size, current_object->scale_shift, 32);
+			size_index = size;
+			if (size_index >= 0x1000u)
+				size_index = 0xFFFu;
+			size_index = size_index >> 5;
+			size_table = current_object->road_row.size_table;
+			size = shift_by(size, (uint8_t)ROAD_ROW_SIZE_SHIFTS(road_row_size_shift_lists[size_table])[(int32_t)size_index], 32);
+			sprite_size_step = ROAD_ROW_SIZE_STEPS(road_row_size_step_lists[size_table])[(int32_t)size_index];
+			if (sprite_size_step != current_object->size_step)
+			{
+				current_object->size_step = sprite_size_step;
+				sprite_size_step = size_steps + sprite_size_step * 3u * 4u;
+				attributes_and_size = (attributes_and_size & 0xFFFFu) | ((uint32_t)SPRITE_SIZE_STEP(sprite_size_step)->source_size << 16);
+				sprite_size_step += 2u;
+				rom_offset_and_palette = SPRITE_SIZE_STEP(sprite_size_step - 0x2u)->rom_offset;
+				sprite_size_step += 2u;
+				*p_step_height = SPRITE_SIZE_STEP(sprite_size_step - 0x4u)->height;
+				sprite_size_step += 2u;
+				sprite_then_height_bits = SPRITE_SIZE_STEP(sprite_size_step - 0x6u)->height_bits;
+				sprite_size_step += 2u;
+				piece_width = SPRITE_SIZE_STEP(sprite_size_step - 0x8u)->width;
+				window_then_width_bits = SPRITE_SIZE_STEP(sprite_size_step - 0x8u)->width_bits | screen->sprite_screen_bit;
+				rom_offset_and_palette |= palette_word;
+			}
+			sprite_width = (uint16_t)((size * piece_width) >> 8);
+			size = ((size * *p_step_height) >> 8) & 0x3FFu;
+			sprite_width &= 0x3FFu;
+			if (screen->sprite_list_limit <= sprite_entry)
+				break;
+			SPRITE_WORDS(sprite_entry + 0x3000u)[0] = (uint16_t)attributes_and_size;
+			SPRITE_WORDS(sprite_entry + 0x3000u)[1] = (uint16_t)(attributes_and_size >> 16u);
+			SPRITE_WORDS(sprite_entry)[0] = (uint16_t)attributes_and_size;
+			SPRITE_WORDS(sprite_entry)[1] = (uint16_t)(attributes_and_size >> 16u);
+			SPRITE_PLACE(sprite_place)->rom_offset = rom_offset_and_palette;
+			sprite_entry += 4u;
+			if (SPRITE_WORDS(previous_sprites + 0x8u)[0] == (uint16_t)rom_offset_and_palette)
+			{
+				previous_word = SPRITE_WORDS(previous_sprites)[0];
+				SPRITE_PLACE(sprite_place)->height = size;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = ((uint16_t)(previous_word + size) >> 1) | sprite_then_height_bits;
+				SPRITE_WORDS(sprite_entry)[0] = size | sprite_then_height_bits;
+				previous_word = SPRITE_WORDS(previous_sprites + 0x2u)[0];
+				SPRITE_PLACE(sprite_place)->width = sprite_width;
+				sprite_entry += 2u;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = ((uint16_t)(previous_word + sprite_width) >> 1) | window_then_width_bits;
+				SPRITE_WORDS(sprite_entry)[0] = sprite_width | window_then_width_bits;
+				previous_word = SPRITE_WORDS(previous_sprites + 0x4u)[0];
+				SPRITE_PLACE(sprite_place)->y = y;
+				sprite_entry += 2u;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = (int16_t)(previous_word + y) >> 1;
+				SPRITE_WORDS(sprite_entry)[0] = y;
+				previous_word = SPRITE_WORDS(previous_sprites + 0x6u)[0];
+				SPRITE_PLACE(sprite_place)->x = x;
+				sprite_entry += 2u;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = (int16_t)(previous_word + x) >> 1;
+				SPRITE_WORDS(sprite_entry)[0] = x;
+				sprite_entry += 2u;
+			}
+			else
+			{
+				SPRITE_PLACE(sprite_place)->height = size;
+				size = size | sprite_then_height_bits;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = size;
+				SPRITE_WORDS(sprite_entry)[0] = size;
+				SPRITE_PLACE(sprite_place)->width = sprite_width;
+				sprite_width |= window_then_width_bits;
+				sprite_entry += 2u;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_width;
+				SPRITE_WORDS(sprite_entry)[0] = sprite_width;
+				SPRITE_PLACE(sprite_place)->y = y;
+				sprite_entry += 2u;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = y;
+				SPRITE_WORDS(sprite_entry)[0] = y;
+				SPRITE_PLACE(sprite_place)->x = x;
+				sprite_entry += 2u;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = x;
+				SPRITE_WORDS(sprite_entry)[0] = x;
+				sprite_entry += 2u;
+			}
+			SPRITE_WORDS(sprite_entry + 0x3000u)[0] = (uint16_t)rom_offset_and_palette;
+			SPRITE_WORDS(sprite_entry + 0x3000u)[1] = (uint16_t)(rom_offset_and_palette >> 16u);
+			SPRITE_WORDS(sprite_entry)[0] = (uint16_t)rom_offset_and_palette;
+			SPRITE_WORDS(sprite_entry)[1] = (uint16_t)(rom_offset_and_palette >> 16u);
+			depth_list = pointer_to(address_of(screen) + 0x5000u + projected_segment->depth_layer * 4u);
+			sprite_entry += 4u;
+			if (depth_list->head == 0u)
+				depth_list->tail = sprite_entry;
+			layer_head = depth_list->head;
+			SPRITE_WORDS(sprite_entry)[0] = (uint16_t)layer_head;
+			SPRITE_WORDS(sprite_entry)[1] = (uint16_t)(layer_head >> 16u);
+			SPRITE_WORDS(sprite_entry + 0x3000u)[0] = (uint16_t)(layer_head + 0x300u);
+			SPRITE_WORDS(sprite_entry + 0x3000u)[1] = 0u;
+			depth_list->head = ((sprite_entry - 0x10u) >> 4) | 0x8000u;
+			screen->sprite_groups++;
+			sprite_entry += 0x10u;
+		}
+		ring_segment = pointer_to(address_of(ring_segment) + ring_step);
+		projected_segment = pointer_to(address_of(projected_segment) + projected_step);
+		ring_segment = pointer_to(LINKED(address_of(ring_segment), address_of(ring_segment) & 0xAFFFu));
+		sprite_place = LINKED(sprite_place, (uint16_t)(sprite_place + 0x10u));
+		previous_sprites = LINKED(previous_sprites, (uint16_t)(previous_sprites + 0x10u));
+		sprite_place = LINKED(sprite_place, sprite_place & places_mask);
+		previous_sprites = LINKED(previous_sprites, previous_sprites & places_mask);
+		items_left--;
+		if (items_left == 0u)
+		{
+			screen->sprite_list_last = sprite_entry;
+			break;
+		}
+	}
+	blank_place = blank_sprite_places;
+	SPRITE_PLACE(sprite_place)->height = (uint16_t)blank_place;
+	SPRITE_PLACE(sprite_place)->width = (uint16_t)(blank_place >> 16u);
+	sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
+	SPRITE_PLACE_WORDS(sprite_place)[0] = (uint16_t)blank_place;
+	SPRITE_PLACE_WORDS(sprite_place)[1] = (uint16_t)(blank_place >> 16u);
+	sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
+	SPRITE_PLACE_WORDS(sprite_place)[0] = (uint16_t)blank_place;
+	SPRITE_PLACE_WORDS(sprite_place)[1] = (uint16_t)(blank_place >> 16u);
+	sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
+	SPRITE_PLACE_WORDS(sprite_place)[0] = (uint16_t)blank_place;
+	SPRITE_PLACE_WORDS(sprite_place)[1] = (uint16_t)(blank_place >> 16u);
+	screen->next_sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
+	*p_last_piece = address_of(piece);
 }
 
 /* road_row_draw for the rows drawn in mirrored pairs: each item twice, at the same distance either side
@@ -1249,49 +1279,53 @@ void road_row_pair_draw(uint32_t rom_offset_and_palette, uint32_t piece_width, u
 			if (screen->sprite_list_limit <= sprite_entry)
 				break;
 			attributes_and_size = attributes_and_size ^ mirror_bits;
-			AS32(SPRITE_WORDS(sprite_entry)[6152]) = attributes_and_size;
-			AS32(SPRITE_WORDS(sprite_entry)[8]) = attributes_and_size;
+			SPRITE_WORDS(sprite_entry + 0x3010u)[0] = (uint16_t)attributes_and_size;
+			SPRITE_WORDS(sprite_entry + 0x3010u)[1] = (uint16_t)(attributes_and_size >> 16u);
+			SPRITE_WORDS(sprite_entry + 0x10u)[0] = (uint16_t)attributes_and_size;
+			SPRITE_WORDS(sprite_entry + 0x10u)[1] = (uint16_t)(attributes_and_size >> 16u);
 			attributes_and_size = attributes_and_size ^ mirror_bits;
-			AS32(SPRITE_WORDS(sprite_entry)[6144]) = attributes_and_size;
-			AS32(SPRITE_WORDS(sprite_entry)[0]) = attributes_and_size;
+			SPRITE_WORDS(sprite_entry + 0x3000u)[0] = (uint16_t)attributes_and_size;
+			SPRITE_WORDS(sprite_entry + 0x3000u)[1] = (uint16_t)(attributes_and_size >> 16u);
+			SPRITE_WORDS(sprite_entry)[0] = (uint16_t)attributes_and_size;
+			SPRITE_WORDS(sprite_entry)[1] = (uint16_t)(attributes_and_size >> 16u);
 			SPRITE_PLACE(sprite_place)->rom_offset = rom_offset_and_palette;
 			sprite_entry += 4u;
-			if (SPRITE_WORDS(previous_sprites)[4] == (uint16_t)rom_offset_and_palette)
+			if (SPRITE_WORDS(previous_sprites + 0x8u)[0] == (uint16_t)rom_offset_and_palette)
 			{
 				halfway_word = SPRITE_WORDS(previous_sprites)[0];
 				SPRITE_PLACE(sprite_place)->height = size;
 				halfway_word = ((uint16_t)(halfway_word + size) >> 1) | sprite_then_height_bits;
 				size = size | sprite_then_height_bits;
-				SPRITE_WORDS(sprite_entry)[6152] = halfway_word;
-				SPRITE_WORDS(sprite_entry)[8] = size;
-				SPRITE_WORDS(sprite_entry)[6144] = halfway_word;
+				SPRITE_WORDS(sprite_entry + 0x3010u)[0] = halfway_word;
+				SPRITE_WORDS(sprite_entry + 0x10u)[0] = size;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = halfway_word;
 				SPRITE_WORDS(sprite_entry)[0] = size;
-				halfway_word = SPRITE_WORDS(previous_sprites)[1];
+				halfway_word = SPRITE_WORDS(previous_sprites + 0x2u)[0];
 				SPRITE_PLACE(sprite_place)->width = sprite_width;
 				halfway_word = ((uint16_t)(halfway_word + sprite_width) >> 1) | window_then_width_bits;
 				sprite_width |= window_then_width_bits;
 				sprite_entry += 2u;
-				SPRITE_WORDS(sprite_entry)[6152] = halfway_word;
-				SPRITE_WORDS(sprite_entry)[8] = sprite_width;
-				SPRITE_WORDS(sprite_entry)[6144] = halfway_word;
+				SPRITE_WORDS(sprite_entry + 0x3010u)[0] = halfway_word;
+				SPRITE_WORDS(sprite_entry + 0x10u)[0] = sprite_width;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = halfway_word;
 				SPRITE_WORDS(sprite_entry)[0] = sprite_width;
-				halfway_word = SPRITE_WORDS(previous_sprites)[2];
+				halfway_word = SPRITE_WORDS(previous_sprites + 0x4u)[0];
 				SPRITE_PLACE(sprite_place)->y = y;
 				halfway_word = (uint16_t)((int16_t)(halfway_word + y) >> 1);
 				sprite_entry += 2u;
-				SPRITE_WORDS(sprite_entry)[6152] = halfway_word;
-				SPRITE_WORDS(sprite_entry)[8] = y;
-				SPRITE_WORDS(sprite_entry)[6144] = halfway_word;
+				SPRITE_WORDS(sprite_entry + 0x3010u)[0] = halfway_word;
+				SPRITE_WORDS(sprite_entry + 0x10u)[0] = y;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = halfway_word;
 				SPRITE_WORDS(sprite_entry)[0] = y;
-				halfway_word = SPRITE_WORDS(previous_sprites)[5];
+				halfway_word = SPRITE_WORDS(previous_sprites + 0xAu)[0];
 				SPRITE_PLACE(sprite_place)->mirror_x = pair_x;
 				sprite_entry += 2u;
-				SPRITE_WORDS(sprite_entry)[6152] = (int16_t)(halfway_word + pair_x) >> 1;
-				SPRITE_WORDS(sprite_entry)[8] = pair_x;
+				SPRITE_WORDS(sprite_entry + 0x3010u)[0] = (int16_t)(halfway_word + pair_x) >> 1;
+				SPRITE_WORDS(sprite_entry + 0x10u)[0] = pair_x;
 				pair_x = (pair_x << 16) | (pair_x >> 16);
-				halfway_word = SPRITE_WORDS(previous_sprites)[3];
+				halfway_word = SPRITE_WORDS(previous_sprites + 0x6u)[0];
 				SPRITE_PLACE(sprite_place)->x = pair_x;
-				SPRITE_WORDS(sprite_entry)[6144] = (int16_t)(halfway_word + pair_x) >> 1;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = (int16_t)(halfway_word + pair_x) >> 1;
 				SPRITE_WORDS(sprite_entry)[0] = pair_x;
 				sprite_entry += 2u;
 			}
@@ -1299,44 +1333,50 @@ void road_row_pair_draw(uint32_t rom_offset_and_palette, uint32_t piece_width, u
 			{
 				SPRITE_PLACE(sprite_place)->height = size;
 				size = size | sprite_then_height_bits;
-				SPRITE_WORDS(sprite_entry)[6152] = size;
-				SPRITE_WORDS(sprite_entry)[8] = size;
-				SPRITE_WORDS(sprite_entry)[6144] = size;
+				SPRITE_WORDS(sprite_entry + 0x3010u)[0] = size;
+				SPRITE_WORDS(sprite_entry + 0x10u)[0] = size;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = size;
 				SPRITE_WORDS(sprite_entry)[0] = size;
 				SPRITE_PLACE(sprite_place)->width = sprite_width;
 				sprite_width |= window_then_width_bits;
 				sprite_entry += 2u;
-				SPRITE_WORDS(sprite_entry)[6152] = sprite_width;
-				SPRITE_WORDS(sprite_entry)[8] = sprite_width;
-				SPRITE_WORDS(sprite_entry)[6144] = sprite_width;
+				SPRITE_WORDS(sprite_entry + 0x3010u)[0] = sprite_width;
+				SPRITE_WORDS(sprite_entry + 0x10u)[0] = sprite_width;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = sprite_width;
 				SPRITE_WORDS(sprite_entry)[0] = sprite_width;
 				SPRITE_PLACE(sprite_place)->y = y;
 				sprite_entry += 2u;
-				SPRITE_WORDS(sprite_entry)[6152] = y;
-				SPRITE_WORDS(sprite_entry)[8] = y;
-				SPRITE_WORDS(sprite_entry)[6144] = y;
+				SPRITE_WORDS(sprite_entry + 0x3010u)[0] = y;
+				SPRITE_WORDS(sprite_entry + 0x10u)[0] = y;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = y;
 				SPRITE_WORDS(sprite_entry)[0] = y;
 				SPRITE_PLACE(sprite_place)->mirror_x = pair_x;
 				sprite_entry += 2u;
-				SPRITE_WORDS(sprite_entry)[6152] = pair_x;
-				SPRITE_WORDS(sprite_entry)[8] = pair_x;
+				SPRITE_WORDS(sprite_entry + 0x3010u)[0] = pair_x;
+				SPRITE_WORDS(sprite_entry + 0x10u)[0] = pair_x;
 				pair_x = (pair_x << 16) | (pair_x >> 16);
 				SPRITE_PLACE(sprite_place)->x = pair_x;
-				SPRITE_WORDS(sprite_entry)[6144] = pair_x;
+				SPRITE_WORDS(sprite_entry + 0x3000u)[0] = pair_x;
 				SPRITE_WORDS(sprite_entry)[0] = pair_x;
 				sprite_entry += 2u;
 			}
-			AS32(SPRITE_WORDS(sprite_entry)[6152]) = rom_offset_and_palette;
-			AS32(SPRITE_WORDS(sprite_entry)[8]) = rom_offset_and_palette;
-			AS32(SPRITE_WORDS(sprite_entry)[6144]) = rom_offset_and_palette;
-			AS32(SPRITE_WORDS(sprite_entry)[0]) = rom_offset_and_palette;
+			SPRITE_WORDS(sprite_entry + 0x3010u)[0] = (uint16_t)rom_offset_and_palette;
+			SPRITE_WORDS(sprite_entry + 0x3010u)[1] = (uint16_t)(rom_offset_and_palette >> 16u);
+			SPRITE_WORDS(sprite_entry + 0x10u)[0] = (uint16_t)rom_offset_and_palette;
+			SPRITE_WORDS(sprite_entry + 0x10u)[1] = (uint16_t)(rom_offset_and_palette >> 16u);
+			SPRITE_WORDS(sprite_entry + 0x3000u)[0] = (uint16_t)rom_offset_and_palette;
+			SPRITE_WORDS(sprite_entry + 0x3000u)[1] = (uint16_t)(rom_offset_and_palette >> 16u);
+			SPRITE_WORDS(sprite_entry)[0] = (uint16_t)rom_offset_and_palette;
+			SPRITE_WORDS(sprite_entry)[1] = (uint16_t)(rom_offset_and_palette >> 16u);
 			sprite_entry += 0x14u;
 			depth_list = pointer_to(address_of(screen) + 0x5000u + projected_segment->depth_layer * 4u);
 			if (depth_list->head == 0u)
 				depth_list->tail = sprite_entry;
 			layer_head = depth_list->head;
-			AS32(SPRITE_WORDS(sprite_entry)[0]) = layer_head;
-			AS32(SPRITE_WORDS(sprite_entry)[6144]) = (uint16_t)(layer_head + 0x300u);
+			SPRITE_WORDS(sprite_entry)[0] = (uint16_t)layer_head;
+			SPRITE_WORDS(sprite_entry)[1] = (uint16_t)(layer_head >> 16u);
+			SPRITE_WORDS(sprite_entry + 0x3000u)[0] = (uint16_t)(layer_head + 0x300u);
+			SPRITE_WORDS(sprite_entry + 0x3000u)[1] = 0u;
 			depth_list->head = ((sprite_entry - 0x20u) >> 4) | 0x8000u;
 			screen->sprite_groups += 2u;
 			sprite_entry += 0x10u;
@@ -1356,13 +1396,17 @@ void road_row_pair_draw(uint32_t rom_offset_and_palette, uint32_t piece_width, u
 		}
 	}
 	blank_place = blank_sprite_places;
-	SPRITE_PLACE(sprite_place)->size = blank_place;
+	SPRITE_PLACE(sprite_place)->height = (uint16_t)blank_place;
+	SPRITE_PLACE(sprite_place)->width = (uint16_t)(blank_place >> 16u);
 	sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
-	SPRITE_PLACE_WORDS(sprite_place)[0] = blank_place;
+	SPRITE_PLACE_WORDS(sprite_place)[0] = (uint16_t)blank_place;
+	SPRITE_PLACE_WORDS(sprite_place)[1] = (uint16_t)(blank_place >> 16u);
 	sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
-	SPRITE_PLACE_WORDS(sprite_place)[0] = blank_place;
+	SPRITE_PLACE_WORDS(sprite_place)[0] = (uint16_t)blank_place;
+	SPRITE_PLACE_WORDS(sprite_place)[1] = (uint16_t)(blank_place >> 16u);
 	sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
-	SPRITE_PLACE_WORDS(sprite_place)[0] = blank_place;
+	SPRITE_PLACE_WORDS(sprite_place)[0] = (uint16_t)blank_place;
+	SPRITE_PLACE_WORDS(sprite_place)[1] = (uint16_t)(blank_place >> 16u);
 	screen->next_sprite_place = (sprite_place + 4u) & (places_mask | 0xFFFF0000u);
 	*p_last_piece = address_of(piece);
 }

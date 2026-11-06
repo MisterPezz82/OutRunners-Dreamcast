@@ -3,7 +3,7 @@
  *    Description: the coins and credits, and the bookkeeping
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -151,7 +151,7 @@ void pulse_coin_meter(uint8_t meter_bit, uint32_t coin_meter, uint32_t meter_bit
 	uint32_t meter_frames = 0;
 	uint8_t frames_on = 0;
 
-	meter_frames = COIN_METER(coin_meter)->frames;
+	meter_frames = (COIN_METER(coin_meter)->frames_on | ((uint32_t)COIN_METER(coin_meter)->frames_off << 8u));
 	coin_meter += 2u;
 	if (meter_frames == 0u)
 	{
@@ -159,7 +159,8 @@ void pulse_coin_meter(uint8_t meter_bit, uint32_t coin_meter, uint32_t meter_bit
 		{
 			COIN_METER(coin_meter - 0x2u)->pulses_owed--;
 			PORT_OUTPUT_BITS(meter_bits)[0] |= shift_by(1u, meter_bit, 8);
-			COIN_METER(coin_meter - 0x2u)->frames = 0x606u;
+			COIN_METER(coin_meter - 0x2u)->frames_on = 6u;
+			COIN_METER(coin_meter - 0x2u)->frames_off = 6u;
 		}
 		meter_bits = BOOKKEEPING_SEAT_1_CREDITS_ADDRESS;
 		write_bookkeeping_credits(meter_bits);
@@ -207,7 +208,7 @@ void write_bookkeeping_credits(uint32_t bookkeeping_place)
 	BOOKKEEPING_HALFWORDS(bookkeeping_place)[0] = AS16(game->seat1_bookkeeping_byte);
 	bookkeeping_place += 2u;
 	BOOKKEEPING_HALFWORDS(bookkeeping_place)[0] = (game->seat2_credits | ((uint32_t)game->seat2_coin_units << 8u));
-	BOOKKEEPING_HALFWORDS(bookkeeping_place)[1] = AS16(game->seat2_bookkeeping_byte);
+	BOOKKEEPING_HALFWORDS(bookkeeping_place + 0x2u)[0] = AS16(game->seat2_bookkeeping_byte);
 }
 
 /* A service credit for the seat whose credits are at R10 (seat1_credits or seat2_credits): one credit
@@ -249,15 +250,16 @@ uint16_t add_service_credit(uint16_t credits_given, struct seat_credits *seat_cr
 uint16_t insert_coin(uint8_t released_switches, uint16_t credits_given, uint32_t chute_entry)
 {
 	uint8_t bonus_units = 0, chute_units = 0, credit_units = 0, units_per_credit = 0;
-	uint32_t coin_sounds = 0, counter = 0, units_per_bonus = 0;
+	uint32_t counter = 0, units_per_bonus = 0;
 	struct seat_credits *seat_credits = NULL;
+	uint8_t *coin_sounds = NULL;
 	uint32_t switch_bit = 0, owed_pulses = 0;
 
 	switch_bit = COIN_CHUTE(chute_entry)->switch_bit;
 	chute_entry += 4u;
 	if ((released_switches & shl32(1u, (int)(switch_bit))) == 0u)
 		return credits_given;
-	coin_sounds = COIN_CHUTE(chute_entry - 0x4u)->coin_sounds;
+	coin_sounds = pointer_to(COIN_CHUTE(chute_entry - 0x4u)->coin_sounds);
 	chute_entry = chute_entry + 4u + game->chute_entry_offset;
 	seat_credits = pointer_to(COIN_CHUTE_VARIANT(chute_entry)->credits);
 	io_write8(EVENT_CODE, COIN_CHUTE_VARIANT(chute_entry)->event_code);
@@ -267,7 +269,7 @@ uint16_t insert_coin(uint8_t released_switches, uint16_t credits_given, uint32_t
 	bookkeeping_increment16(counter);
 	if (seat_credits->credits >= 9u)
 		return credits_given;
-	SEAT_SOUND_COUNTS(coin_sounds)[0]++;
+	coin_sounds[0]++;
 	chute_units = CHUTE_UNIT_SETTINGS(COIN_CHUTE_VARIANT(chute_entry)->coin_units)[0];
 	units_per_bonus = game->bonus_adder;
 	if (units_per_bonus != 0u)
@@ -305,7 +307,12 @@ uint16_t insert_coin(uint8_t released_switches, uint16_t credits_given, uint32_t
 void show_title_on_credit(struct screen *screen_block)
 {
 	if ((int8_t)screen_block->game_mode > 0 && (int8_t)screen_block->game_mode < 6)
-		AS32(screen_block->game_mode) = 2u;
+	{
+		screen_block->game_mode = 2u;
+		screen_block->mode_step = 0u;
+		screen_block->game_step = 0u;
+		screen_block->game_mode_spare = 0u;
+	}
 }
 
 /* Adds one to the 16-bit bookkeeping counter at R7 (and its backup's, 7C on) unless it is at FFFF, with

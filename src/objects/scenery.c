@@ -3,7 +3,7 @@
  *    Description: the road's objects: the streams that start them along the course, the scenery, the signs, the start gate and flagmen, the goal parades, the fork's branch
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -206,33 +206,24 @@ void scenery_update(void)
 void road_row_start(void)
 {
 	uint16_t position = 0, row_length = 0;
-	uint32_t animation = 0, road_row_record = 0;
+	uint32_t animation = 0;
+	const struct road_row_record *road_row_record = NULL;
 
 	current_object->state++;
-	road_row_record = current_object->road_row.record;
-	animation = ROAD_ROW_RECORD(road_row_record)->animation;
-	road_row_record += 2u;
-	current_object->palette = ROAD_ROW_RECORD(road_row_record - 0x2u)->palette;
-	road_row_record += 2u;
-	current_object->flags |= ROAD_ROW_RECORD(road_row_record - 0x4u)->flags;
-	road_row_record++;
-	current_object->road_row.size_table = ROAD_ROW_RECORD(road_row_record - 0x5u)->size_table;
-	road_row_record++;
-	current_object->scale_shift = ROAD_ROW_RECORD(road_row_record - 0x6u)->scale_shift;
-	road_row_record++;
-	current_object->side = ROAD_ROW_RECORD(road_row_record - 0x7u)->side;
-	road_row_record++;
-	current_object->x_offset = ROAD_ROW_RECORD(road_row_record - 0x8u)->x_offset;
-	road_row_record += 2u;
-	current_object->y_offset = ROAD_ROW_RECORD(road_row_record - 0xAu)->y_offset;
-	road_row_record += 2u;
-	current_object->road_row.spacing = ROAD_ROW_RECORD(road_row_record - 0xCu)->spacing;
-	road_row_record += 2u;
-	current_object->road_row.count = ROAD_ROW_RECORD(road_row_record - 0xEu)->count;
-	road_row_record += 2u;
-	if (ROAD_ROW_RECORD(road_row_record - 0x10u)->hit_box_along == 0u)
+	road_row_record = rom_pointer(current_object->road_row.record);
+	animation = road_row_record->animation;
+	current_object->palette = road_row_record->palette;
+	current_object->flags |= road_row_record->flags;
+	current_object->road_row.size_table = road_row_record->size_table;
+	current_object->scale_shift = road_row_record->scale_shift;
+	current_object->side = road_row_record->side;
+	current_object->x_offset = road_row_record->x_offset;
+	current_object->y_offset = road_row_record->y_offset;
+	current_object->road_row.spacing = road_row_record->spacing;
+	current_object->road_row.count = road_row_record->count;
+	if (road_row_record->hit_box_along == 0u)
 		current_object->state++;
-	current_object->road_row.hit_box = road_row_record;
+	current_object->road_row.hit_box = address_of(&road_row_record->hit_box_along);
 	animation_start(animation);
 	position = (uint16_t)current_object->position;
 	row_length = (uint16_t)(current_object->road_row.spacing * (current_object->road_row.count - 1u) + 1u);
@@ -248,36 +239,28 @@ void road_row_start(void)
 void flashing_scenery_update(void)
 {
 	uint16_t position = 0, row_length = 0;
-	uint32_t along_distance = 0, animation = 0, element = 0, next_hit_box = 0, palettes = 0, record = 0;
+	uint32_t along_distance = 0, animation = 0, element = 0, next_hit_box = 0;
+	const int16_t *palettes = NULL;
+	const struct flashing_scenery_record *record = NULL;
 
 	switch (current_object->state)
 	{
 	case 0:
 		current_object->state++;
-		record = current_object->flashing_scenery.palette_cycle;
-		animation = FLASHING_SCENERY_RECORD(record)->animation;
-		record += 2u;
-		current_object->flashing_scenery.palette_cycle = FLASHING_SCENERY_RECORD(record - 0x2u)->palettes;
-		record += 4u;
-		current_object->flags |= FLASHING_SCENERY_RECORD(record - 0x6u)->flags;
-		record++;
-		current_object->flashing_scenery.size_table = FLASHING_SCENERY_RECORD(record - 0x7u)->size_table;
-		record++;
-		current_object->scale_shift = FLASHING_SCENERY_RECORD(record - 0x8u)->scale_shift;
-		record++;
-		current_object->side = FLASHING_SCENERY_RECORD(record - 0x9u)->side;
-		record++;
-		current_object->x_offset = FLASHING_SCENERY_RECORD(record - 0xAu)->x_offset;
-		record += 2u;
-		current_object->y_offset = FLASHING_SCENERY_RECORD(record - 0xCu)->y_offset;
-		record += 2u;
-		current_object->flashing_scenery.spacing = FLASHING_SCENERY_RECORD(record - 0xEu)->spacing;
-		record += 2u;
-		current_object->flashing_scenery.count = FLASHING_SCENERY_RECORD(record - 0x10u)->count;
-		record += 2u;
-		if (FLASHING_SCENERY_RECORD(record - 0x12u)->hit_box_along == 0u)
+		record = rom_pointer(current_object->flashing_scenery.palette_cycle);
+		animation = record->animation;
+		current_object->flashing_scenery.palette_cycle = record->palettes;
+		current_object->flags |= record->flags;
+		current_object->flashing_scenery.size_table = record->size_table;
+		current_object->scale_shift = record->scale_shift;
+		current_object->side = record->side;
+		current_object->x_offset = record->x_offset;
+		current_object->y_offset = record->y_offset;
+		current_object->flashing_scenery.spacing = record->spacing;
+		current_object->flashing_scenery.count = record->count;
+		if (record->hit_box_along == 0u)
 			current_object->state++;
-		current_object->flashing_scenery.hit_box = record;
+		current_object->flashing_scenery.hit_box = address_of(&record->hit_box_along);
 		animation_start(animation);
 		position = (uint16_t)current_object->position;
 		row_length = (uint16_t)(current_object->flashing_scenery.spacing * (current_object->flashing_scenery.count - 1u) + 1u);
@@ -286,31 +269,31 @@ void flashing_scenery_update(void)
 		return;
 	case 1:
 		road_row_crash_check(&along_distance, &next_hit_box);
-		palettes = current_object->flashing_scenery.palette_cycle;
-		element = FLASHING_SCENERY_PALETTES(palettes)[0];
-		palettes += 2u;
+		palettes = rom_pointer(current_object->flashing_scenery.palette_cycle);
+		element = palettes[0];
+		palettes++;
 		if ((int16_t)element < 0)
 		{
-			palettes += element;
-			element = (uint16_t)FLASHING_SCENERY_PALETTES(palettes)[0];
-			palettes += 2u;
+			palettes = rom_pointer(address_of(palettes) + element);
+			element = (uint16_t)palettes[0];
+			palettes++;
 		}
 		current_object->palette = element;
-		current_object->flashing_scenery.palette_cycle = palettes;
+		current_object->flashing_scenery.palette_cycle = address_of(palettes);
 		road_row_draw(along_distance, next_hit_box, &r12, &r14);
 		return;
 	case 2:
-		palettes = current_object->flashing_scenery.palette_cycle;
-		element = FLASHING_SCENERY_PALETTES(palettes)[0];
-		palettes += 2u;
+		palettes = rom_pointer(current_object->flashing_scenery.palette_cycle);
+		element = palettes[0];
+		palettes++;
 		if ((int16_t)element < 0)
 		{
-			palettes += element;
-			element = (uint16_t)FLASHING_SCENERY_PALETTES(palettes)[0];
-			palettes += 2u;
+			palettes = rom_pointer(address_of(palettes) + element);
+			element = (uint16_t)palettes[0];
+			palettes++;
 		}
 		current_object->palette = element;
-		current_object->flashing_scenery.palette_cycle = palettes;
+		current_object->flashing_scenery.palette_cycle = address_of(palettes);
 		road_row_draw(along_distance, next_hit_box, &r12, &r14);
 		return;
 	}
@@ -431,19 +414,20 @@ void aurora_count_down(void)
    first) for animation_frames frames. */
 void aurora_next_animation(void)
 {
-	uint32_t animation = 0, animations = 0, element = 0;
+	uint32_t animation = 0, element = 0;
+	const int16_t *animations = NULL;
 
-	animations = current_object->aurora.animation_list;
-	element = AURORA_ANIMATIONS(animations)[0];
-	animations += 2u;
+	animations = rom_pointer(current_object->aurora.animation_list);
+	element = animations[0];
+	animations++;
 	if ((int16_t)element < 0)
 	{
-		animations += element;
-		element = AURORA_ANIMATIONS(animations)[0];
-		animations += 2u;
+		animations = rom_pointer(address_of(animations) + element);
+		element = animations[0];
+		animations++;
 	}
 	animation = element;
-	current_object->aurora.animation_list = animations;
+	current_object->aurora.animation_list = address_of(animations);
 	current_object->aurora.countdown = current_object->aurora.animation_frames;
 	animation_start(animation);
 }
@@ -496,33 +480,24 @@ void animated_scenery_update(void)
 void road_row_start_copy(void)
 {
 	uint16_t position = 0, row_length = 0;
-	uint32_t animation = 0, road_row_record = 0;
+	uint32_t animation = 0;
+	const struct road_row_record *road_row_record = NULL;
 
 	current_object->state++;
-	road_row_record = current_object->road_row.record;
-	animation = ROAD_ROW_RECORD(road_row_record)->animation;
-	road_row_record += 2u;
-	current_object->palette = ROAD_ROW_RECORD(road_row_record - 0x2u)->palette;
-	road_row_record += 2u;
-	current_object->flags |= ROAD_ROW_RECORD(road_row_record - 0x4u)->flags;
-	road_row_record++;
-	current_object->road_row.size_table = ROAD_ROW_RECORD(road_row_record - 0x5u)->size_table;
-	road_row_record++;
-	current_object->scale_shift = ROAD_ROW_RECORD(road_row_record - 0x6u)->scale_shift;
-	road_row_record++;
-	current_object->side = ROAD_ROW_RECORD(road_row_record - 0x7u)->side;
-	road_row_record++;
-	current_object->x_offset = ROAD_ROW_RECORD(road_row_record - 0x8u)->x_offset;
-	road_row_record += 2u;
-	current_object->y_offset = ROAD_ROW_RECORD(road_row_record - 0xAu)->y_offset;
-	road_row_record += 2u;
-	current_object->road_row.spacing = ROAD_ROW_RECORD(road_row_record - 0xCu)->spacing;
-	road_row_record += 2u;
-	current_object->road_row.count = ROAD_ROW_RECORD(road_row_record - 0xEu)->count;
-	road_row_record += 2u;
-	if (ROAD_ROW_RECORD(road_row_record - 0x10u)->hit_box_along == 0u)
+	road_row_record = rom_pointer(current_object->road_row.record);
+	animation = road_row_record->animation;
+	current_object->palette = road_row_record->palette;
+	current_object->flags |= road_row_record->flags;
+	current_object->road_row.size_table = road_row_record->size_table;
+	current_object->scale_shift = road_row_record->scale_shift;
+	current_object->side = road_row_record->side;
+	current_object->x_offset = road_row_record->x_offset;
+	current_object->y_offset = road_row_record->y_offset;
+	current_object->road_row.spacing = road_row_record->spacing;
+	current_object->road_row.count = road_row_record->count;
+	if (road_row_record->hit_box_along == 0u)
 		current_object->state++;
-	current_object->road_row.hit_box = road_row_record;
+	current_object->road_row.hit_box = address_of(&road_row_record->hit_box_along);
 	animation_start(animation);
 	position = (uint16_t)current_object->position;
 	row_length = (uint16_t)(current_object->road_row.spacing * (current_object->road_row.count - 1u) + 1u);
@@ -566,6 +541,7 @@ void road_crosser_update(void)
 	uint16_t draw_distance = 0, position = 0;
 	uint32_t animation = 0, crossing_animation = 0;
 	const struct road_crosser_record *road_crosser_record = NULL;
+	uint32_t y_offset_long = 0;
 
 	switch (current_object->state)
 	{
@@ -574,7 +550,11 @@ void road_crosser_update(void)
 		road_crosser_record = rom_pointer(current_object->road_crosser.record);
 		animation = road_crosser_record->animation;
 		if (animation == SWORDFISH)
-			AS32(current_object->road_crosser.y_offset) = (int16_t)0xFF00u;
+		{
+			y_offset_long = (int16_t)0xFF00u;
+			current_object->y_offset = (uint16_t)y_offset_long;
+			current_object->road_crosser.y_offset_sign = (uint16_t)(y_offset_long >> 16u);
+		}
 		current_object->road_crosser.crossing_animation = road_crosser_record->crossing_animation;
 		current_object->palette = road_crosser_record->palette;
 		current_object->flags |= road_crosser_record->flags;
@@ -1027,36 +1007,27 @@ void swooping_helicopter_update(void)
 void start_gate_update(void)
 {
 	uint16_t position = 0, row_length = 0;
-	uint32_t animation = 0, ignored = 0, ignored_2 = 0, seconds_left = 0, start_gate_record = 0;
+	uint32_t animation = 0, ignored = 0, ignored_2 = 0, seconds_left = 0;
+	const struct start_gate_record *start_gate_record = NULL;
 
 	switch (current_object->state)
 	{
 	case 0:
 		current_object->state++;
-		start_gate_record = current_object->start_gate.record;
-		animation = START_GATE_RECORD(start_gate_record)->animation;
-		start_gate_record += 2u;
-		current_object->palette = START_GATE_RECORD(start_gate_record - 0x2u)->palette;
-		start_gate_record += 2u;
-		current_object->flags |= START_GATE_RECORD(start_gate_record - 0x4u)->flags;
-		start_gate_record++;
-		current_object->draw_mode = START_GATE_RECORD(start_gate_record - 0x5u)->draw_mode;
-		start_gate_record++;
-		current_object->scale_shift = START_GATE_RECORD(start_gate_record - 0x6u)->scale_shift;
-		start_gate_record++;
-		current_object->side = START_GATE_RECORD(start_gate_record - 0x7u)->side;
-		start_gate_record++;
-		current_object->x_offset = START_GATE_RECORD(start_gate_record - 0x8u)->x_offset;
-		start_gate_record += 2u;
-		current_object->y_offset = START_GATE_RECORD(start_gate_record - 0xAu)->y_offset;
-		start_gate_record += 2u;
-		current_object->start_gate.spacing = START_GATE_RECORD(start_gate_record - 0xCu)->spacing;
-		start_gate_record += 2u;
-		current_object->start_gate.count = START_GATE_RECORD(start_gate_record - 0xEu)->count;
-		start_gate_record += 2u;
-		if (START_GATE_RECORD(start_gate_record - 0x10u)->hit_box_along == 0u)
+		start_gate_record = rom_pointer(current_object->start_gate.record);
+		animation = start_gate_record->animation;
+		current_object->palette = start_gate_record->palette;
+		current_object->flags |= start_gate_record->flags;
+		current_object->draw_mode = start_gate_record->draw_mode;
+		current_object->scale_shift = start_gate_record->scale_shift;
+		current_object->side = start_gate_record->side;
+		current_object->x_offset = start_gate_record->x_offset;
+		current_object->y_offset = start_gate_record->y_offset;
+		current_object->start_gate.spacing = start_gate_record->spacing;
+		current_object->start_gate.count = start_gate_record->count;
+		if (start_gate_record->hit_box_along == 0u)
 			current_object->state++;
-		current_object->start_gate.hit_box = start_gate_record;
+		current_object->start_gate.hit_box = address_of(&start_gate_record->hit_box_along);
 		animation_start(animation);
 		position = (uint16_t)current_object->position;
 		row_length = (uint16_t)(current_object->start_gate.spacing * (current_object->start_gate.count - 1u) + 1u);
@@ -1593,37 +1564,28 @@ void sounding_scenery_update(void)
 {
 	uint8_t sound = 0;
 	uint16_t position = 0, row_length = 0;
-	uint32_t animation = 0, animation_order = 0, sounding_scenery_record = 0;
+	uint32_t animation = 0, animation_order = 0;
+	const struct sounding_scenery_record *sounding_scenery_record = NULL;
 	uint8_t sound_countdown = 0;
 
 	switch (current_object->state)
 	{
 	case 0:
 		current_object->state++;
-		sounding_scenery_record = current_object->sounding_scenery.record;
-		animation = SOUNDING_SCENERY_RECORD(sounding_scenery_record)->animation;
-		sounding_scenery_record += 2u;
-		current_object->palette = SOUNDING_SCENERY_RECORD(sounding_scenery_record - 0x2u)->palette;
-		sounding_scenery_record += 2u;
-		current_object->flags |= SOUNDING_SCENERY_RECORD(sounding_scenery_record - 0x4u)->flags;
-		sounding_scenery_record++;
-		current_object->sounding_scenery.size_table = SOUNDING_SCENERY_RECORD(sounding_scenery_record - 0x5u)->size_table;
-		sounding_scenery_record++;
-		current_object->scale_shift = SOUNDING_SCENERY_RECORD(sounding_scenery_record - 0x6u)->scale_shift;
-		sounding_scenery_record++;
-		current_object->side = SOUNDING_SCENERY_RECORD(sounding_scenery_record - 0x7u)->side;
-		sounding_scenery_record++;
-		current_object->x_offset = SOUNDING_SCENERY_RECORD(sounding_scenery_record - 0x8u)->x_offset;
-		sounding_scenery_record += 2u;
-		current_object->y_offset = SOUNDING_SCENERY_RECORD(sounding_scenery_record - 0xAu)->y_offset;
-		sounding_scenery_record += 2u;
-		current_object->sounding_scenery.spacing = SOUNDING_SCENERY_RECORD(sounding_scenery_record - 0xCu)->spacing;
-		sounding_scenery_record += 2u;
-		current_object->sounding_scenery.count = SOUNDING_SCENERY_RECORD(sounding_scenery_record - 0xEu)->count;
-		sounding_scenery_record += 2u;
-		current_object->sounding_scenery.sound = SOUNDING_SCENERY_RECORD(sounding_scenery_record - 0x10u)->sound;
+		sounding_scenery_record = rom_pointer(current_object->sounding_scenery.record);
+		animation = sounding_scenery_record->animation;
+		current_object->palette = sounding_scenery_record->palette;
+		current_object->flags |= sounding_scenery_record->flags;
+		current_object->sounding_scenery.size_table = sounding_scenery_record->size_table;
+		current_object->scale_shift = sounding_scenery_record->scale_shift;
+		current_object->side = sounding_scenery_record->side;
+		current_object->x_offset = sounding_scenery_record->x_offset;
+		current_object->y_offset = sounding_scenery_record->y_offset;
+		current_object->sounding_scenery.spacing = sounding_scenery_record->spacing;
+		current_object->sounding_scenery.count = sounding_scenery_record->count;
+		current_object->sounding_scenery.sound = sounding_scenery_record->sound;
 		current_object->sounding_scenery.sound_countdown = 0x3Cu;
-		current_object->sounding_scenery.sound_entry = sounding_scenery_record;
+		current_object->sounding_scenery.sound_entry = address_of(&sounding_scenery_record->sound);
 		animation_start(animation);
 		position = (uint16_t)current_object->position;
 		row_length = (uint16_t)(current_object->sounding_scenery.spacing * (current_object->sounding_scenery.count - 1u) + 1u);
@@ -1984,8 +1946,10 @@ void fork_branch_draw(void)
 			if (screen->sprite_list_limit <= sprite)
 				break;
 			rows_to_fill = 0u;
-			AS32(SPRITE_WORDS(sprite)[6144]) = 0u;
-			AS32(SPRITE_WORDS(sprite)[0]) = r12;
+			SPRITE_WORDS(sprite + 0x3000u)[0] = 0u;
+			SPRITE_WORDS(sprite + 0x3000u)[1] = 0u;
+			SPRITE_WORDS(sprite)[0] = (uint16_t)r12;
+			SPRITE_WORDS(sprite)[1] = (uint16_t)(r12 >> 16u);
 			sprite += 4u;
 			SPRITE_WORDS(sprite)[0] = height_word;
 			sprite += 2u;
@@ -1995,7 +1959,8 @@ void fork_branch_draw(void)
 			sprite += 2u;
 			SPRITE_WORDS(sprite)[0] = piece_x;
 			sprite += 2u;
-			AS32(SPRITE_WORDS(sprite)[0]) = offset_palette;
+			SPRITE_WORDS(sprite)[0] = (uint16_t)offset_palette;
+			SPRITE_WORDS(sprite)[1] = (uint16_t)(offset_palette >> 16u);
 			sprite += 4u;
 		}
 		else
@@ -2009,8 +1974,10 @@ void fork_branch_draw(void)
 				{
 					if (screen->sprite_list_limit <= sprite)
 						return;
-					AS32(SPRITE_WORDS(sprite)[6144]) = 0u;
-					AS32(SPRITE_WORDS(sprite)[0]) = r12;
+					SPRITE_WORDS(sprite + 0x3000u)[0] = 0u;
+					SPRITE_WORDS(sprite + 0x3000u)[1] = 0u;
+					SPRITE_WORDS(sprite)[0] = (uint16_t)r12;
+					SPRITE_WORDS(sprite)[1] = (uint16_t)(r12 >> 16u);
 					sprite += 4u;
 					SPRITE_WORDS(sprite)[0] = height_word;
 					sprite += 2u;
@@ -2021,7 +1988,8 @@ void fork_branch_draw(void)
 					sprite += 2u;
 					SPRITE_WORDS(sprite)[0] = divide_s32(piece_x * rows_left + last_x * rows_done, row_span);
 					sprite += 2u;
-					AS32(SPRITE_WORDS(sprite)[0]) = offset_palette;
+					SPRITE_WORDS(sprite)[0] = (uint16_t)offset_palette;
+					SPRITE_WORDS(sprite)[1] = (uint16_t)(offset_palette >> 16u);
 					sprite += 4u;
 				}
 				rows_left--;
@@ -2037,8 +2005,10 @@ void fork_branch_draw(void)
 			depth_list->tail = sprite;
 		first_sprite = screen->sprite_list_last + 0x10u;
 		layer_head = depth_list->head;
-		AS32(SPRITE_WORDS(sprite)[0]) = layer_head;
-		AS32(SPRITE_WORDS(sprite)[6144]) = (uint16_t)(layer_head + 0x300u);
+		SPRITE_WORDS(sprite)[0] = (uint16_t)layer_head;
+		SPRITE_WORDS(sprite)[1] = (uint16_t)(layer_head >> 16u);
+		SPRITE_WORDS(sprite + 0x3000u)[0] = (uint16_t)(layer_head + 0x300u);
+		SPRITE_WORDS(sprite + 0x3000u)[1] = 0u;
 		screen->sprite_list_last = sprite;
 		depth_list->head = (first_sprite >> 4) | 0x8000u;
 		screen->sprite_groups++;

@@ -3,7 +3,7 @@
  *    Description: the video chips set up and cleared: the screens, the tile layers, the sprite chip and its lists, the mixer, the I/O chips
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -22,8 +22,7 @@
 uint32_t init_screen(void)
 {
 	uint16_t course_length = 0, section_length = 0;
-	uint32_t command_routine = 0, courses_left = 0, index = 0, length = 0, length_place = 0, screen_hardware = 0, stage_course = 0;
-	const struct course_entry *course_entry = NULL;
+	uint32_t command_routine = 0, course_place = 0, courses_left = 0, index = 0, length = 0, length_place = 0, screen_hardware = 0, stage_course = 0;
 	uint32_t command = 0;
 
 	index = address_of(screen) >> 16;
@@ -46,15 +45,15 @@ uint32_t init_screen(void)
 	courses_left = 0x1Fu;
 	do
 	{
-		course_entry = rom_pointer(COURSE_POINTER(stage_course)[0]);
+		course_place = COURSE_POINTER(stage_course)[0];
 		section_length = 0u;
 		course_length = 0u;
 		stage_course += 4u;
 		course_length += section_length;
 		for (;;)
 		{
-			length = course_entry->length;
-			course_entry = course_entry + 1;
+			length = (COURSE_BYTES(course_place)[0] | ((uint32_t)COURSE_BYTES(course_place)[1] << 8u));
+			course_place += 6u;
 			if ((int16_t)length >= 0)
 			{
 				course_length += length;
@@ -68,11 +67,11 @@ uint32_t init_screen(void)
 			case 4:
 				continue;
 			case 0:
-				course_entry = rom_pointer(address_of(course_entry) - 4u);
-				course_entry = rom_pointer((course_entry->length | ((uint32_t)(course_entry->jump & 0xFFFFu) << 16u)));
+				course_place -= 4u;
+				course_place = (COURSE_BYTES(course_place)[0] | ((uint32_t)COURSE_BYTES(course_place)[1] << 8u) | ((uint32_t)COURSE_BYTES(course_place)[2] << 16u) | ((uint32_t)COURSE_BYTES(course_place)[3] << 24u));
 				continue;
 			case 3:
-				course_entry = rom_pointer(address_of(course_entry) - 2u);
+				course_place -= 2u;
 				continue;
 			case 1:
 			case 5:
@@ -128,7 +127,7 @@ uint16_t init_video(void)
 
 /* Puts the screen's two tile layers (NBG0 and NBG2 for screen 1, NBG1 and NBG3 for screen 2) back at
    page 0 and scroll 0: their page selects (video_registers[32], video_registers[36]) and scroll targets
-   (scroll_targets, scroll_targets[4]) cleared, and bits 12-15 of the video control register (31FF00,
+   (scroll_targets, scroll_targets[8]) cleared, and bits 12-15 of the video control register (31FF00,
    video_registers) cleared. Used as the game modes start. */
 uint16_t reset_tile_layers(void)
 {
@@ -137,12 +136,18 @@ uint16_t reset_tile_layers(void)
 	VIDEO_CONTROL &= 0xFFFu;
 	game->video_registers[0] &= 0xFFFu;
 	index = screen->index;
-	AS32(game->video_registers[32 + index * 2u]) = 0u;
-	AS32(game->video_registers[36 + index * 2u]) = 0u;
-	game->scroll_targets[index * 2u] = 0u;
-	game->scroll_targets[1 + index * 2u] = 0u;
-	game->scroll_targets[4 + index * 2u] = 0u;
-	game->scroll_targets[5 + index * 2u] = 0u;
+	game->video_registers[32 + index * 2u] = 0u;
+	game->video_registers[33 + index * 2u] = 0u;
+	game->video_registers[36 + index * 2u] = 0u;
+	game->video_registers[37 + index * 2u] = 0u;
+	game->scroll_targets[index * 4u] = 0u;
+	game->scroll_targets[index * 4u + 1] = 0u;
+	game->scroll_targets[2 + index * 4u] = 0u;
+	game->scroll_targets[3 + index * 4u] = 0u;
+	game->scroll_targets[8 + index * 4u] = 0u;
+	game->scroll_targets[9 + index * 4u] = 0u;
+	game->scroll_targets[10 + index * 4u] = 0u;
+	game->scroll_targets[11 + index * 4u] = 0u;
 	return index;
 }
 
@@ -209,24 +214,25 @@ void clear_tile_page(uint16_t page)
 void init_sprite_chip(void)
 {
 	uint16_t control_flip = 0;
-	uint32_t control_register = 0, control_values = 0;
+	uint32_t control_register = 0;
+	const uint8_t *control_values = NULL;
 
 	io_write16(0x500000u, sprite_control_mode);
 	control_register = SPRITE_CONTROL + 0x4u;
 	control_flip = sprite_control_flip;
-	control_values = sprite_control_rest_ADDRESS;
+	control_values = rom_pointer(sprite_control_rest_ADDRESS);
 	if (game->flip_screen != 0u)
 		control_flip = control_flip ^ 3u;
 	io_write16(control_register, control_flip);
 	control_register += 2u;
-	io_write16(control_register, SPRITE_CONTROL_VALUES(control_values)[0]);
+	io_write16(control_register, control_values[0]);
 	control_values++;
 	control_register += 2u;
-	io_write16(control_register, SPRITE_CONTROL_VALUES(control_values)[0]);
+	io_write16(control_register, control_values[0]);
 	control_values++;
 	control_register += 2u;
-	io_write16(control_register, SPRITE_CONTROL_VALUES(control_values)[0]);
-	io_write16(control_register + 2u, SPRITE_CONTROL_VALUES(control_values)[1]);
+	io_write16(control_register, control_values[0]);
+	io_write16(control_register + 2u, control_values[1]);
 	init_sprite_lists();
 }
 
