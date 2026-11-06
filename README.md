@@ -63,21 +63,22 @@ What any tool makes is yours alone, with the game's data in it: never share it.
   `[` and `]` its songs; Enter starts and pauses. A game controller: the d-pad or the left stick steers,
   the right trigger or A accelerates, the left trigger or B brakes (a trigger as far as it is pressed), the
   shoulders shift. OPTIONS > CONTROLS changes them, the triggers and the sticks' buttons too.
-- **A racing wheel** (a Logitech G29, for one): the game takes it as a game controller, the wheel its left
-  stick and the pedals its triggers. OPTIONS > STEERING > WHEEL ROTATION is the wheel's own turn from end to
-  end, 270 to 1080 (900 on a G29): the game's wheel turns all the way at 135 each way, the arcade's 270, and
-  stays at its end past them; the DEAD ZONE counts within those 135 (on a wheel, 0%). STEERING's INPUT TEST
-  shows the wheel, the gas and the brake as the game sees them, to see where the wheel reaches its ends and
-  the pedals their floor.
-- **A wheel the game does not see** (a Thrustmaster T300RS on Windows: SDL, which reads the controllers, has
-  no layout for it): OPTIONS > STEERING > SET UP WHEEL asks for its controls one by one: turn the wheel left,
-  press the gas and let go, the brake, then the buttons for shift up, shift down and start (Escape cancels).
-  The wheel is then player 1's game controller, and the INPUT TEST comes next to check it. The wheel's
-  pedals may be separate or combined in one axis; its other buttons are the controller's A, B, X, Y and
-  the rest (A accelerates and B brakes, as on a pad, until OPTIONS > CONTROLS changes them), its hat the
-  d-pad. The layout is kept in `gamecontrollerdb.txt`, beside `controls.ini` in the folder where the game
-  keeps its files: SDL's own format, a line a device, so a layout made elsewhere (SDL's community's
-  `gamecontrollerdb.txt`, a tool's) can go there too, and both games read it as they start.
+- **A racing wheel**: the game reads it as a game controller, the wheel its left stick and the pedals its
+  triggers. One SDL (which reads the controllers) knows, a Logitech G29 for one, works as it is plugged in;
+  one it has no layout for, a Thrustmaster T300RS on Windows for one, is set up once in OPTIONS > STEERING:
+  - **SET UP WHEEL** asks for its controls one by one: turn the wheel left, press the gas and let go, the
+    brake, then the buttons for shift up, shift down and start (Escape cancels). The wheel is then player 1's
+    game controller. Its pedals may be separate or combined in one axis; its other buttons are the
+    controller's A, B, X, Y and the rest (A accelerates and B brakes, as on a pad, until OPTIONS > CONTROLS
+    changes them), its hat the d-pad. The layout is kept in `gamecontrollerdb.txt`, beside `controls.ini` in
+    the folder where the game keeps its files: SDL's own format, a line a device, so a layout made elsewhere
+    (SDL's community's `gamecontrollerdb.txt`, a tool's) can go there too, and both games read it as they
+    start.
+  - **WHEEL ROTATION** is the wheel's own turn from end to end, 270 to 1080 (900 on a G29): the game's wheel
+    turns all the way at 135 each way, the arcade's 270, and stays at its end past them; the DEAD ZONE counts
+    within those 135 (on a wheel, 0%).
+  - **INPUT TEST** shows the wheel, the gas and the brake as the game sees them, to see where the wheel
+    reaches its ends and the pedals their floor (it comes next after SET UP WHEEL).
 - **Android's touch controls**: the wheel, GAS and BRAKE, the gears' buttons with the manual transmission,
   START and the radio. On a tall screen (an open Fold, a tablet) the picture goes to the top and the controls
   under it, over the game's own route map following the car.
