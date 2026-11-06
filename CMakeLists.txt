@@ -5,7 +5,7 @@
 # Modified:    04-11-2026
 # Author:      Sebastian Toyos
 cmake_minimum_required(VERSION 3.20)
-project(outrunners VERSION 1.1.2 LANGUAGES C CXX)    # (the release's: OPTIONS shows it, the devices' packages carry it)
+project(outrunners VERSION 1.1.3 LANGUAGES C CXX)    # (the release's: OPTIONS shows it, the devices' packages carry it)
 
 # A generator of one configuration (Makefiles, Ninja: Linux's and macOS's by default) given no build type
 # builds the game optimized, as the packages are: without, it is slower (and issue 17's race showed)
