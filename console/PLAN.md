@@ -332,6 +332,26 @@ merged here; this repository adds console/, the ports and their documents.
   first run's folder against extract_assets.py's, no difference; OutRunners Arcade's window (three video
   threads) on coin_start and two_players, its state, picture and sound the reference's; a pack written and
   two_players run from it with three video threads, the same; a pack made before, refused.
+- NETWORK over arcade-lan (lan/, a submodule: github.com/cheviman/arcade-lan, Sebas: one network for the
+  ports), its linked game (LAN_LINK, made for this one from these rooms beside TMNT's lockstep): arcade-lan
+  keeps the rooms (the beacons, JOIN, the list with where the host hears each device), each device's block to
+  every other each frame (the newest kept), a device unheard (heard false) and gone after 3 seconds for the
+  rest of the game, a room taking devices while its game goes on, the next device hosting a room whose host is
+  gone, and what a device says of itself (lan_set_status: BUSY, a seat in a race, which START waits on).
+  console/network.c keeps the game's part: the link's set-up at START (the game's devices in the room's order,
+  the host machine 1), the block (the records a machine carries: its own two and a gone one's), each
+  machine's taken from the one that carries it (publisher) through check_record (now into a whole struct
+  race), a machine gone carried by another, the race hosted on. console/net_udp.c and net.h gone; the
+  datagrams' version 2 (a device of 1.2.0 sees no room of one before). Checked with two headless games
+  (--real-time, tests/console/network_*): a race of both to its end and back to the room; the joiner gone
+  mid-race (160 frames of WAIT, then its car out of sight, the race on to its end alone); the room's host
+  gone (the other hosts the room); the race's host gone (the other hosts the race on from its last record,
+  its time and time left, and the room). arcade-lan's tests (lan_test, lan_link_test: four devices, a tenth
+  of the datagrams lost) on Windows and Linux; built on Windows (MSVC) and Linux (gcc) without warnings.
+- The README for the player (959 lines to 122, Sebas: too specific): what the game is, playing it, the
+  console version, the controls, NETWORK, building it; the decompilation's own README stays
+  outrunners-decomp's, linked (a merge of the decomp keeps the port's README as it is). arcade-lan cited with
+  its license, in the packages' licenses/ too.
 
 ## To do
 

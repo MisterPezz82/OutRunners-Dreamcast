@@ -8,9 +8,9 @@
 #              release of those packages (as SegaSonic's). It runs on main, its pull requests and the tags v*
 #              alone (Sebas, 30-10-2026: not on the other branches); by hand on any branch. And on the newest
 #              Ubuntu, as the README builds there (its GCC, Python and SDL2)
-# Version:     0.2.2
+# Version:     0.2.3
 # Created:     27-10-2026
-# Modified:    01-11-2026
+# Modified:    06-11-2026
 # Author:      Sebastian Toyos
 name: build
 
@@ -110,6 +110,7 @@ jobs:
           cp tools/core/system32/reference/mame/LICENSE dist/outrunners/licenses/MAME.txt
           cp tools/core/system32/reference/ymfm/LICENSE dist/outrunners/licenses/ymfm.txt
           cp build/cmake/_deps/sdl2-src/LICENSE.txt dist/outrunners/licenses/SDL2.txt
+          cp lan/LICENSE dist/outrunners/licenses/arcade-lan.txt
           cp ports/sdl2/font/License.txt dist/outrunners/licenses/Kenney-Mini.txt
           cp ports/sdl2/prompts/License.txt dist/outrunners/licenses/Kenney-Input-Prompts.txt
           if [ "$RUNNER_OS" = macOS ]; then
@@ -143,6 +144,8 @@ jobs:
     container: devkitpro/devkita64:latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true    # (lan/: arcade-lan, the network's)
 
       - name: Configure
         run: /opt/devkitpro/portlibs/switch/bin/aarch64-none-elf-cmake -S . -B build/switch -DCMAKE_BUILD_TYPE=Release -DORUNNERS_REFERENCE_TOOLS=OFF
@@ -162,6 +165,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true    # (lan/: arcade-lan, the network's)
 
       - name: Tools
         run: |
@@ -193,6 +198,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true    # (lan/: arcade-lan, the network's)
 
       - name: Tools
         run: |

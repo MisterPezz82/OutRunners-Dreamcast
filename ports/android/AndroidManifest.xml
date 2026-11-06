@@ -3,9 +3,9 @@
 	Name:        AndroidManifest.xml
 	Description: the Android app: SDL's activity (org.libsdl.app.SDLActivity, its Java from SDL's source)
 	             starting the game in libmain.so, on its side of the screen, full screen
-	Version:     0.1.0
+	Version:     0.1.1
 	Created:     30-10-2026
-	Modified:    30-10-2026
+	Modified:    06-11-2026
 	Author:      Sebastian Toyos
 
 	The version and the SDKs come from android.cmake (aapt2 link). A touch screen and a game controller are
@@ -22,7 +22,7 @@
 	<uses-feature android:name="android.hardware.usb.host" android:required="false" />
 	<uses-feature android:name="android.hardware.wifi" android:required="false" />
 
-	<!-- NETWORK: the rooms' datagrams on the local network (console/net_udp.c) -->
+	<!-- NETWORK: the rooms' datagrams on the local network (arcade-lan, lan/) -->
 	<uses-permission android:name="android.permission.INTERNET" />
 
 	<application

@@ -1,10 +1,10 @@
 /**
  *    Name:        network.c
  *    Description: the network game: rooms (HOST, JOIN) of up to four devices, each one of the arcade's linked
- *                 cabinets in the room's races, and the link's race records sent and received over UDP
- *    Version:     0.1.0
+ *                 cabinets in the room's races, over arcade-lan's linked game (lan/)
+ *    Version:     0.2.0
  *    Created:     30-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -14,37 +14,30 @@
  *    the first one in a race (its host) keeps its time and checkpoints, and every screen reads them from their
  *    records. Nothing waits frame by frame for the others: each cabinet takes the newest records it has.
  *
- *    Here each device is a cabinet and the link board is UDP: every device sends its records to every other
- *    of the room each frame, and takes theirs as the board would hand them (link_receive_records). A room is
- *    hosted by a device, which sends a beacon to the local network every half second for the others to find it
- *    (JOIN) and keeps its list of devices; its START links them in the list's order (the host machine 1) and
- *    presses each one's START, as an ARCADE race of all of them. Every datagram is written byte by byte, so
- *    that the devices need not be alike (a computer, a phone, a Switch).
+ *    Here each device is a cabinet and the link board is arcade-lan's linked game (LAN_LINK): its rooms (a host's
+ *    beacon, JOIN, the room's list, the next device hosting a room whose host is gone) and the game's devices, each
+ *    publishing a block every frame that goes to every other, which keeps the newest. The host's START links the
+ *    game's devices in the room's order (the host machine 1) and presses each one's START, as an ARCADE race of all
+ *    of them. A device's block is the race records it carries (its own two, and those of a machine gone it sends
+ *    on), taken as the board would hand them (link_receive_records); what it says of itself (lan_set_status) is
+ *    whether a seat of it is in a race, as the host's START waits for none to be.
  */
 #include "console.h"
 #include "console_internal.h"
-#include "net.h"
 
+#include "arcade_lan.h"
 #include "game.h"
 
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 
-#define VERSION             1          /* the datagrams' and the game's: devices of another version are not heard */
+#define GAME_VERSION        2          /* the datagrams' and the game's: devices of another version are not heard */
+#define BEACON_PORT         27720      /* where the rooms' beacons go, every device's on the network */
 #define MACHINES            4          /* the link's cabinets */
 #define SLOTS               8          /* their seats, the race records */
 #define RECORD_BYTES        0x70u      /* of a race record, those the link carries */
 #define RECORD_SIZE         0x80u
-#define ROOMS               8          /* the rooms JOIN lists */
-#define BEACON_FRAMES       30         /* a room's beacon, every half second */
-#define ROOM_FORGOTTEN      180        /* a room unheard for 3 seconds is gone from JOIN's list */
-#define JOIN_FRAMES         10         /* JOIN again until the room lists the device */
-#define JOIN_GIVEN_UP       300        /* a room that does not answer in 5 seconds */
-#define SILENT_FRAMES       20         /* a device unheard for a third of a second: its race waits */
-#define LOST_FRAMES         180        /* and for 3 seconds: it is gone */
-#define PACKET_MOST         1400
 #define ENTRIES_CUT         0x28u      /* race_entries_update's entry_frames once every player is in */
 #define RACE_PART           0x30u      /* a race record's race (race_record_clear): the car's state, its passes */
 
@@ -55,63 +48,21 @@
 #define COURSES             10u        /* course_records: a course each goal */
 #define SPRITE_ANIMATIONS   0x22B2u    /* sprite_animations' entries (034138, 8AC8 bytes) */
 
-static const uint8_t magic[4] = { 'O', 'R', 'U', 'N' };
-
-enum { PACKET_BEACON = 1, PACKET_JOIN, PACKET_STATE, PACKET_LEAVE };
-
-/* What a device's STATE says of it (flags) */
+/* What a device says of itself (lan_set_status) */
 #define BUSY                0x01u      /* a seat of it plays a race */
-
-typedef struct
-{
-	uint32_t id;
-	char name[CONSOLE_NAME_LENGTH + 1];
-	uint8_t players;           /* 1, or 2 (both seats) */
-	net_address address;       /* as the room's host hears it (0: the host itself) */
-} member;
-
-/* A device heard: its address (where its datagrams come from), when, and what its STATE said */
-typedef struct
-{
-	uint32_t id;
-	net_address address;
-	uint32_t heard;            /* the frame */
-	uint8_t flags;
-} peer;
 
 static struct
 {
-	int role;
-	uint32_t id;               /* this device's, at random */
+	lan_device *lan;           /* in a room, or looking for one */
 	uint32_t frame;
 	char problem[32];          /* what went wrong, for the NETWORK page (once) */
-
-	/* the room: its id (its first host's), its list (the host first, then the link's machines' order) */
-	uint32_t room;
-	member members[MACHINES];
-	int member_count;
-	uint16_t list_version;
-	uint8_t start_serial;      /* the host's STARTs */
-	peer peers[SLOTS];
-	uint32_t role_frame;       /* JOINING: since when */
-	net_address joining;       /* JOINING: the room's host, its address */
-	uint32_t joining_host;     /* and its id */
-
-	/* the rooms found (JOIN) */
-	struct
-	{
-		uint32_t room;
-		uint32_t host;         /* its host's id */
-		net_address address;
-		char name[CONSOLE_NAME_LENGTH + 1];
-		int members;
-		uint32_t heard;
-	} rooms[ROOMS];
+	lan_room rooms[LAN_ROOMS];             /* the rooms found (JOIN), as of this frame */
 	int room_count;
+	lan_member members[LAN_DEVICES];       /* the room's list (the host first), as of this frame */
+	int member_count;
 
-	/* the link: the START it is for, this device's machine (1-4), the machines and who they are */
+	/* the link: this device's machine (1-4), the machines and who they are, the others' records */
 	bool linked;
-	uint8_t link_serial;
 	int machine;
 	int machines;
 	int players;               /* the players of the race's devices, all of them */
@@ -122,196 +73,7 @@ static struct
 	bool waiting;              /* a race waits for a device unheard */
 } net;
 
-enum { ROLE_OFF, ROLE_SEARCHING, ROLE_JOINING, ROLE_IN_ROOM };
-
 static int players_wanted = 1;    /* NETWORK > PLAYERS */
-
-/* ---- bytes ---- */
-
-typedef struct
-{
-	uint8_t *bytes;
-	size_t size;
-	size_t room;
-} writer;
-
-typedef struct
-{
-	const uint8_t *bytes;
-	size_t size;
-	size_t at;
-	bool short_of;             /* read past its end */
-} reader;
-
-static void put8(writer *out, uint32_t value)
-{
-	if (out->size < out->room)
-		out->bytes[out->size] = (uint8_t)value;
-	out->size++;
-}
-
-static void put16(writer *out, uint32_t value)
-{
-	put8(out, value);
-	put8(out, value >> 8);
-}
-
-static void put32(writer *out, uint32_t value)
-{
-	put16(out, value);
-	put16(out, value >> 16);
-}
-
-static void put_bytes(writer *out, const void *bytes, size_t size)
-{
-	for (size_t at = 0; at < size; at++)
-		put8(out, ((const uint8_t *)bytes)[at]);
-}
-
-static void put_name(writer *out, const char *name)
-{
-	size_t length = strlen(name);
-
-	for (size_t at = 0; at < CONSOLE_NAME_LENGTH; at++)
-		put8(out, at < length ? (uint8_t)name[at] : 0u);
-}
-
-static uint32_t get8(reader *in)
-{
-	if (in->at >= in->size)
-	{
-		in->short_of = true;
-		return 0;
-	}
-	return in->bytes[in->at++];
-}
-
-static uint32_t get16(reader *in)
-{
-	const uint32_t low = get8(in);
-
-	return low | get8(in) << 8;
-}
-
-static uint32_t get32(reader *in)
-{
-	const uint32_t low = get16(in);
-
-	return low | get16(in) << 16;
-}
-
-static void get_bytes(reader *in, void *bytes, size_t size)
-{
-	for (size_t at = 0; at < size; at++)
-		((uint8_t *)bytes)[at] = (uint8_t)get8(in);
-}
-
-/* A name of the datagram: the font's letters only (others as spaces) */
-static void get_name(reader *in, char name[CONSOLE_NAME_LENGTH + 1])
-{
-	for (int at = 0; at < CONSOLE_NAME_LENGTH; at++)
-	{
-		const char letter = (char)get8(in);
-
-		name[at] = (letter >= 'A' && letter <= 'Z') || (letter >= '0' && letter <= '9') || letter == '.' || letter == '-'
-			|| letter == 0 ? letter : ' ';
-	}
-	name[CONSOLE_NAME_LENGTH] = '\0';
-}
-
-/* A datagram's start: who sends it, of what room */
-static void put_header(writer *out, int kind)
-{
-	put_bytes(out, magic, sizeof(magic));
-	put8(out, VERSION);
-	put8(out, (uint32_t)kind);
-	put32(out, net.id);
-	put32(out, net.room);
-}
-
-/* ---- the devices heard ---- */
-
-/* True for a device of the room's list or of the link: its entry among the devices heard is kept */
-static bool kept_peer(uint32_t id)
-{
-	for (int index = 0; index < net.member_count; index++)
-		if (net.members[index].id == id)
-			return true;
-	for (int machine = 0; net.linked && machine < net.machines; machine++)
-		if (net.link_ids[machine] == id)
-			return true;
-	return false;
-}
-
-/* A device heard, by its id; with 'add' a new entry for it, in place of a free one or of the longest unheard
-   of those no member's (NULL when there is none) */
-static peer *peer_of(uint32_t id, bool add)
-{
-	peer *freed = NULL;
-
-	for (int index = 0; index < SLOTS; index++)
-	{
-		peer *each = &net.peers[index];
-
-		if (each->id == id && id != 0u)
-			return each;
-		if (each->id == 0u)
-		{
-			if (!freed || freed->id != 0u)
-				freed = each;    /* (a free one before any other) */
-		}
-		else if (!kept_peer(each->id) && (!freed || (freed->id != 0u && each->heard < freed->heard)))
-			freed = each;
-	}
-	if (!add || !freed)
-		return NULL;
-	memset(freed, 0, sizeof(*freed));
-	freed->id = id;
-	freed->heard = net.frame;
-	return freed;
-}
-
-/* Where a member's datagrams go: where they come from once heard, else where the room's host hears them */
-static bool member_address(const member *who, net_address *address)
-{
-	const peer *heard = peer_of(who->id, false);
-
-	if (heard && heard->address.ip)
-	{
-		*address = heard->address;
-		return true;
-	}
-	if (who->address.ip)
-	{
-		*address = who->address;
-		return true;
-	}
-	return false;
-}
-
-static int member_index(uint32_t id)
-{
-	for (int index = 0; index < net.member_count; index++)
-		if (net.members[index].id == id)
-			return index;
-	return -1;
-}
-
-static bool hosting(void)
-{
-	return net.role == ROLE_IN_ROOM && net.member_count > 0 && net.members[0].id == net.id;
-}
-
-/* Frames since a member was last heard (0 for this device) */
-static uint32_t unheard(uint32_t id)
-{
-	const peer *heard;
-
-	if (id == net.id)
-		return 0;
-	heard = peer_of(id, false);
-	return heard ? net.frame - heard->heard : LOST_FRAMES;
-}
 
 /* ---- the link ---- */
 
@@ -390,7 +152,7 @@ static void link_end(void)
 	game->car_numbers[1] = 1u;
 }
 
-/* The machine whose datagrams carry a slot's record: its own, or the first one still heard for one gone */
+/* The machine whose blocks carry a slot's record: its own, or the first one still heard for one gone */
 static int publisher(int slot)
 {
 	const int owner = slot / 2 + 1;
@@ -403,165 +165,34 @@ static int publisher(int slot)
 	return owner;
 }
 
-/* The room's START, as the host's list has it: this device's machine its place in the list */
-static void start_race(void)
-{
-	const int index = member_index(net.id);
-
-	if (index < 0)
-		return;
-	net.link_serial = net.start_serial;
-	net.players = 0;
-	for (int machine = 0; machine < MACHINES; machine++)
-		net.link_ids[machine] = machine < net.member_count ? net.members[machine].id : 0u;
-	for (int machine = 0; machine < net.member_count; machine++)
-		net.players += net.members[machine].players;
-	link_set_up(index + 1, net.member_count);
-	net.start_pending = net.members[index].players;
-}
-
 /* True while a seat of this device plays a game */
 static bool busy(void)
 {
 	return SCREEN(SCREEN_1)->game_mode == GAME_MODE_PLAY || SCREEN(SCREEN_2)->game_mode == GAME_MODE_PLAY;
 }
 
-/* ---- the datagrams ---- */
-
-static void send_to(net_address to, const writer *out)
+/* The room's START, as the game's devices are listed: this device's machine its place in the list */
+static void start_race(void)
 {
-	if (out->size <= out->room)
-		net_send(to, out->bytes, out->size);
-}
+	lan_member members[LAN_DEVICES];
+	const int count = lan_game_members(net.lan, members);
+	int own = -1;
 
-/* The room's list, its START and this device's records (with those of a machine gone it carries) */
-static void send_state(void)
-{
-	uint8_t bytes[PACKET_MOST];
-	writer out = { bytes, 0, sizeof(bytes) };
-	size_t slot_count_at;
-	int slot_count = 0;
-
-	put_header(&out, PACKET_STATE);
-	put16(&out, net.list_version);
-	put8(&out, net.start_serial);
-	put8(&out, (uint32_t)net.member_count);
-	for (int index = 0; index < net.member_count; index++)
-	{
-		put32(&out, net.members[index].id);
-		put_name(&out, net.members[index].name);
-		put8(&out, net.members[index].players);
-		put32(&out, net.members[index].address.ip);
-		put16(&out, net.members[index].address.port);
-	}
-	put8(&out, busy() ? BUSY : 0u);
-	put8(&out, net.linked ? net.link_serial : 0u);
-	put8(&out, net.linked ? (uint32_t)net.machine : 0u);
-	slot_count_at = out.size;
-	put8(&out, 0u);
-	for (int slot = 0; net.linked && slot < net.machines * 2; slot++)
-	{
-		if (publisher(slot) != net.machine)
-			continue;
-		put8(&out, (uint32_t)slot);
-		if (slot / 2 + 1 == net.machine)
-			put_bytes(&out, RACE(slot & 1 ? RACE_2 : RACE_1), RECORD_BYTES);
-		else
-			put_bytes(&out, net.slots[slot], RECORD_BYTES);
-		slot_count++;
-	}
-	if (slot_count_at < out.room)
-		bytes[slot_count_at] = (uint8_t)slot_count;
-	for (int index = 0; index < net.member_count; index++)
-	{
-		net_address to;
-
-		if (net.members[index].id != net.id && member_address(&net.members[index], &to))
-			send_to(to, &out);
-	}
-}
-
-static void send_beacon(void)
-{
-	uint8_t bytes[64];
-	writer out = { bytes, 0, sizeof(bytes) };
-	const net_address everyone = { NET_BROADCAST, NET_BEACON_PORT }, here = { NET_LOOPBACK, NET_BEACON_PORT };
-
-	put_header(&out, PACKET_BEACON);
-	put_name(&out, net.members[0].name);
-	put8(&out, (uint32_t)net.member_count);
-	send_to(everyone, &out);
-	send_to(here, &out);    /* (a second game on this computer) */
-}
-
-static void send_join(void)
-{
-	uint8_t bytes[64];
-	writer out = { bytes, 0, sizeof(bytes) };
-
-	put_header(&out, PACKET_JOIN);
-	put_name(&out, console_window_settings.name);
-	put8(&out, (uint32_t)console_network_players());
-	send_to(net.joining, &out);
-}
-
-static void send_leave(void)
-{
-	uint8_t bytes[32];
-	writer out = { bytes, 0, sizeof(bytes) };
-
-	put_header(&out, PACKET_LEAVE);
-	for (int index = 0; index < net.member_count; index++)
-	{
-		net_address to;
-
-		if (net.members[index].id != net.id && member_address(&net.members[index], &to))
-			send_to(to, &out);
-	}
-}
-
-/* A beacon: the room into JOIN's list with its host's id (where it comes from: its host's address; one from
-   this computer's loopback only until the network's comes). A room is listed once for each device that sends
-   its beacons: one speaking for another's room is a line of its own, no other's in its place (a room whose host
-   is gone comes back with the new one's) */
-static void take_beacon(reader *in, uint32_t room, uint32_t sender, net_address from)
-{
-	int index;
-
-	for (index = 0; index < net.room_count && (net.rooms[index].room != room || net.rooms[index].host != sender); index++)
-		;
-	if (index == net.room_count)
-	{
-		if (net.room_count == ROOMS)
-			return;
-		net.room_count++;
-		net.rooms[index].room = room;
-		net.rooms[index].host = sender;
-		net.rooms[index].address = from;
-	}
-	else if (from.ip != NET_LOOPBACK)
-		net.rooms[index].address = from;
-	get_name(in, net.rooms[index].name);
-	net.rooms[index].members = (int)get8(in);
-	net.rooms[index].heard = net.frame;
-}
-
-/* A device's JOIN, at the room's host: into the list where there is room */
-static void take_join(reader *in, uint32_t sender, net_address from)
-{
-	member *joined;
-
-	if (!hosting() || member_index(sender) >= 0 || net.member_count == MACHINES)
+	if (count < 1 || count > MACHINES)
 		return;
-	joined = &net.members[net.member_count++];
-	memset(joined, 0, sizeof(*joined));
-	joined->id = sender;
-	get_name(in, joined->name);
-	joined->players = (uint8_t)get8(in);
-	if (joined->players < 1 || joined->players > 2)
-		joined->players = 1;
-	joined->address = from;
-	net.list_version++;
+	net.players = 0;
+	for (int machine = 0; machine < MACHINES; machine++)
+		net.link_ids[machine] = machine < count ? members[machine].id : 0u;
+	for (int index = 0; index < count; index++)
+	{
+		net.players += members[index].players;
+		if (members[index].own)
+			own = index;
+	}
+	if (own < 0)
+		return;
+	link_set_up(own + 1, count);
+	net.start_pending = members[own].players;
 }
 
 /* A record from the network, of the slot 'slot': whose it is as the link has it (its machine, its player, its
@@ -608,131 +239,85 @@ static void check_record(struct race *record, int slot)
 		record->animation = 0u;
 }
 
-/* A member's STATE: the room's list from the room's host (a newer one), START, and the records it carries */
-static void take_state(reader *in, uint32_t sender)
+/* ---- the blocks ---- */
+
+/* This device's block: the records it carries (its own two, and those of a machine gone it sends on), how many,
+   then each one's slot and its first RECORD_BYTES */
+static void publish(void)
 {
-	const uint32_t host = net.role == ROLE_JOINING ? net.joining_host : (net.member_count > 0 ? net.members[0].id : 0u);
-	member list[MACHINES];
-	uint16_t version;
-	uint8_t start_serial, flags, link_serial, machine;
-	int count, slot_count;
-	peer *heard = peer_of(sender, false);
+	uint8_t block[1 + SLOTS * (1 + RECORD_BYTES)];
+	size_t size = 1;
+	int count = 0;
 
-	version = (uint16_t)get16(in);
-	start_serial = (uint8_t)get8(in);
-	count = (int)get8(in);
-	if (count > MACHINES)
-		return;
-	for (int index = 0; index < count; index++)
+	for (int slot = 0; slot < net.machines * 2; slot++)
 	{
-		list[index].id = get32(in);
-		get_name(in, list[index].name);
-		list[index].players = (uint8_t)(get8(in) == 2u ? 2u : 1u);
-		list[index].address.ip = get32(in);
-		list[index].address.port = (uint16_t)get16(in);
-	}
-	flags = (uint8_t)get8(in);
-	link_serial = (uint8_t)get8(in);
-	machine = (uint8_t)get8(in);
-	if (in->short_of)
-		return;
-	if (heard)
-		heard->flags = flags;
-
-	/* the list from the room's host (the one JOIN found, or the list's first): JOINING ends once it lists this
-	   device */
-	if (count > 0 && list[0].id == sender && sender == host && (int16_t)(version - net.list_version) >= 0)
-	{
-		const bool new_start = net.role == ROLE_IN_ROOM && start_serial != net.start_serial;
-
-		memcpy(net.members, list, sizeof(list[0]) * (size_t)count);
-		net.member_count = count;
-		net.list_version = version;
-		net.start_serial = start_serial;
-		if (net.role == ROLE_JOINING && member_index(net.id) >= 0)
-		{
-			net.role = ROLE_IN_ROOM;
-			net_stop_beacons();
-		}
-		else if (new_start && member_index(net.id) >= 0 && !busy())
-			start_race();
-	}
-
-	/* the records it carries, of the link this device has */
-	slot_count = (int)get8(in);
-	for (int index = 0; index < slot_count && !in->short_of; index++)
-	{
-		const int slot = (int)get8(in);
-		uint8_t record[RECORD_BYTES];
-
-		get_bytes(in, record, RECORD_BYTES);
-		if (in->short_of || !net.linked || link_serial != net.link_serial || slot >= net.machines * 2)
+		if (publisher(slot) != net.machine)
 			continue;
-		if (publisher(slot) != machine || slot / 2 + 1 == net.machine || net.link_ids[machine - 1] != sender)
-			continue;    /* (only the machine that carries the slot, and that machine only) */
-		check_record((struct race *)record, slot);
-		memcpy(net.slots[slot], record, RECORD_BYTES);
+		block[size++] = (uint8_t)slot;
+		if (slot / 2 + 1 == net.machine)
+			memcpy(block + size, RACE(slot & 1 ? RACE_2 : RACE_1), RECORD_BYTES);
+		else
+			memcpy(block + size, net.slots[slot], RECORD_BYTES);
+		size += RECORD_BYTES;
+		count++;
 	}
+	block[0] = (uint8_t)count;
+	lan_publish(net.lan, block, size);
 }
 
-static void take_datagrams(void)
+/* The index of a machine of the link among the game's devices (its id), or -1 (another game's list: a START
+   this device was busy for) */
+static int game_index(const lan_member *members, int count, int machine)
 {
-	uint8_t bytes[PACKET_MOST];
-	net_address from;
-	size_t size;
+	for (int index = 0; index < count; index++)
+		if (members[index].id == net.link_ids[machine - 1])
+			return index;
+	return -1;
+}
 
-	while ((size = net_receive_beacon(bytes, sizeof(bytes), &from)) > 0 || (size = net_receive(bytes, sizeof(bytes), &from)) > 0)
+/* The link's machines from the game's devices: those gone lost (their records carried by another), true while one
+   is unheard and not yet gone; and the records each one carries, from its newest block (only the machine that
+   carries a slot, publisher, and that machine only) */
+static bool take_blocks(void)
+{
+	lan_member members[LAN_DEVICES];
+	const int count = lan_game_members(net.lan, members);
+	bool silent = false;
+
+	for (int machine = 1; machine <= net.machines; machine++)
 	{
-		reader in = { bytes, size, 0, false };
-		uint8_t start[4];
-		uint32_t kind, sender, room;
-		peer *heard;
+		const int index = game_index(members, count, machine);
 
-		get_bytes(&in, start, sizeof(start));
-		if (memcmp(start, magic, sizeof(magic)) != 0 || get8(&in) != VERSION)
+		if (machine == net.machine || net.link_lost[machine - 1])
 			continue;
-		kind = get8(&in);
-		sender = get32(&in);
-		room = get32(&in);
-		if (in.short_of || sender == net.id || sender == 0u)
-			continue;
-		if (kind == PACKET_BEACON)
-		{
-			if (net.role == ROLE_SEARCHING)
-				take_beacon(&in, room, sender, from);
-			continue;
-		}
-		if (room != net.room || net.role == ROLE_OFF || net.role == ROLE_SEARCHING)
-			continue;
+		if (index < 0 || members[index].gone)
+			net.link_lost[machine - 1] = true;
+		else if (!members[index].heard)
+			silent = true;
+	}
+	for (int machine = 1; machine <= net.machines; machine++)
+	{
+		const int index = game_index(members, count, machine);
+		uint8_t block[LAN_BLOCK_MOST];
+		size_t size, at = 1;
 
-		/* the room's devices alone (and, at its host, a device that JOINs; while JOINING, its host), each at the
-		   address it was first heard at: a datagram with its id from another is not its */
-		heard = peer_of(sender, false);
-		if (heard && heard->address.ip && (heard->address.ip != from.ip || heard->address.port != from.port))
+		if (machine == net.machine || net.link_lost[machine - 1] || index < 0
+			|| (size = lan_block(net.lan, index, block)) == 0)
 			continue;
-		if (!heard && kind == PACKET_JOIN && hosting())
-			take_join(&in, sender, from);    /* (heard from then on once the room takes it) */
-		if (!heard && member_index(sender) < 0 && !(net.role == ROLE_JOINING && sender == net.joining_host))
-			continue;
-		if (!heard && (heard = peer_of(sender, true)) == NULL)
-			continue;
-		heard->heard = net.frame;
-		heard->address = from;
-		switch (kind)
+		for (int each = 0; each < block[0] && at + 1 + RECORD_BYTES <= size; each++, at += 1 + RECORD_BYTES)
 		{
-			case PACKET_JOIN:
-				take_join(&in, sender, from);    /* (once more, unheard of: nothing) */
-				break;
-			case PACKET_STATE:
-				take_state(&in, sender);
-				break;
-			case PACKET_LEAVE:
-				heard->heard = net.frame - LOST_FRAMES;    /* (gone at once) */
-				break;
-			default:
-				break;
+			const int slot = block[at];
+			struct race record;
+
+			if (slot >= net.machines * 2 || publisher(slot) != machine || slot / 2 + 1 == net.machine)
+				continue;
+			memset(&record, 0, sizeof(record));
+			memcpy(&record, block + at + 1, RECORD_BYTES);
+			check_record(&record, slot);
+			memcpy(net.slots[slot], &record, RECORD_BYTES);
 		}
 	}
+	return silent;
 }
 
 /* ---- a machine of the link gone ---- */
@@ -873,61 +458,19 @@ static bool carry_link(void)
 	return waiting && busy();
 }
 
-/* ---- the room's devices gone ---- */
-
-/* A member unheard for LOST_FRAMES is gone: the host takes it off its list (and the others take the host
-   off theirs: the next one hosts), and a machine of the link is lost (its records carried by another); true
-   while a machine of the link is unheard for SILENT_FRAMES and not yet gone */
-static bool check_members(void)
-{
-	bool silent = false;
-	peer *gone;
-
-	for (int machine = 1; net.linked && machine <= net.machines; machine++)
-	{
-		const uint32_t id = net.link_ids[machine - 1];
-		const uint32_t frames = unheard(id);
-
-		if (net.link_lost[machine - 1])
-			continue;
-		if (frames >= LOST_FRAMES)
-			net.link_lost[machine - 1] = true;
-		else if (frames >= SILENT_FRAMES)
-			silent = true;
-	}
-	for (int index = net.member_count - 1; index >= 0; index--)
-	{
-		const uint32_t id = net.members[index].id;
-
-		if (id == net.id || unheard(id) < LOST_FRAMES || (index != 0 && !hosting()))
-			continue;
-		memmove(&net.members[index], &net.members[index + 1], sizeof(member) * (size_t)(net.member_count - index - 1));
-		net.member_count--;
-		net.list_version++;
-		gone = peer_of(id, false);
-		if (gone)
-			memset(gone, 0, sizeof(*gone));    /* (its address forgotten: it may JOIN again from another) */
-	}
-	return silent;
-}
-
 /* ---- the port's frame ---- */
 
-static uint32_t new_id(void)
+/* What went wrong, as the NETWORK page says it */
+static const char *problem_text(const char *problem)
 {
-	uint32_t id = (uint32_t)time(NULL) * 2654435761u ^ (uint32_t)clock() ^ (uint32_t)(uintptr_t)&id;
+	static const char *const texts[][2] = {
+		{ "NO ANSWER", "THE ROOM DID NOT ANSWER" }, { "ROOM FULL", "THE ROOM IS FULL" },
+		{ "HOST GONE", "THE ROOM IS GONE" }, { "LEFT OUT", "LEFT OUT OF THE ROOM" } };
 
-	id ^= id >> 15;
-	id *= 0x2C1B3C6Du;
-	id ^= id >> 12;
-	return id ? id : 1u;
-}
-
-static void open_network(void)
-{
-	if (!net.id)
-		net.id = new_id();
-	net.problem[0] = '\0';
+	for (size_t index = 0; index < sizeof(texts) / sizeof(texts[0]); index++)
+		if (strcmp(problem, texts[index][0]) == 0)
+			return texts[index][1];
+	return problem;
 }
 
 static void fail(const char *problem)
@@ -936,50 +479,55 @@ static void fail(const char *problem)
 	console_network_leave();
 }
 
+/* A device on the network for this game, of the player's name and players: false where it has none */
+static bool open_lan(void)
+{
+	const lan_config config = { { 'O', 'R', 'U', 'N' }, GAME_VERSION, BEACON_PORT, 0, 0, 0, LAN_LINK };
+
+	net.problem[0] = '\0';
+	if (net.lan)
+		lan_close(net.lan);
+	net.lan = lan_open(&config, console_window_settings.name, console_network_players());
+	net.room_count = 0;
+	net.member_count = 0;
+	if (!net.lan)
+	{
+		fail("NO NETWORK");
+		return false;
+	}
+	return true;
+}
+
 void console_network_frame(void)
 {
 	bool silent = false;
 
-	if (net.role == ROLE_OFF && !net.linked)
+	if (!net.lan && !net.linked)
 		return;
 	net.frame++;
-	take_datagrams();
-	switch (net.role)
+	if (net.lan)
 	{
-		case ROLE_SEARCHING:
-			for (int index = net.room_count - 1; index >= 0; index--)
-				if (net.frame - net.rooms[index].heard > ROOM_FORGOTTEN)
-				{
-					memmove(&net.rooms[index], &net.rooms[index + 1], sizeof(net.rooms[0]) * (size_t)(net.room_count - index - 1));
-					net.room_count--;
-				}
-			break;
-		case ROLE_JOINING:
-			if (net.frame - net.role_frame > JOIN_GIVEN_UP)
-				fail("THE ROOM DID NOT ANSWER");
-			else if ((net.frame - net.role_frame) % JOIN_FRAMES == 0)
-				send_join();
-			break;
-		case ROLE_IN_ROOM:
-			silent = check_members();
-			if (member_index(net.id) < 0)
-			{
-				fail("LEFT OUT OF THE ROOM");
-				break;
-			}
-			if (hosting() && net.frame % BEACON_FRAMES == 0)
-				send_beacon();
-			send_state();
-			/* everyone in: the entries closed soon after (machine 1, player 0's record) */
-			if (net.linked && net.machine == 1 && RACE(RACE_1)->entry_frames > ENTRIES_CUT
-				&& SCREEN(SCREEN_1)->entrant_count >= net.players)
-				RACE(RACE_1)->entry_frames = ENTRIES_CUT;
-			break;
-		default:
-			break;
+		const char *problem;
+
+		lan_set_status(net.lan, busy() ? BUSY : 0u);
+		lan_update(net.lan);
+		net.room_count = lan_rooms(net.lan, net.rooms);
+		net.member_count = lan_members(net.lan, net.members);
+		if ((problem = lan_problem(net.lan)) != NULL)
+			fail(problem_text(problem));
+		else if (lan_game_started(net.lan, NULL, NULL, NULL) && !busy())
+			start_race();
+	}
+	if (net.lan && net.linked && lan_role_of(net.lan) == LAN_PLAYING)
+	{
+		silent = take_blocks();
+		publish();
+		/* everyone in: the entries closed soon after (machine 1, player 0's record) */
+		if (net.machine == 1 && RACE(RACE_1)->entry_frames > ENTRIES_CUT && SCREEN(SCREEN_1)->entrant_count >= net.players)
+			RACE(RACE_1)->entry_frames = ENTRIES_CUT;
 	}
 	net.waiting = carry_link() || (silent && busy());
-	if (net.role == ROLE_OFF && net.linked && !busy())
+	if (!net.lan && net.linked && !busy())
 		link_end();    /* (the room left during a race: once it is over) */
 }
 
@@ -992,55 +540,27 @@ bool console_network_waiting(void)
 
 void console_network_host(void)
 {
-	open_network();
-	if (!net_open())
-	{
-		fail("NO NETWORK");
-		return;
-	}
-	net.room = net.id;
-	net.role = ROLE_IN_ROOM;
-	net.member_count = 1;
-	memset(&net.members[0], 0, sizeof(net.members[0]));
-	net.members[0].id = net.id;
-	snprintf(net.members[0].name, sizeof(net.members[0].name), "%s", console_window_settings.name);
-	net.members[0].players = (uint8_t)console_network_players();
-	net.list_version = 1;
-	net.start_serial = 0;
-	net.link_serial = 0;
+	if (open_lan() && lan_host(net.lan))
+		net.member_count = lan_members(net.lan, net.members);    /* (the room's page shows it at once) */
 }
 
 void console_network_search(void)
 {
-	open_network();
-	if (!net_open() || !net_listen_beacons())
-	{
-		fail("NO NETWORK");
-		return;
-	}
-	net.role = ROLE_SEARCHING;
-	net.room_count = 0;
+	if (open_lan())
+		lan_search(net.lan);
 }
 
 void console_network_join(int room)
 {
-	if (net.role != ROLE_SEARCHING || room < 0 || room >= net.room_count)
-		return;
-	net.room = net.rooms[room].room;
-	net.joining = net.rooms[room].address;
-	net.joining_host = net.rooms[room].host;
-	net.role = ROLE_JOINING;
-	net.role_frame = net.frame;
-	net.member_count = 0;
-	net.list_version = 0;
-	memset(net.peers, 0, sizeof(net.peers));
-	send_join();
+	if (net.lan && lan_role_of(net.lan) == LAN_SEARCHING && room >= 0 && room < net.room_count)
+		lan_join(net.lan, &net.rooms[room]);
 }
 
 void console_network_leave(void)
 {
-	if (net.role == ROLE_IN_ROOM)
-		send_leave();
+	if (net.lan)
+		lan_close(net.lan);    /* (its LEAVE to the room) */
+	net.lan = NULL;
 	if (busy())
 	{
 		/* a race of this device goes on alone, the others gone from it; the link off once it is over */
@@ -1049,32 +569,34 @@ void console_network_leave(void)
 	}
 	else
 		link_end();
-	net.role = ROLE_OFF;
 	net.member_count = 0;
 	net.room_count = 0;
 	net.start_pending = 0;
-	memset(net.peers, 0, sizeof(net.peers));
-	net_close();
+}
+
+static lan_role role(void)
+{
+	return net.lan ? lan_role_of(net.lan) : LAN_OFF;
 }
 
 bool console_network_in_room(void)
 {
-	return net.role == ROLE_IN_ROOM || net.role == ROLE_JOINING;
+	return role() == LAN_IN_ROOM || role() == LAN_PLAYING || role() == LAN_JOINING;
 }
 
 bool console_network_joining(void)
 {
-	return net.role == ROLE_JOINING;
+	return role() == LAN_JOINING;
 }
 
 bool console_network_searching(void)
 {
-	return net.role == ROLE_SEARCHING;
+	return role() == LAN_SEARCHING;
 }
 
 bool console_network_hosting(void)
 {
-	return hosting();
+	return lan_hosting(net.lan);
 }
 
 bool console_network_linked(void)
@@ -1089,12 +611,12 @@ int console_network_room_count(void)
 
 void console_network_room(int room, char *text, size_t size)
 {
-	snprintf(text, size, "%-8s %d/%d", net.rooms[room].name, net.rooms[room].members, MACHINES);
+	snprintf(text, size, "%-8s %d/%d", net.rooms[room].name, net.rooms[room].devices, MACHINES);
 }
 
 bool console_network_room_full(int room)
 {
-	return net.rooms[room].members >= MACHINES;
+	return net.rooms[room].devices >= MACHINES;
 }
 
 int console_network_member_count(void)
@@ -1107,28 +629,21 @@ void console_network_member(int index, char *text, size_t size)
 	snprintf(text, size, "%d %-8s%s", index + 1, net.members[index].name, net.members[index].players == 2 ? " 2P" : "");
 }
 
-/* START: two devices or more, none of them in a race */
+/* START: two devices or more, none of them in a race, every one heard */
 bool console_network_can_start(void)
 {
-	if (!hosting() || net.member_count < 2 || busy())
+	if (!console_network_hosting() || net.member_count < 2 || busy())
 		return false;
-	for (int index = 1; index < net.member_count; index++)
-	{
-		const peer *heard = peer_of(net.members[index].id, false);
-
-		if (!heard || (heard->flags & BUSY) || unheard(net.members[index].id) >= SILENT_FRAMES)
+	for (int index = 0; index < net.member_count; index++)
+		if (!net.members[index].own && (!net.members[index].heard || (net.members[index].status & BUSY)))
 			return false;
-	}
 	return true;
 }
 
 void console_network_start(void)
 {
-	if (!console_network_can_start())
-		return;
-	net.start_serial++;
-	net.list_version++;
-	start_race();
+	if (console_network_can_start() && lan_start(net.lan, NULL, 0) && lan_game_started(net.lan, NULL, NULL, NULL))
+		start_race();
 }
 
 bool console_network_start_pending(void)
@@ -1167,7 +682,7 @@ void console_network_problem_seen(void)
 /* ---- the game's link, in place of the board ---- */
 
 /* Each frame, the race records of all the players into 20FC00 (link_receive_records): this device's own two,
-   and the others' as their newest datagrams brought them */
+   and the others' as their newest blocks brought them */
 void link_receive_records(void)
 {
 	if (!net.linked)
@@ -1197,8 +712,9 @@ void link_send_records(void)
 
 void console_network_describe(char *text, size_t size)
 {
-	const char *const roles[] = { "off", "searching", "joining", "in room" };
-	int at = snprintf(text, size, "%s%s, %d members", roles[net.role], hosting() ? " (host)" : "", net.member_count);
+	const char *const roles[] = { "off", "searching", "joining", "in room", "in room" };
+	int at = snprintf(text, size, "%s%s, %d members", roles[role()], console_network_hosting() ? " (host)" : "",
+		net.member_count);
 
 	if (net.linked && SCREEN(SCREEN_1)->host_record && at > 0 && (size_t)at < size)
 	{
