@@ -2,9 +2,9 @@
  *    Name:        menu.c
  *    Description: the console's menus on the left seat's screen: PRESS START in the attract mode, the title's
  *                 menu, DELUXE, NETWORK with its rooms, and OPTIONS with its pages
- *    Version:     0.1.1
+ *    Version:     0.1.2
  *    Created:     29-10-2026
- *    Modified:    04-11-2026
+ *    Modified:    05-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -63,6 +63,7 @@ enum
 	PAGE_VIDEO,
 	PAGE_STEERING,
 	PAGE_INPUT_TEST,    /* STEERING's: the wheel and the pedals as the game sees them */
+	PAGE_WHEEL_SETUP,   /* STEERING's SET UP WHEEL: a racing wheel's controls, one by one */
 	PAGE_CONTROLS,
 	PAGE_NETWORK,
 	PAGE_NAME,
@@ -151,8 +152,12 @@ static void set_network_lines(void)
 		console_network_set_players(1);
 }
 enum { VIDEO_WINDOW, VIDEO_FULL_SCREEN, VIDEO_PIXELS, VIDEO_WIDE, VIDEO_TWO_PLAYERS, VIDEO_BACK, VIDEO_ITEMS };
-enum { STEERING_DEAD_ZONE, STEERING_SENSITIVITY, STEERING_ROTATION, STEERING_SPEED, STEERING_INPUT_TEST,
-	STEERING_BACK, STEERING_ITEMS };
+/* STEERING's lines: SET UP WHEEL a computer's (a device's controls are its own) */
+enum { STEERING_DEAD_ZONE, STEERING_SENSITIVITY, STEERING_ROTATION, STEERING_SPEED,
+#ifndef ORUNNERS_HANDHELD
+	STEERING_SET_UP,
+#endif
+	STEERING_INPUT_TEST, STEERING_BACK, STEERING_ITEMS };
 enum { INPUT_WHEEL, INPUT_GAS, INPUT_BRAKE, INPUT_BACK = INPUT_BRAKE + 2 };
 /* CONTROLS' lines: PLAYER, the controls, DEFAULTS, BACK */
 enum { CONTROLS_PLAYER, CONTROLS_FIRST, CONTROLS_DEFAULTS = CONTROLS_FIRST + CONTROLS, CONTROLS_BACK,
@@ -169,6 +174,7 @@ static struct
 	int controls_player;    /* CONTROLS: whose */
 	int controls_waiting;   /* CONTROLS: the control waiting for its key or button, or -1 */
 	bool controls_defaults; /* CONTROLS: DEFAULTS picked, for the port */
+	int wheel_setup_step;   /* SET UP WHEEL: the control it waits for (WHEEL_SETUP_*) */
 	bool music;             /* the menu's song asked for */
 	char name[CONSOLE_NAME_LENGTH + 1];    /* NAME: the name being written */
 	int name_at;            /* NAME: the letter being changed */
@@ -568,6 +574,14 @@ static void steering_frame(uint32_t pressed)
 		open_page(PAGE_INPUT_TEST, 0);
 		return;
 	}
+#ifndef ORUNNERS_HANDHELD
+	if ((pressed & ACTION_BIT(ACTION_ACCEPT)) && menu.choice == STEERING_SET_UP)
+	{
+		menu.wheel_setup_step = WHEEL_SETUP_TURN;
+		open_page(PAGE_WHEEL_SETUP, 0);
+		return;
+	}
+#endif
 	if ((pressed & ACTION_BIT(ACTION_ACCEPT)) && menu.choice == STEERING_BACK)
 	{
 		open_page(PAGE_OPTIONS, menu.options_choice);
@@ -582,6 +596,9 @@ static void steering_frame(uint32_t pressed)
 	line(STEERING_ROTATION, "WHEEL ROTATION", value);
 	snprintf(value, sizeof(value), "< %d >", window->steering_speed);
 	line(STEERING_SPEED, "SPEED", value);
+#ifndef ORUNNERS_HANDHELD
+	line(STEERING_SET_UP, "SET UP WHEEL", NULL);
+#endif
 	line(STEERING_INPUT_TEST, "INPUT TEST", NULL);
 	line(STEERING_BACK, "BACK", NULL);
 	darken_page();
@@ -629,6 +646,48 @@ static void input_test_frame(uint32_t pressed)
 	input_bar(INPUT_BRAKE, "BRAKE", seat->brake, seat->brake * 100 / 0xFF);
 	line_at(INPUT_BACK, true, "BACK", NULL);
 	darken_page();
+}
+
+/* SET UP WHEEL: the controls it asks for, the one it waits for chosen and those taken OK, and under them how
+   to show it; the port watches the devices meanwhile (console_wheel_setup_step), the menus' actions unheard */
+static const char *const wheel_setup_names[WHEEL_SETUP_STEPS] = { "WHEEL", "GAS", "BRAKE", "SHIFT UP",
+	"SHIFT DOWN", "START" };
+static const char *const wheel_setup_hints[WHEEL_SETUP_STEPS] = { "TURN THE WHEEL LEFT",
+	"PRESS THE GAS AND LET GO", "PRESS THE BRAKE AND LET GO", "PRESS SHIFT UP", "PRESS SHIFT DOWN",
+	"PRESS START" };
+
+static void wheel_setup_frame(void)
+{
+	const int hint_y = PAGE_Y + 16 + (WHEEL_SETUP_STEPS + 1) * PAGE_STEP;
+
+	page_heading("SET UP WHEEL");
+	for (int step = 0; step < WHEEL_SETUP_STEPS; step++)
+		line_at(step, step == menu.wheel_setup_step, wheel_setup_names[step],
+			step < menu.wheel_setup_step ? "OK" : NULL);
+	centred(hint_y, 1, colours.chosen, wheel_setup_hints[menu.wheel_setup_step]);
+	centred(hint_y + 2 * PAGE_STEP, 1, colours.item, "ESCAPE CANCELS");
+	darken_page();
+}
+
+int console_wheel_setup_step(void)
+{
+	return menu.page == PAGE_WHEEL_SETUP ? menu.wheel_setup_step : -1;
+}
+
+void console_wheel_setup_took(void)
+{
+	if (menu.page != PAGE_WHEEL_SETUP)
+		return;
+	if (++menu.wheel_setup_step == WHEEL_SETUP_STEPS)
+		open_page(PAGE_INPUT_TEST, 0);    /* (the wheel set up: where it reaches, and the pedals) */
+}
+
+void console_wheel_setup_cancel(void)
+{
+#ifndef ORUNNERS_HANDHELD
+	if (menu.page == PAGE_WHEEL_SETUP)
+		open_page(PAGE_STEERING, STEERING_SET_UP);
+#endif
 }
 
 /* CONTROLS: PLAYER on top, the controls in two columns of five (each its name, and under it the pictures of
@@ -980,7 +1039,7 @@ static void list_frame(const char *const *items, const int *lines, int count)
 static bool options_page(int page)
 {
 	return page == PAGE_OPTIONS || page == PAGE_TIME || page == PAGE_SOUND_TEST || page == PAGE_VIDEO
-		|| page == PAGE_STEERING || page == PAGE_INPUT_TEST || page == PAGE_CONTROLS;
+		|| page == PAGE_STEERING || page == PAGE_INPUT_TEST || page == PAGE_WHEEL_SETUP || page == PAGE_CONTROLS;
 }
 
 /* The port's author under the title's (C) SEGA 1992, while the title shows it (not under OPTIONS' pages,
@@ -1067,6 +1126,14 @@ int console_menu_frame(uint32_t mode)
 		/* (the port takes the keys and buttons meanwhile) */
 		hold_title(true);
 		controls_frame(0);
+		return MENU_NOTHING;
+	}
+	if (menu.page == PAGE_WHEEL_SETUP)
+	{
+		/* (the port watches the devices meanwhile: their buttons are no actions) */
+		hold_title(true);
+		page_colours(false);
+		wheel_setup_frame();
 		return MENU_NOTHING;
 	}
 	if (lines)

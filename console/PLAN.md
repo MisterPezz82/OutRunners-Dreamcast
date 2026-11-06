@@ -283,6 +283,25 @@ merged here; this repository adds console/, the ports and their documents.
   leave the sprite chips' empty runs out (all ones, as the board reads them), five blocks, where
   extract_assets.py's are one and never change the hint; both draw the same.
 
+## Done (05-11-2026)
+
+- OPTIONS > STEERING's SET UP WHEEL (a T300RS on Windows, reported on Reddit: the game took no input from
+  it): the game reads controllers as SDL's game controllers alone, and SDL has no layout for many wheels
+  (it knows a T300RS for a wheel, not where its pedals are). The page asks for the wheel turned left, the gas
+  and the brake pressed and let go, and the buttons for shift up, shift down and start
+  (ports/sdl2/wheel_setup.c watches every device's axes and buttons meanwhile, each kept open as a
+  joystick); a pedal's rest says its axis (an end: the whole axis, inverted at the positive one; the middle:
+  combined pedals, half each). The layout is SDL's line for the device: added to SDL, the wheel player 1's
+  game controller (the one before it player 2's), INPUT TEST next; written to gamecontrollerdb.txt in the
+  saves folder in place of the device's line before, the file's other lines kept. Both games read that file
+  as SDL starts (SDL_HINT_GAMECONTROLLERCONFIG_FILE), so a layout made elsewhere works too. Escape cancels.
+  A computer's only (ORUNNERS_HANDHELD has none). Checked with SDL's virtual joysticks: a wheel with no
+  layout through the six steps, separate and combined pedals, set up again (one line kept), a new start
+  reading the file, and the window's game with a virtual pad and wheel through the menus (Escape on the way,
+  the wheel player 1's, its turn and pedals on the seat), on Windows and on Linux (SDL 2.30). Built on Windows
+  (MSVC) and Linux (gcc) without warnings; macOS's files compiled with clang (arm64, x86_64), its link
+  left to the CI. Not checked on a real wheel.
+
 ## To do
 
 - The network on a network shared with strangers: a room's code to join it (today a device on the same local

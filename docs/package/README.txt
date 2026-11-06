@@ -21,6 +21,15 @@ The first time either starts it takes the assets out of orunners.zip (a few seco
 beside the game on Windows, in your user folder for the game elsewhere. OutRunners also writes
 outrunners.assets there, the assets in one file, which the devices' tools below can take instead.
 
+Racing wheels
+-------------
+A wheel the game takes as a game controller (a Logitech G29, for one) works as it is: the wheel is the
+left stick and the pedals the triggers; set OPTIONS > STEERING > WHEEL ROTATION to its own turn (900 on a
+G29) and the DEAD ZONE to 0%. A wheel the game does not see (a Thrustmaster T300RS on Windows): OPTIONS >
+STEERING > SET UP WHEEL asks for its wheel, pedals and buttons one by one, and keeps them in
+gamecontrollerdb.txt in the same folder, where SDL's controller layouts made elsewhere can go too.
+STEERING's INPUT TEST shows the wheel and the pedals as the game sees them.
+
 NETWORK
 -------
 Up to four devices on the same local network (a house's Wi-Fi, a phone's hotspot) race together:

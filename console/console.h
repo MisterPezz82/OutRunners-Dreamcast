@@ -1,9 +1,9 @@
 /**
  *    Name:        console.h
  *    Description: what the console build tells the port
- *    Version:     0.1.1
+ *    Version:     0.1.2
  *    Created:     29-10-2026
- *    Modified:    04-11-2026
+ *    Modified:    05-11-2026
  *    Author:      Sebastian Toyos
  */
 #ifndef ORUNNERS_CONSOLE_H
@@ -126,6 +126,27 @@ void console_controls_bound(void);
 
 /* DEFAULTS was picked on CONTROLS (true once): the port puts the shown player's keys and buttons back */
 bool console_controls_defaults(void);
+
+/* OPTIONS > STEERING's SET UP WHEEL (a computer's): a racing wheel SDL has no game controller layout for (a
+   Thrustmaster T300RS on Windows: SDL knows it is a wheel, not where its pedals are), or a wrong one, made one
+   from the controls the player shows it in turn. The step the page waits for, or -1: the port watches the
+   devices for it and says when it took it (console_wheel_setup_took: on to the next; after the last, the
+   port has made the layout and the page gives way to INPUT TEST), or Escape leaves the page, the layout as it
+   was (console_wheel_setup_cancel) */
+enum
+{
+	WHEEL_SETUP_TURN,          /* the wheel turned left: its axis, and the device being set up */
+	WHEEL_SETUP_GAS,           /* the pedal pressed and let go: its axis, or its half of the pedals' one */
+	WHEEL_SETUP_BRAKE,
+	WHEEL_SETUP_SHIFT_UP,      /* a button pressed */
+	WHEEL_SETUP_SHIFT_DOWN,
+	WHEEL_SETUP_START,
+	WHEEL_SETUP_STEPS
+};
+
+int console_wheel_setup_step(void);
+void console_wheel_setup_took(void);
+void console_wheel_setup_cancel(void);
 
 /* The window's settings OPTIONS > VIDEO, VOLUME, STEERING and FPS show and change: the port fills them in, and applies and
    saves them when 'changed' is set */

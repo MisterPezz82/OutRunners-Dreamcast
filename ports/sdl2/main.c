@@ -2,9 +2,9 @@
  *    Name:        main.c
  *    Description: the game in a window: SDL2 shows its screens, plays its sound, reads the controls and
  *                 keeps the pace, around the same game and board the headless runs check
- *    Version:     0.1.1
+ *    Version:     0.1.2
  *    Created:     21-10-2026
- *    Modified:    04-11-2026
+ *    Modified:    05-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -53,7 +53,9 @@
  *      F3                             smooth or sharp pixels
  *    Game controllers: the left stick is the wheel, the right trigger the gas, the left trigger the brake,
  *    the right and left shoulders shift up and down, Y the DJ, the pad's left and right << and >>, Start
- *    the start, Back a coin.
+ *    the start, Back a coin. A device is a game controller where SDL has a layout for it: its own, or
+ *    gamecontrollerdb.txt's in the folder of what the game keeps (SDL's format, a line a device: the
+ *    console's SET UP WHEEL writes its layouts there, wheel_setup.c).
  */
 #include "s32/machine.h"
 #include "s32/program.h"
@@ -72,6 +74,10 @@
 #endif
 #ifdef ORUNNERS_TOUCH
 #include "touch.h"
+#endif
+#if defined(ORUNNERS_CONSOLE) && !defined(ORUNNERS_HANDHELD)
+#define WHEEL_SETUP    /* OPTIONS > STEERING's SET UP WHEEL: a computer's (wheel_setup.c) */
+#include "wheel_setup.h"
 #endif
 
 #include <SDL.h>
@@ -1074,6 +1080,51 @@ static void bind_button(SDL_JoystickID which, SDL_GameControllerButton button)
 }
 #endif
 
+#ifdef WHEEL_SETUP
+/* The player whose game controller the joystick 'id' is, or -1 */
+static int controller_player(SDL_JoystickID id)
+{
+	for (int player = 0; player < PLAYERS; player++)
+		if (controllers[player] && SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controllers[player])) == id)
+			return player;
+	return -1;
+}
+
+/* SET UP WHEEL made the joystick 'id' a game controller: player 1's from now on, as INPUT TEST shows it next
+   (the controller that was theirs the next free player's, closed where there is none) */
+static void wheel_set_up(SDL_JoystickID id)
+{
+	const int player = controller_player(id);
+	SDL_GameController *first = controllers[0];
+
+	if (player == 0)
+		return;
+	if (player > 0)
+	{
+		controllers[0] = controllers[player];
+		controllers[player] = first;
+		return;
+	}
+	for (int index = 0; index < SDL_NumJoysticks(); index++)
+		if (SDL_JoystickGetDeviceInstanceID(index) == id)
+		{
+			SDL_GameController *wheel = SDL_GameControllerOpen(index);
+			int free_player = 1;
+
+			if (!wheel)
+				return;
+			while (free_player < PLAYERS && controllers[free_player])
+				free_player++;
+			if (free_player < PLAYERS)
+				controllers[free_player] = first;
+			else if (first)
+				SDL_GameControllerClose(first);
+			controllers[0] = wheel;
+			return;
+		}
+}
+#endif
+
 /* ---- the controls ---- */
 
 static void read_events(void)
@@ -1112,6 +1163,15 @@ static void read_events(void)
 			case SDL_KEYDOWN:
 				if (event.key.repeat)
 					break;
+#ifdef WHEEL_SETUP
+				if (console_wheel_setup_step() >= 0 && event.key.keysym.sym == SDLK_ESCAPE)
+				{
+					/* SET UP WHEEL watches the devices: Escape leaves it, the layout as it was */
+					console_wheel_setup_cancel();
+					actions_taken = true;
+					break;
+				}
+#endif
 #ifdef ORUNNERS_CONSOLE
 				if (console_controls_waiting() >= 0)
 				{
@@ -1162,6 +1222,10 @@ static void read_events(void)
 				break;
 #endif
 			case SDL_CONTROLLERDEVICEADDED:
+#ifdef WHEEL_SETUP
+				if (controller_player(SDL_JoystickGetDeviceInstanceID(event.cdevice.which)) >= 0)
+					break;    /* (a wheel SET UP WHEEL opened already) */
+#endif
 				for (int player = 0; player < PLAYERS; player++)
 					if (!controllers[player])
 					{
@@ -1169,6 +1233,14 @@ static void read_events(void)
 						break;
 					}
 				break;
+#ifdef WHEEL_SETUP
+			case SDL_JOYDEVICEADDED:
+				wheel_setup_device_added(event.jdevice.which);
+				break;
+			case SDL_JOYDEVICEREMOVED:
+				wheel_setup_device_removed(event.jdevice.which);
+				break;
+#endif
 			case SDL_CONTROLLERDEVICEREMOVED:
 				for (int player = 0; player < PLAYERS; player++)
 					if (controllers[player]
@@ -1279,6 +1351,15 @@ static void on_controls_update(void)
 		s32_script_apply(script, s32_board.frame);
 		return;
 	}
+#ifdef WHEEL_SETUP
+	{
+		/* SET UP WHEEL: the devices watched for the control it waits for; the wheel set up, player 1's */
+		const SDL_JoystickID set_up = wheel_setup_frame();
+
+		if (set_up >= 0)
+			wheel_set_up(set_up);
+	}
+#endif
 	keys = SDL_GetKeyboardState(NULL);
 #ifdef ORUNNERS_CONSOLE
 	{
@@ -1767,6 +1848,26 @@ static char *saves_folder(void)
 #endif
 }
 
+#ifndef ORUNNERS_HANDHELD
+/* gamecontrollerdb.txt in the folder of what the game keeps: game controller layouts in SDL's format, a line
+   a device, which SDL reads as it starts (where SDL_GAMECONTROLLERCONFIG_FILE names no other): a player's
+   own, SDL's community's, and SET UP WHEEL's, which writes its own there */
+#define MAPPINGS_FILE "gamecontrollerdb.txt"
+
+static void read_mappings_file(void)
+{
+	char *saves = saves_folder();
+	char path[1024];
+
+	snprintf(path, sizeof(path), "%s" MAPPINGS_FILE, saves ? saves : "");
+	SDL_free(saves);
+	SDL_SetHint(SDL_HINT_GAMECONTROLLERCONFIG_FILE, path);
+#ifdef WHEEL_SETUP
+	wheel_setup_open(path);
+#endif
+}
+#endif
+
 /* On macOS, the folder the .app is in (the game's base is the .app's Resources folder: where the player sees
    the game is beside the .app); 0 elsewhere */
 #ifndef ORUNNERS_HANDHELD
@@ -1883,6 +1984,8 @@ int main(int argc, char **argv)
 #endif
 #ifdef ORUNNERS_HANDHELD
 	add_device_mappings();
+#else
+	read_mappings_file();
 #endif
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) != 0)
 		return fail("SDL could not start.", SDL_GetError());

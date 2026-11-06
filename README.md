@@ -55,8 +55,8 @@ What any tool makes is yours alone, with the game's data in it: never share it.
   - OPTIONS: CONTROLS (keys and game controller buttons for each player), DIFFICULTY, TIME (by stage),
     VIDEO (the window's size, full screen, PIXELS sharp, smooth, bilinear or CRT, WIDE off, 16:9 or 20:9,
     2 PLAYERS' layout), VOLUME, SOUND TEST, STEERING (the sticks' dead zone and sensitivity, a racing wheel's
-    rotation, the keys' and pads' speed, and an INPUT TEST of the wheel and the pedals), FPS (the frames a second on the picture and in the window's title); the version at its
-    bottom right.
+    rotation, the keys' and pads' speed, SET UP WHEEL and an INPUT TEST of the wheel and the pedals), FPS
+    (the frames a second on the picture and in the window's title); the version at its bottom right.
 - **The pause** in a race (Escape, Enter or a game controller's Start): CONTINUE, RESTART (the same game
   again, the same cars and transmissions chosen on the car select by themselves; not in NETWORK), QUIT GAME.
 - **The keys**: the arrows steer, accelerate and brake; Q and A shift up and down; space is the radio,
@@ -69,6 +69,15 @@ What any tool makes is yours alone, with the game's data in it: never share it.
   stays at its end past them; the DEAD ZONE counts within those 135 (on a wheel, 0%). STEERING's INPUT TEST
   shows the wheel, the gas and the brake as the game sees them, to see where the wheel reaches its ends and
   the pedals their floor.
+- **A wheel the game does not see** (a Thrustmaster T300RS on Windows: SDL, which reads the controllers, has
+  no layout for it): OPTIONS > STEERING > SET UP WHEEL asks for its controls one by one: turn the wheel left,
+  press the gas and let go, the brake, then the buttons for shift up, shift down and start (Escape cancels).
+  The wheel is then player 1's game controller, and the INPUT TEST comes next to check it. The wheel's
+  pedals may be separate or combined in one axis; its other buttons are the controller's A, B, X, Y and
+  the rest (A accelerates and B brakes, as on a pad, until OPTIONS > CONTROLS changes them), its hat the
+  d-pad. The layout is kept in `gamecontrollerdb.txt`, beside `controls.ini` in the folder where the game
+  keeps its files: SDL's own format, a line a device, so a layout made elsewhere (SDL's community's
+  `gamecontrollerdb.txt`, a tool's) can go there too, and both games read it as they start.
 - **Android's touch controls**: the wheel, GAS and BRAKE, the gears' buttons with the manual transmission,
   START and the radio. On a tall screen (an open Fold, a tablet) the picture goes to the top and the controls
   under it, over the game's own route map following the car.
@@ -630,7 +639,8 @@ git clone --recursive https://github.com/cheviman/outrunners-decomp
    The two screens side by side, the cabinet's two seats. Arrows: the wheel, gas and brake; Q and A:
    shift up and down; space: the DJ, `[` and `]`: the songs; 5 and 6: coins; 1 and 2: starts; 9: service;
    F2: test; F11: full screen; Escape: quit. A game controller per player: the left stick is the wheel,
-   the triggers the pedals, the shoulders the gears. `--script FILE` plays a control script instead,
+   the triggers the pedals, the shoulders the gears (the layouts of `gamecontrollerdb.txt` too, in the
+   folder below). `--script FILE` plays a control script instead,
    from a blank EEPROM it does not keep (`--fast` without waiting for the frames' time), and `--hashes`,
    `--video-hashes` and `--sound-hashes` write the same hashes as the reference.
 
