@@ -2,9 +2,9 @@
  *    Name:        menu.c
  *    Description: the console's menus on the left seat's screen: PRESS START in the attract mode, the title's
  *                 menu, DELUXE, NETWORK with its rooms, and OPTIONS with its pages
- *    Version:     0.1.2
+ *    Version:     0.1.3
  *    Created:     29-10-2026
- *    Modified:    05-11-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -152,8 +152,13 @@ static void set_network_lines(void)
 		console_network_set_players(1);
 }
 enum { VIDEO_WINDOW, VIDEO_FULL_SCREEN, VIDEO_PIXELS, VIDEO_WIDE, VIDEO_TWO_PLAYERS, VIDEO_BACK, VIDEO_ITEMS };
-/* STEERING's lines: SET UP WHEEL a computer's (a device's controls are its own) */
-enum { STEERING_DEAD_ZONE, STEERING_SENSITIVITY, STEERING_ROTATION, STEERING_SPEED,
+/* STEERING's lines: CENTRING and SET UP WHEEL a computer's (a racing wheel's; a device's controls are its
+   own) */
+enum { STEERING_DEAD_ZONE, STEERING_SENSITIVITY, STEERING_ROTATION,
+#ifndef ORUNNERS_HANDHELD
+	STEERING_CENTRING,
+#endif
+	STEERING_SPEED, STEERING_VIBRATION,
 #ifndef ORUNNERS_HANDHELD
 	STEERING_SET_UP,
 #endif
@@ -182,7 +187,7 @@ static struct
 
 console_window console_window_settings = { .window_scale = 2, .pixels = PIXELS_SHARP, .volume = 5, .name = "PLAYER",
 	.dead_zone = DEAD_ZONE_NORMAL, .sensitivity = STEERING_NORMAL, .wheel_rotation = WHEEL_ROTATION_GAME,
-	.steering_speed = STEERING_NORMAL };
+	.steering_speed = STEERING_NORMAL, .centring = CENTRING_NORMAL, .vibration = VIBRATION_NORMAL };
 
 const int console_wheel_rotations[WHEEL_ROTATIONS] = { WHEEL_ROTATION_GAME, 360, 450, 540, 720, 900, 1080 };
 
@@ -537,8 +542,17 @@ static void video_frame(uint32_t pressed)
 	darken_page();
 }
 
-/* STEERING: the sticks' dead zone and sensitivity, a racing wheel's rotation, the keys' and pads' speed
-   (ports/sdl2/main.c) */
+/* A force's value on STEERING: its percent, OFF at 0 */
+static void force_value(char *value, size_t size, int percent)
+{
+	if (percent == 0)
+		snprintf(value, size, "< OFF >");
+	else
+		snprintf(value, size, "< %d%% >", percent);
+}
+
+/* STEERING: the sticks' dead zone and sensitivity, a racing wheel's rotation and centring, the keys' and pads'
+   speed, the wheel motor's vibration (ports/sdl2/main.c, forces.c) */
 static void steering_frame(uint32_t pressed)
 {
 	console_window *window = &console_window_settings;
@@ -564,6 +578,16 @@ static void steering_frame(uint32_t pressed)
 			break;
 		case STEERING_SPEED:
 			window->steering_speed = step(window->steering_speed, by, 1, STEERING_LEVELS);
+			window->changed = true;
+			break;
+#ifndef ORUNNERS_HANDHELD
+		case STEERING_CENTRING:
+			window->centring = step(window->centring, by * FORCE_STEP, 0, 100);
+			window->changed = true;
+			break;
+#endif
+		case STEERING_VIBRATION:
+			window->vibration = step(window->vibration, by * FORCE_STEP, 0, 100);
 			window->changed = true;
 			break;
 		default:
@@ -594,8 +618,14 @@ static void steering_frame(uint32_t pressed)
 	line(STEERING_SENSITIVITY, "SENSITIVITY", value);
 	snprintf(value, sizeof(value), "< %d >", window->wheel_rotation);
 	line(STEERING_ROTATION, "WHEEL ROTATION", value);
+#ifndef ORUNNERS_HANDHELD
+	force_value(value, sizeof(value), window->centring);
+	line(STEERING_CENTRING, "CENTRING", value);
+#endif
 	snprintf(value, sizeof(value), "< %d >", window->steering_speed);
 	line(STEERING_SPEED, "SPEED", value);
+	force_value(value, sizeof(value), window->vibration);
+	line(STEERING_VIBRATION, "VIBRATION", value);
 #ifndef ORUNNERS_HANDHELD
 	line(STEERING_SET_UP, "SET UP WHEEL", NULL);
 #endif

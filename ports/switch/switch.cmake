@@ -1,9 +1,9 @@
 # Name:        switch.cmake
 # Description: the Nintendo Switch build (devkitPro's toolchain): the console game alone, as the pieces of its
 #              .nsp (the NSO, main.npdm, the NACP and the icon) and, where the assets pack is, as OutRunners.nro
-# Version:     0.1.0
+# Version:     0.1.1
 # Created:     30-10-2026
-# Modified:    31-10-2026
+# Modified:    06-11-2026
 # Author:      Sebastian Toyos
 #
 # Included by CMakeLists.txt when the toolchain is the Switch's (aarch64-none-elf-cmake), as SegaSonic's port
@@ -27,7 +27,7 @@ else()
 	set(ORUNNERS_SWITCH_SDL2 PkgConfig::ORUNNERS_SWITCH_SDL2_PKG)
 endif()
 
-add_executable(OutRunners ports/sdl2/main.c ports/sdl2/controls.c)
+add_executable(OutRunners ports/sdl2/main.c ports/sdl2/forces.c ports/sdl2/controls.c)
 target_link_libraries(OutRunners PRIVATE orunners_game_console orunners_sound ${ORUNNERS_SWITCH_SDL2})
 set_target_properties(OutRunners PROPERTIES SUFFIX ".elf")
 

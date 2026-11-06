@@ -1,9 +1,9 @@
 # Name:        android.cmake
 # Description: the Android build (the NDK's toolchain): the console game as libmain.so beside SDL2's, both from
 #              their source, and the APKs around them: the game's, for OutRunners APK, and this computer's own
-# Version:     0.1.0
+# Version:     0.1.1
 # Created:     30-10-2026
-# Modified:    31-10-2026
+# Modified:    06-11-2026
 # Author:      Sebastian Toyos
 #
 # Included by CMakeLists.txt when the toolchain is the NDK's (build/cmake/android.toolchain.cmake, with
@@ -51,7 +51,8 @@ set(SDL_STATIC OFF CACHE BOOL "" FORCE)
 set(SDL_TEST OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(SDL2)
 
-add_library(main SHARED ports/sdl2/main.c ports/sdl2/controls.c ports/sdl2/letters.c ports/sdl2/touch.c)
+add_library(main SHARED ports/sdl2/main.c ports/sdl2/forces.c ports/sdl2/controls.c ports/sdl2/letters.c
+	ports/sdl2/touch.c)
 target_link_libraries(main PRIVATE orunners_game_console orunners_sound SDL2::SDL2)
 
 # The SDK around the NDK (sdk/ndk/<version>), else ANDROID_HOME: the platform's android.jar, the newest

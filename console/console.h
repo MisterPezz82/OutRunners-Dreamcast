@@ -1,9 +1,9 @@
 /**
  *    Name:        console.h
  *    Description: what the console build tells the port
- *    Version:     0.1.2
+ *    Version:     0.1.3
  *    Created:     29-10-2026
- *    Modified:    05-11-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  */
 #ifndef ORUNNERS_CONSOLE_H
@@ -184,6 +184,14 @@ enum
 #define WHEEL_ROTATIONS     7
 extern const int console_wheel_rotations[WHEEL_ROTATIONS];    /* WHEEL_ROTATION_GAME up to 1080 */
 
+/* OPTIONS > STEERING's CENTRING and VIBRATION (ports/sdl2/forces.c): the spring that brings a racing wheel
+   with force feedback back to the centre, as the cabinet's did (a computer's), and how hard a wheel shakes or
+   a game controller rumbles while the cabinet's wheel motor runs (in a crash, off the road); in percent of
+   the device's strongest, in steps of FORCE_STEP, 0 none */
+#define FORCE_STEP          10
+#define CENTRING_NORMAL     50
+#define VIBRATION_NORMAL    50
+
 typedef struct
 {
 	int window_scale;      /* 1-6: the window, in times the game's picture */
@@ -198,6 +206,8 @@ typedef struct
 	int sensitivity;       /* STEERING: the sticks', STEERING_LEVELS */
 	int wheel_rotation;    /* STEERING: a racing wheel's, one of console_wheel_rotations */
 	int steering_speed;    /* STEERING: the keys' and pads', STEERING_LEVELS */
+	int centring;          /* STEERING: a racing wheel's spring, percent (FORCE_STEP) */
+	int vibration;         /* STEERING: the wheel motor's shake or rumble, percent (FORCE_STEP) */
 	bool changed;
 } console_window;
 

@@ -55,7 +55,8 @@ What any tool makes is yours alone, with the game's data in it: never share it.
   - OPTIONS: CONTROLS (keys and game controller buttons for each player), DIFFICULTY, TIME (by stage),
     VIDEO (the window's size, full screen, PIXELS sharp, smooth, bilinear or CRT, WIDE off, 16:9 or 20:9,
     2 PLAYERS' layout), VOLUME, SOUND TEST, STEERING (the sticks' dead zone and sensitivity, a racing wheel's
-    rotation, the keys' and pads' speed, SET UP WHEEL and an INPUT TEST of the wheel and the pedals), FPS
+    rotation and centring, the keys' and pads' speed, the vibration, SET UP WHEEL and an INPUT TEST of the
+    wheel and the pedals), FPS
     (the frames a second on the picture and in the window's title); the version at its bottom right.
 - **The pause** in a race (Escape, Enter or a game controller's Start): CONTINUE, RESTART (the same game
   again, the same cars and transmissions chosen on the car select by themselves; not in NETWORK), QUIT GAME.
@@ -79,6 +80,13 @@ What any tool makes is yours alone, with the game's data in it: never share it.
     within those 135 (on a wheel, 0%).
   - **INPUT TEST** shows the wheel, the gas and the brake as the game sees them, to see where the wheel
     reaches its ends and the pedals their floor (it comes next after SET UP WHEEL).
+  - **CENTRING** brings a wheel with force feedback back to the centre on a spring, as the cabinet's did,
+    from OFF to 100% of the wheel's strongest (50% at first). The arcade game never pushed the wheel itself:
+    its one force was the cabinet's wheel motor, which shook the wheel in a crash and off the road.
+    **VIBRATION** is that shake, on the wheel or as a game controller's rumble (OFF to 100%, 50% at first;
+    the devices have it too). With both OFF the game leaves the wheel as its driver has it (Thrustmaster's
+    control panel can centre it itself: Auto-Center, by the wheel). OutRunners Arcade has both at 50%, and
+    its test mode's STEERING WHEEL REACTION turns the shake off, as on the cabinet.
 - **Android's touch controls**: the wheel, GAS and BRAKE, the gears' buttons with the manual transmission,
   START and the radio. On a tall screen (an open Fold, a tablet) the picture goes to the top and the controls
   under it, over the game's own route map following the car.

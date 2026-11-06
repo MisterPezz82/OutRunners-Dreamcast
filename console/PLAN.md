@@ -302,6 +302,25 @@ merged here; this repository adds console/, the ports and their documents.
   (MSVC) and Linux (gcc) without warnings; macOS's files compiled with clang (arm64, x86_64), its link
   left to the CI. Not checked on a real wheel.
 
+## Done (06-11-2026)
+
+- OPTIONS > STEERING's CENTRING and VIBRATION (the T300RS's player on Reddit: with no force the wheel never
+  came back to the centre): the cabinet's wheel had a spring of its own, and the board's one force is the
+  wheel motor, on or off (output port D bit 4 of each seat, written by the VBLANK while the test mode's STEERING
+  WHEEL REACTION is on and the seat is not in the attract mode: a crash, off the road). ports/sdl2/forces.c,
+  each frame for each player's game controller: SDL's spring at CENTRING (the wheel's autocentre where it has
+  no spring), a sine of 40 ms at VIBRATION while the seat's motor runs, a game controller's rumble where the
+  device has no sine; held in the pause and a network wait; nothing opened with both at 0 (SDL opening a
+  haptic turns the device's own autocentre off). Both at 50% at first, kept in outrunners.ini; CENTRING a
+  computer's line, VIBRATION every build's; OutRunners Arcade at 50% each, its test mode deciding the shake.
+  The board's outputs were already kept (s32_board.outputs): nothing in src/ or runtime/ changed. Checked on
+  Linux (SDL 2.30) with a virtual wheel of uinput logging every effect: the arcade game off the road (the
+  spring at 50%, the sine on and off with the motor, all erased at the end), the console's with outrunners.ini
+  at 30/70, 0/0 (no haptic opened) and 0/70, a wheel with an autocentre and no spring, a pad with rumble only,
+  and forces.c alone through changes while it runs (the spring updated, erased at 0 and made again, the sine
+  updated while playing, the pause's hold, the haptic let go at 0/0 and opened again). Not checked on a real
+  wheel nor on Windows' DirectInput.
+
 ## To do
 
 - The network on a network shared with strangers: a room's code to join it (today a device on the same local

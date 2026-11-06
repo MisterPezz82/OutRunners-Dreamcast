@@ -1,9 +1,9 @@
 # Name:        anbernic.cmake
 # Description: the build for Anbernic's H700 handhelds (the RG40XX H...) on their stock firmware: the console
 #              game alone, as Roms/PORTS' OutRunners.sh and its folder outrunners/
-# Version:     0.1.0
+# Version:     0.1.1
 # Created:     30-10-2026
-# Modified:    30-10-2026
+# Modified:    06-11-2026
 # Author:      Sebastian Toyos
 #
 # Included by CMakeLists.txt with ORUNNERS_ANBERNIC (and the toolchain zig_aarch64.cmake: aarch64, glibc 2.35),
@@ -35,7 +35,7 @@ set_target_properties(SDL2_device PROPERTIES OUTPUT_NAME SDL2-2.0 SUFFIX ".so.0"
 target_link_options(SDL2_device PRIVATE -Wl,-soname,libSDL2-2.0.so.0)
 
 set(ORUNNERS_ANBERNIC_OUT ${ORUNNERS_BIN_DIR}/anbernic)    # (PORTS's files, beside OutRunners Anbernic)
-add_executable(OutRunners ports/sdl2/main.c ports/sdl2/controls.c)
+add_executable(OutRunners ports/sdl2/main.c ports/sdl2/forces.c ports/sdl2/controls.c)
 target_include_directories(OutRunners PRIVATE ${ORUNNERS_SDL2_INCLUDE})
 target_link_libraries(OutRunners PRIVATE orunners_game_console orunners_sound SDL2_device m)
 set_target_properties(OutRunners PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${ORUNNERS_ANBERNIC_OUT}/outrunners

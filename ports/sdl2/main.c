@@ -2,9 +2,9 @@
  *    Name:        main.c
  *    Description: the game in a window: SDL2 shows its screens, plays its sound, reads the controls and
  *                 keeps the pace, around the same game and board the headless runs check
- *    Version:     0.1.2
+ *    Version:     0.1.3
  *    Created:     21-10-2026
- *    Modified:    05-11-2026
+ *    Modified:    06-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -55,7 +55,10 @@
  *    the right and left shoulders shift up and down, Y the DJ, the pad's left and right << and >>, Start
  *    the start, Back a coin. A device is a game controller where SDL has a layout for it: its own, or
  *    gamecontrollerdb.txt's in the folder of what the game keeps (SDL's format, a line a device: the
- *    console's SET UP WHEEL writes its layouts there, wheel_setup.c).
+ *    console's SET UP WHEEL writes its layouts there, wheel_setup.c). A racing wheel with force feedback
+ *    comes back to the centre on a spring, as the cabinet's did, and shakes while the cabinet's wheel motor
+ *    runs (in a crash, off the road); a game controller rumbles then (forces.c): the arcade game's at half
+ *    their strength, the console's at OPTIONS > STEERING's CENTRING and VIBRATION.
  */
 #include "s32/machine.h"
 #include "s32/program.h"
@@ -68,6 +71,7 @@
 #include "game/extract.h"
 #endif
 #include "s32/workers.h"
+#include "forces.h"
 #ifdef ORUNNERS_CONSOLE
 #include "console.h"
 #include "controls.h"
@@ -127,6 +131,14 @@
 #endif
 #ifdef ORUNNERS_HANDHELD_KEYS
 #define HANDHELD_MENU_BUTTON 8         /* the joystick button that leaves the game: the RG40XX H's MENU */
+#endif
+#define WHEEL_MOTOR         0x10       /* output port D: the cabinet's wheel motor (forces.c) */
+#ifdef ORUNNERS_CONSOLE
+#define CENTRING            console_window_settings.centring     /* OPTIONS > STEERING's */
+#define VIBRATION           console_window_settings.vibration
+#else
+#define CENTRING            50         /* a racing wheel's spring, as the cabinet's: half its strongest */
+#define VIBRATION           50
 #endif
 #define BACKUP_RAM_SIZE     0xfa
 
@@ -870,10 +882,11 @@ static void save_window_settings(void)
 	if (!output)
 		return;
 	fprintf(output, "window_scale=%d\nfull_screen=%d\npixels=%s\nwide=%d\ntwo_players=%s\nvolume=%d\nname=%s\n"
-		"fps=%d\ndead_zone=%d\nsensitivity=%d\nwheel_rotation=%d\nsteering_speed=%d\n",
+		"fps=%d\ndead_zone=%d\nsensitivity=%d\nwheel_rotation=%d\nsteering_speed=%d\ncentring=%d\nvibration=%d\n",
 		settings->window_scale, settings->full_screen, pixel_names[settings->pixels], settings->wide,
 		settings->vertical ? "vertical" : "horizontal", settings->volume, settings->name, settings->fps,
-		settings->dead_zone, settings->sensitivity, settings->wheel_rotation, settings->steering_speed);
+		settings->dead_zone, settings->sensitivity, settings->wheel_rotation, settings->steering_speed,
+		settings->centring, settings->vibration);
 	fclose(output);
 }
 
@@ -904,6 +917,10 @@ static void load_window_settings(void)
 			settings->sensitivity = number;
 		else if (sscanf(line, "steering_speed=%d", &number) == 1 && number >= 1 && number <= STEERING_LEVELS)
 			settings->steering_speed = number;
+		else if (sscanf(line, "centring=%d", &number) == 1 && number >= 0 && number <= 100)
+			settings->centring = number / FORCE_STEP * FORCE_STEP;
+		else if (sscanf(line, "vibration=%d", &number) == 1 && number >= 0 && number <= 100)
+			settings->vibration = number / FORCE_STEP * FORCE_STEP;
 		else if (sscanf(line, "wheel_rotation=%d", &number) == 1)
 		{
 			for (int rotation = 0; rotation < WHEEL_ROTATIONS; rotation++)
@@ -1118,7 +1135,10 @@ static void wheel_set_up(SDL_JoystickID id)
 			if (free_player < PLAYERS)
 				controllers[free_player] = first;
 			else if (first)
+			{
+				forces_release(first);
 				SDL_GameControllerClose(first);
+			}
 			controllers[0] = wheel;
 			return;
 		}
@@ -1246,6 +1266,7 @@ static void read_events(void)
 					if (controllers[player]
 						&& SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controllers[player])) == event.cdevice.which)
 					{
+						forces_release(controllers[player]);
 						SDL_GameControllerClose(controllers[player]);
 						controllers[player] = NULL;
 					}
@@ -1560,6 +1581,7 @@ static void run_network_wait(void)
 	static uint32_t frozen[2][S32_VIDEO_MAX_WIDTH * S32_VIDEO_HEIGHT];
 	static uint8_t list[0x400];
 
+	forces_hold();
 	if (audio)
 		SDL_PauseAudioDevice(audio, 1);
 	for (int screen = 0; screen < 2; screen++)
@@ -1589,6 +1611,7 @@ static void run_pause(void)
 	int choice = CONSOLE_PAUSE_CONTINUE;
 
 	pause_requested = false;
+	forces_hold();
 	if (audio)
 		SDL_PauseAudioDevice(audio, 1);
 	for (int screen = 0; screen < 2; screen++)
@@ -1784,6 +1807,12 @@ static void on_frame_done(void)
 			sound_board_state_hash());
 	if (script && s32_script_frames(script) && program_frames() >= s32_script_frames(script))
 		program_stop();
+
+	/* the controllers' forces: a racing wheel's spring, and the cabinet's wheel motor as each seat's output port
+	   D has it (forces.c) */
+	for (int player = 0; player < PLAYERS; player++)
+		forces_frame(player, controllers[player], CENTRING, VIBRATION,
+			(s32_board.outputs[player][0] & WHEEL_MOTOR) != 0);
 
 	if (program_frames() % 600 == 0)
 	{
@@ -1989,6 +2018,7 @@ int main(int argc, char **argv)
 #endif
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) != 0)
 		return fail("SDL could not start.", SDL_GetError());
+	forces_start();    /* (a racing wheel's forces, where the system has SDL's haptic part) */
 #ifdef ORUNNERS_HANDHELD
 	log_device();
 #endif
@@ -2226,6 +2256,7 @@ int main(int argc, char **argv)
 		fclose(sound_hashes);
 	if (audio)
 		SDL_CloseAudioDevice(audio);
+	forces_stop();
 	SDL_Quit();
 #ifdef __SWITCH__
 	romfsExit();
