@@ -367,6 +367,14 @@ merged here; this repository adds console/, the ports and their documents.
   1800 frames of a race, none left out, 59.935 frames a second (the start's first frames); the VIDEO page
   drawn. Not checked on macOS, nor on a 60 Hz screen. Interpolated frames for 120 Hz (issue 18) wait for the
   video on the GPU (the Switch's 4 PLAYERS branch).
+- The phone vibrates with the cabinet's wheel motor (Sebas: the phone in a crash), for the players on its touch
+  controls (no game controller of theirs): forces_device opens the device's own vibrator, which SDL lists on
+  Android as a haptic named VIBRATOR_SERVICE (rumble only), and vibrates at VIBRATION's strength while a touch
+  player's seat's motor runs: 250 ms asked at once and again every 10 frames (Android starts a vibration over
+  at each call), stopped with the motor, in the pause and at the end. STEERING > PHONE VIBRATION (Android's,
+  on at first, phone_vibration in outrunners.ini) turns it off; the manifest asks for VIBRATE (SDL's Vibrator
+  throws without it). Built for Android (arm64, the base APK, with VIBRATE in it) and Windows without
+  warnings; not checked on a phone.
 
 ## To do
 

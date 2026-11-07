@@ -1,10 +1,10 @@
 /**
  *    Name:        forces.c
  *    Description: the forces the controllers give back: a racing wheel's centring spring, and the cabinet's
- *                 wheel motor as a wheel's shake or a game controller's rumble
- *    Version:     0.1.0
+ *                 wheel motor as a wheel's shake, a game controller's rumble or a phone's vibration
+ *    Version:     0.1.1
  *    Created:     06-11-2026
- *    Modified:    06-11-2026
+ *    Modified:    07-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -25,14 +25,24 @@
  *    so with CENTRING at 0 and VIBRATION at 0 the haptic is not opened at all and the wheel is as its driver
  *    leaves it. The effects go along the wheel's one axis (SDL_HAPTIC_CARTESIAN, 1: DirectInput takes no polar
  *    direction for a device of one axis).
+ *
+ *    A player with no game controller plays on the device itself (a phone's touch controls): the device's own
+ *    vibrator, which SDL lists on Android as a haptic of its own named VIBRATOR_SERVICE (rumble only), vibrates
+ *    while the motor runs. Android starts a vibration again at each call (vibrate), so it is asked for a span
+ *    longer than a few frames (VIBRATOR_SPAN) and again before it ends (VIBRATOR_RENEW frames), and stopped
+ *    as the motor stops.
  */
 #include "forces.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #define FORCES_PLAYERS 2
 #define SHAKE_PERIOD   40     /* ms: the shake's, 25 a second */
 #define RUMBLE_SPAN    100    /* ms: a rumble asked for each frame while the motor runs, lasting past the next */
+#define VIBRATOR_NAME  "VIBRATOR_SERVICE"    /* the device's own, as SDL's Android haptics name it */
+#define VIBRATOR_SPAN  250    /* ms: a phone's vibration asked for at once... */
+#define VIBRATOR_RENEW 10     /* ...and again after this many frames (167 ms), before it ends */
 
 typedef struct
 {
@@ -50,6 +60,15 @@ typedef struct
 
 static player_forces players[FORCES_PLAYERS];
 static bool haptics;    /* SDL's haptic part started */
+
+/* The device's own vibrator (forces_device) */
+static struct
+{
+	bool looked;
+	SDL_Haptic *haptic;
+	bool vibrating;
+	int frames;              /* since it was last asked to vibrate */
+} vibrator;
 
 static void forget(player_forces *forces)
 {
@@ -256,6 +275,53 @@ void forces_frame(int player, SDL_GameController *pad, int centring, int shake, 
 		rumble(forces, pad, shake, motor && shake > 0);
 }
 
+/* The device's own vibrator, looked for once: a haptic of SDL's named VIBRATOR_NAME, able to rumble */
+static void look_for_vibrator(void)
+{
+	vibrator.looked = true;
+	for (int index = 0; haptics && index < SDL_NumHaptics(); index++)
+	{
+		const char *name = SDL_HapticName(index);
+
+		if (!name || strcmp(name, VIBRATOR_NAME) != 0)
+			continue;
+		vibrator.haptic = SDL_HapticOpen(index);
+		if (vibrator.haptic && SDL_HapticRumbleInit(vibrator.haptic) != 0)
+		{
+			SDL_HapticClose(vibrator.haptic);
+			vibrator.haptic = NULL;
+		}
+		if (vibrator.haptic)
+			fprintf(stderr, "forces: the device's vibrator\n");
+		return;
+	}
+}
+
+static void stop_vibrator(void)
+{
+	if (vibrator.vibrating)
+		SDL_HapticRumbleStop(vibrator.haptic);
+	vibrator.vibrating = false;
+}
+
+void forces_device(int shake, bool motor)
+{
+	if (!vibrator.looked)
+		look_for_vibrator();
+	if (!vibrator.haptic)
+		return;
+	if (!motor || shake <= 0)
+	{
+		stop_vibrator();
+		return;
+	}
+	if (!vibrator.vibrating || ++vibrator.frames >= VIBRATOR_RENEW)
+	{
+		vibrator.vibrating = SDL_HapticRumblePlay(vibrator.haptic, (float)shake / 100.0f, VIBRATOR_SPAN) == 0;
+		vibrator.frames = 0;
+	}
+}
+
 void forces_hold(void)
 {
 	for (int player = 0; player < FORCES_PLAYERS; player++)
@@ -266,6 +332,8 @@ void forces_hold(void)
 			shake_wheel(forces, forces->shake, false);
 		forces->rumbling = false;    /* (a rumble ends by itself, RUMBLE_SPAN after the last frame's) */
 	}
+	if (vibrator.haptic)
+		stop_vibrator();
 }
 
 void forces_release(SDL_GameController *pad)
@@ -282,4 +350,10 @@ void forces_stop(void)
 {
 	for (int player = 0; player < FORCES_PLAYERS; player++)
 		let_go(&players[player], NULL);
+	if (vibrator.haptic)
+	{
+		stop_vibrator();
+		SDL_HapticClose(vibrator.haptic);
+		vibrator.haptic = NULL;
+	}
 }

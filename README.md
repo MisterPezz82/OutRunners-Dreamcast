@@ -58,7 +58,8 @@ What a tool makes has the game's data in it: it is yours alone, never share it.
   the buttons it asks for. Also in STEERING: WHEEL ROTATION (your wheel's range: 900 on a G29), CENTRING (the
   cabinet's spring, on a wheel with force feedback), VIBRATION (the cabinet's wheel shaking in a crash and off the
   road, or a controller's rumble) and INPUT TEST.
-- **Android**: touch controls on the screen, or a controller.
+- **Android**: touch controls on the screen, or a controller. With the touch controls the phone itself vibrates
+  in a crash and off the road, at VIBRATION's strength; STEERING > PHONE VIBRATION turns it off.
 
 ## NETWORK
 

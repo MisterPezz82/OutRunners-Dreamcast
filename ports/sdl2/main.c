@@ -927,11 +927,11 @@ static void save_window_settings(void)
 		return;
 	fprintf(output, "window_scale=%d\nfull_screen=%d\npixels=%s\nwide=%d\nvsync=%d\ntwo_players=%s\nvolume=%d\n"
 		"name=%s\nfps=%d\ndead_zone=%d\nsensitivity=%d\nwheel_rotation=%d\nsteering_speed=%d\ncentring=%d\n"
-		"vibration=%d\n",
+		"vibration=%d\nphone_vibration=%d\n",
 		settings->window_scale, settings->full_screen, pixel_names[settings->pixels], settings->wide, settings->vsync,
 		settings->vertical ? "vertical" : "horizontal", settings->volume, settings->name, settings->fps,
 		settings->dead_zone, settings->sensitivity, settings->wheel_rotation, settings->steering_speed,
-		settings->centring, settings->vibration);
+		settings->centring, settings->vibration, settings->phone_vibration);
 	fclose(output);
 }
 
@@ -966,6 +966,8 @@ static void load_window_settings(void)
 			settings->steering_speed = number;
 		else if (sscanf(line, "centring=%d", &number) == 1 && number >= 0 && number <= 100)
 			settings->centring = number / FORCE_STEP * FORCE_STEP;
+		else if (sscanf(line, "phone_vibration=%d", &number) == 1)
+			settings->phone_vibration = number != 0;
 		else if (sscanf(line, "vibration=%d", &number) == 1 && number >= 0 && number <= 100)
 			settings->vibration = number / FORCE_STEP * FORCE_STEP;
 		else if (sscanf(line, "wheel_rotation=%d", &number) == 1)
@@ -1867,6 +1869,17 @@ static void on_frame_done(void)
 	for (int player = 0; player < PLAYERS; player++)
 		forces_frame(player, controllers[player], CENTRING, VIBRATION,
 			(s32_board.outputs[player][0] & WHEEL_MOTOR) != 0);
+#ifdef ORUNNERS_TOUCH
+	{
+		/* the phone itself, for the players on its touch controls (no game controller of theirs): STEERING's
+		   PHONE VIBRATION */
+		bool motor = false;
+
+		for (int player = 0; player < TOUCH_PLAYERS && player < PLAYERS; player++)
+			motor = motor || (!controllers[player] && (s32_board.outputs[player][0] & WHEEL_MOTOR) != 0);
+		forces_device(console_window_settings.phone_vibration ? VIBRATION : 0, motor);
+	}
+#endif
 
 	if (program_frames() % 600 == 0)
 	{

@@ -209,6 +209,7 @@ typedef struct
 	int steering_speed;    /* STEERING: the keys' and pads', STEERING_LEVELS */
 	int centring;          /* STEERING: a racing wheel's spring, percent (FORCE_STEP) */
 	int vibration;         /* STEERING: the wheel motor's shake or rumble, percent (FORCE_STEP) */
+	bool phone_vibration;  /* STEERING (Android's): the phone itself vibrates too, for its touch controls */
 	bool changed;
 } console_window;
 

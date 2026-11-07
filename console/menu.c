@@ -154,12 +154,15 @@ static void set_network_lines(void)
 enum { VIDEO_WINDOW, VIDEO_FULL_SCREEN, VIDEO_PIXELS, VIDEO_WIDE, VIDEO_VSYNC, VIDEO_TWO_PLAYERS, VIDEO_BACK,
 	VIDEO_ITEMS };
 /* STEERING's lines: CENTRING and SET UP WHEEL a computer's (a racing wheel's; a device's controls are its
-   own) */
+   own), PHONE VIBRATION Android's (its touch controls') */
 enum { STEERING_DEAD_ZONE, STEERING_SENSITIVITY, STEERING_ROTATION,
 #ifndef ORUNNERS_HANDHELD
 	STEERING_CENTRING,
 #endif
 	STEERING_SPEED, STEERING_VIBRATION,
+#ifdef ORUNNERS_TOUCH
+	STEERING_PHONE_VIBRATION,
+#endif
 #ifndef ORUNNERS_HANDHELD
 	STEERING_SET_UP,
 #endif
@@ -188,7 +191,8 @@ static struct
 
 console_window console_window_settings = { .window_scale = 2, .pixels = PIXELS_SHARP, .volume = 5, .name = "PLAYER",
 	.dead_zone = DEAD_ZONE_NORMAL, .sensitivity = STEERING_NORMAL, .wheel_rotation = WHEEL_ROTATION_GAME,
-	.steering_speed = STEERING_NORMAL, .centring = CENTRING_NORMAL, .vibration = VIBRATION_NORMAL, .vsync = true };
+	.steering_speed = STEERING_NORMAL, .centring = CENTRING_NORMAL, .vibration = VIBRATION_NORMAL, .vsync = true,
+	.phone_vibration = true };
 
 const int console_wheel_rotations[WHEEL_ROTATIONS] = { WHEEL_ROTATION_GAME, 360, 450, 540, 720, 900, 1080 };
 
@@ -596,6 +600,12 @@ static void steering_frame(uint32_t pressed)
 			window->vibration = step(window->vibration, by * FORCE_STEP, 0, 100);
 			window->changed = true;
 			break;
+#ifdef ORUNNERS_TOUCH
+		case STEERING_PHONE_VIBRATION:
+			window->phone_vibration = !window->phone_vibration;
+			window->changed = true;
+			break;
+#endif
 		default:
 			break;
 	}
@@ -632,6 +642,9 @@ static void steering_frame(uint32_t pressed)
 	line(STEERING_SPEED, "SPEED", value);
 	force_value(value, sizeof(value), window->vibration);
 	line(STEERING_VIBRATION, "VIBRATION", value);
+#ifdef ORUNNERS_TOUCH
+	line(STEERING_PHONE_VIBRATION, "PHONE VIBRATION", window->phone_vibration ? "< ON >" : "< OFF >");
+#endif
 #ifndef ORUNNERS_HANDHELD
 	line(STEERING_SET_UP, "SET UP WHEEL", NULL);
 #endif
