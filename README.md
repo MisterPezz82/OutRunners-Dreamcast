@@ -44,7 +44,7 @@ What a tool makes has the game's data in it: it is yours alone, never share it.
 - **& KNUCKLES**: CLASSIC (the arcade's game, a little more time), TIME ATTACK (against your fastest run's ghost),
   FULL (all 31 courses in one race), REVERSE (from a goal back to the start).
 - **OPTIONS**: controls, difficulty, time, video (window, full screen, sharp, smooth or CRT pixels, a wider
-  picture), volume, sound test, steering, FPS.
+  picture, VSYNC), volume, sound test, steering, FPS.
 - **The pause** in a race: CONTINUE, RESTART, QUIT GAME.
 
 ## Controls

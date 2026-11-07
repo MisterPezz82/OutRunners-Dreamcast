@@ -353,6 +353,21 @@ merged here; this repository adds console/, the ports and their documents.
   outrunners-decomp's, linked (a merge of the decomp keeps the port's README as it is). arcade-lan cited with
   its license, in the packages' licenses/ too.
 
+## Done (07-11-2026)
+
+- OPTIONS > VIDEO's VSYNC (issue 19: tearing on macOS; the port never waited for the screen, its frames paced
+  by a timer alone): on at first, kept in outrunners.ini; OutRunners Arcade's always on; a device's screen as
+  its SDL shows it (Anbernic's 2.0.12 has no SDL_RenderSetVSync), and off for --fast. The renderer shows each
+  frame at the screen's refresh (SDL_RenderSetVSync) and the game keeps its own pace, 60 a second
+  (wait_for_frame): a faster screen shows each frame twice or so. A frame a whole frame's time behind that pace
+  (a screen a little slower than 60, 59.94 Hz, or the machine busy) is not shown, so as not to wait: the game
+  and its sound keep their pace, a frame left out now and then. The pause and a network race's WAIT pace
+  themselves the same way (wait_for_frame, not SDL_Delay(16)), as the network counts its time in frames. The
+  log says the screen's refresh, the frames left out and the pace. Checked on Windows on a 144 Hz screen:
+  1800 frames of a race, none left out, 59.935 frames a second (the start's first frames); the VIDEO page
+  drawn. Not checked on macOS, nor on a 60 Hz screen. Interpolated frames for 120 Hz (issue 18) wait for the
+  video on the GPU (the Switch's 4 PLAYERS branch).
+
 ## To do
 
 - The network on a network shared with strangers: a room's code to join it (today a device on the same local

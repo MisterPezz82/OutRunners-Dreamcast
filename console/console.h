@@ -1,9 +1,9 @@
 /**
  *    Name:        console.h
  *    Description: what the console build tells the port
- *    Version:     0.1.3
+ *    Version:     0.1.4
  *    Created:     29-10-2026
- *    Modified:    06-11-2026
+ *    Modified:    07-11-2026
  *    Author:      Sebastian Toyos
  */
 #ifndef ORUNNERS_CONSOLE_H
@@ -198,6 +198,7 @@ typedef struct
 	bool full_screen;
 	int pixels;            /* PIXELS_* */
 	int wide;              /* WIDE_*: a wider picture */
+	bool vsync;            /* VIDEO's VSYNC: each frame shown at the screen's refresh (a computer's) */
 	bool vertical;         /* 2 PLAYERS: one screen over the other (false: side by side) */
 	int volume;            /* 0-10: 5 is the game's own */
 	char name[CONSOLE_NAME_LENGTH + 1];    /* the player's, as the network's rooms show it */

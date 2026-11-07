@@ -2,9 +2,9 @@
  *    Name:        main.c
  *    Description: the game in a window: SDL2 shows its screens, plays its sound, reads the controls and
  *                 keeps the pace, around the same game and board the headless runs check
- *    Version:     0.1.3
+ *    Version:     0.1.4
  *    Created:     21-10-2026
- *    Modified:    06-11-2026
+ *    Modified:    07-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -140,6 +140,14 @@
 #define CENTRING            50         /* a racing wheel's spring, as the cabinet's: half its strongest */
 #define VIBRATION           50
 #endif
+#if defined(ORUNNERS_HANDHELD)
+#define VSYNC               false      /* (a device's screen as its SDL shows it: Anbernic's 2.0.12 has no
+                                          SDL_RenderSetVSync) */
+#elif defined(ORUNNERS_CONSOLE)
+#define VSYNC               console_window_settings.vsync    /* OPTIONS > VIDEO's */
+#else
+#define VSYNC               true
+#endif
 #define BACKUP_RAM_SIZE     0xfa
 
 #define USAGE "Usage: orunners [--script FILE [--fast]] [--hashes FILE] [--video-hashes FILE] [--sound-hashes FILE]" \
@@ -152,6 +160,7 @@ static SDL_AudioDeviceID audio;
 static SDL_GameController *controllers[PLAYERS];
 static bool smooth;
 static uint64_t next_frame;           /* performance counter value the next frame waits for */
+static bool vsync_on;                 /* the renderer shows each frame at the screen's refresh (apply_vsync) */
 static char eeprom_path[1024];
 static char backup_ram_path[1024];
 static uint8_t backup_ram_saved[BACKUP_RAM_SIZE];    /* as the file has it */
@@ -516,6 +525,40 @@ static void draw_fps(const SDL_Rect *shown)
 }
 #endif
 
+/* VSYNC: the renderer shows each frame at the screen's refresh, unless the frames run as fast as they can
+   (--fast). The game keeps its own pace, 60 frames a second (wait_for_frame): a faster screen (120 Hz) shows
+   each frame twice */
+static void apply_vsync(void)
+{
+#ifndef ORUNNERS_HANDHELD
+	const bool wanted = VSYNC && !fast;
+
+	if (renderer && wanted != vsync_on)
+	{
+		SDL_DisplayMode mode;
+
+		vsync_on = SDL_RenderSetVSync(renderer, wanted ? 1 : 0) == 0 ? wanted : false;
+		if (vsync_on && SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(window), &mode) == 0)
+			fprintf(stderr, "vsync: on, the screen at %d Hz\n", mode.refresh_rate);
+	}
+#endif
+}
+
+static uint32_t frames_left_out;    /* VSYNC: the frames not shown, behind the game's pace (frame_behind) */
+static uint64_t first_frame_done;   /* the performance counter at the end of the game's first frame */
+
+/* A frame a whole frame's time behind the game's pace (a screen a little slower than 60 a second, 59.94 Hz,
+   or the machine busy) is not shown, so that it does not wait for the screen's refresh: the game, and its
+   sound, keep their 60 a second, a frame left out now and then */
+static bool frame_behind(void)
+{
+	const bool behind = vsync_on
+		&& SDL_GetPerformanceCounter() > next_frame + SDL_GetPerformanceFrequency() / S32_FRAME_RATE;
+
+	frames_left_out += behind ? 1u : 0u;
+	return behind;
+}
+
 /* The picture (its part 'source' of 'texture') in the window, as large as it fits with its proportions; with
    the screens facing each other, each screen on its half, the second turned half round */
 static void present(SDL_Rect source)
@@ -621,7 +664,8 @@ static void present(SDL_Rect source)
 	count_fps();
 	draw_fps(&shown[0]);
 #endif
-	SDL_RenderPresent(renderer);
+	if (!frame_behind())
+		SDL_RenderPresent(renderer);
 }
 
 #ifdef ORUNNERS_CONSOLE
@@ -881,9 +925,10 @@ static void save_window_settings(void)
 	output = fopen(settings_path, "w");
 	if (!output)
 		return;
-	fprintf(output, "window_scale=%d\nfull_screen=%d\npixels=%s\nwide=%d\ntwo_players=%s\nvolume=%d\nname=%s\n"
-		"fps=%d\ndead_zone=%d\nsensitivity=%d\nwheel_rotation=%d\nsteering_speed=%d\ncentring=%d\nvibration=%d\n",
-		settings->window_scale, settings->full_screen, pixel_names[settings->pixels], settings->wide,
+	fprintf(output, "window_scale=%d\nfull_screen=%d\npixels=%s\nwide=%d\nvsync=%d\ntwo_players=%s\nvolume=%d\n"
+		"name=%s\nfps=%d\ndead_zone=%d\nsensitivity=%d\nwheel_rotation=%d\nsteering_speed=%d\ncentring=%d\n"
+		"vibration=%d\n",
+		settings->window_scale, settings->full_screen, pixel_names[settings->pixels], settings->wide, settings->vsync,
 		settings->vertical ? "vertical" : "horizontal", settings->volume, settings->name, settings->fps,
 		settings->dead_zone, settings->sensitivity, settings->wheel_rotation, settings->steering_speed,
 		settings->centring, settings->vibration);
@@ -907,6 +952,8 @@ static void load_window_settings(void)
 			settings->full_screen = number != 0;
 		else if (sscanf(line, "wide=%d", &number) == 1 && number >= 0 && number < WIDE_KINDS)
 			settings->wide = number;    /* (0 off, 1 16:9, 2 20:9) */
+		else if (sscanf(line, "vsync=%d", &number) == 1)
+			settings->vsync = number != 0;
 		else if (sscanf(line, "volume=%d", &number) == 1 && number >= 0 && number <= 10)
 			settings->volume = number;
 		else if (sscanf(line, "fps=%d", &number) == 1)
@@ -1012,6 +1059,7 @@ static void apply_window_settings(void)
 #endif
 	window_width = width;
 	window_height = height;
+	apply_vsync();    /* (VIDEO's VSYNC) */
 }
 
 /* The menus' actions: the arrows, Enter (START too), Escape or Backspace; each game controller's pad or
@@ -1574,8 +1622,11 @@ static void make_pause_picture(const uint32_t frozen[2][S32_VIDEO_MAX_WIDTH * S3
 	make_words_picture(frozen, list, console_pause_sprites(list, sizeof(list), choice));
 }
 
+static void wait_for_frame(void);
+
 /* A network race waiting for a device unheard (console_network_waiting): the game held, its sound too, the
-   picture in grey under WAIT, the network's frames running until it goes on */
+   picture in grey under WAIT, the network's frames running until it goes on, at the game's pace (which the
+   network counts its time in) */
 static void run_network_wait(void)
 {
 	static uint32_t frozen[2][S32_VIDEO_MAX_WIDTH * S32_VIDEO_HEIGHT];
@@ -1592,7 +1643,7 @@ static void run_network_wait(void)
 	{
 		read_events();    /* (closing the window ends the game there: program_stop) */
 		show_screens();
-		SDL_Delay(16);
+		wait_for_frame();    /* (60 a second, as the game's frames) */
 		console_network_frame();
 	}
 	pause_shown = false;
@@ -1648,7 +1699,7 @@ static void run_pause(void)
 		if (pressed & (PAUSE_BIT | ACTION_BIT(ACTION_BACK)))
 			break;
 		show_screens();    /* (the line chosen, a window resized or put full screen meanwhile) */
-		SDL_Delay(16);
+		wait_for_frame();    /* (60 a second, as the game's frames) */
 		console_network_frame();    /* (a network race goes on: this device is still heard) */
 	}
 	pause_shown = false;
@@ -1771,6 +1822,9 @@ static void on_frame_done(void)
 	const uint64_t frame = program_frames() - 1;
 	size_t count;
 	const int16_t *mix;
+
+	if (frame == 0)
+		first_frame_done = SDL_GetPerformanceCounter();    /* (the pace VSYNC's log gives) */
 
 	/* (in the headless runs' order: the board's hashes, then the sound) */
 	if (hashes)
@@ -2204,6 +2258,7 @@ int main(int argc, char **argv)
 		return fail("The window could not be opened.", SDL_GetError());
 	SDL_RenderSetIntegerScale(renderer, SDL_FALSE);
 	SDL_SetTextureScaleMode(texture, SDL_ScaleModeNearest);
+	apply_vsync();
 #ifdef ORUNNERS_TOUCH
 	touch_open(renderer, "");    /* (their letters come with the game: Android's in the APK's assets) */
 #endif
@@ -2257,6 +2312,10 @@ int main(int argc, char **argv)
 		fclose(sound_hashes);
 	if (audio)
 		SDL_CloseAudioDevice(audio);
+	if (vsync_on && program_frames() > 1)
+		fprintf(stderr, "vsync: %u of %" PRIu64 " frames left out, behind the game's pace; %.3f frames a second\n",
+			frames_left_out, program_frames(), (double)(program_frames() - 1) * (double)SDL_GetPerformanceFrequency()
+			/ (double)(SDL_GetPerformanceCounter() - first_frame_done));
 	forces_stop();
 	SDL_Quit();
 #ifdef __SWITCH__
