@@ -2,9 +2,9 @@
  *    Name:        video.h
  *    Description: Sega System Multi 32 video: draws each frame of the board's two screens from its memories,
  *                 as the hardware does
- *    Version:     0.1.0
+ *    Version:     0.1.1
  *    Created:     13-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    07-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -73,6 +73,7 @@ uint64_t s32_video_frame_hash(void);
    they are (the game places them well past its edges), the text layer stays where it is (and is clear at
    the sides), the clip windows that cover the screen cover the wider one. 0, the default, the frames are
    the board's */
+#define S32_VIDEO_WIDE_SIDE_16_10 32   /* (384 columns: a Steam Deck's 1280 x 800) */
 #define S32_VIDEO_WIDE_SIDE_16_9 48
 #define S32_VIDEO_WIDE_SIDE_20_9 88
 #define S32_VIDEO_WIDE_SIDE_MOST S32_VIDEO_WIDE_SIDE_20_9

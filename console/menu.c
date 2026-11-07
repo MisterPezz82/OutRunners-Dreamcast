@@ -81,7 +81,9 @@ static const char name_letters[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-";
 static const char *const time_stages[TIME_STAGES] = { "PRE-STAGE", "STAGE 1", "STAGE 2", "STAGE 3", "STAGE 4",
 	"FINAL STAGE" };
 static const char *const pixel_kinds[PIXELS_KINDS] = { "SHARP", "SMOOTH", "BILINEAR", "CRT" };
-static const char *const wide_kinds[WIDE_KINDS] = { "OFF", "16:9", "20:9" };
+static const char *const wide_kinds[WIDE_KINDS] = { "OFF", "16:9", "20:9", "16:10" };
+/* WIDE's values as VIDEO goes through them, narrowest first */
+static const int wide_order[WIDE_KINDS] = { WIDE_OFF, WIDE_16_10, WIDE_16_9, WIDE_20_9 };
 static const char *const control_names[CONTROLS] = { "STEER LEFT", "STEER RIGHT", "GAS", "BRAKE", "SHIFT UP",
 	"SHIFT DOWN", "MUSIC", "SONG <<", "SONG >>", "START" };
 /* the test mode's GAME DIFFICULTY, from EASY to HARD on its bar of 8 (the fourth, the game's own) */
@@ -519,9 +521,15 @@ static void video_frame(uint32_t pressed)
 				window->changed = true;
 				break;
 			case VIDEO_WIDE:
-				window->wide = step(window->wide, by ? by : 1, 0, WIDE_KINDS - 1);
+			{
+				int at = 0;
+
+				while (at < WIDE_KINDS - 1 && wide_order[at] != window->wide)
+					at++;
+				window->wide = wide_order[step(at, by ? by : 1, 0, WIDE_KINDS - 1)];
 				window->changed = true;
 				break;
+			}
 			case VIDEO_VSYNC:
 				window->vsync = !window->vsync;
 				window->changed = true;

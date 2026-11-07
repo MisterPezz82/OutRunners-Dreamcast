@@ -288,13 +288,16 @@ static bool screens_stacked(void)
 }
 
 /* The window's picture, in the game's pixels: its screens side by side, or one over the other */
-/* A screen's picture, in the game's pixels: 320, or with the console's WIDE 16:9 or 20:9 */
+/* A screen's picture, in the game's pixels: 320, or with the console's WIDE 16:10, 16:9 or 20:9 */
+#define WIDE_16_10_WIDTH 358   /* 16:10 at 224 rows (358.4): the video's 384 less 13 at each side */
 #define WIDE_16_9_WIDTH 398    /* 16:9 at 224 rows: the video's 416 less 9 at each side */
 #define WIDE_20_9_WIDTH 496    /* the video's 496, whole (20:9 is 498) */
 
 static int screen_width(void)
 {
 #ifdef ORUNNERS_CONSOLE
+	if (console_window_settings.wide == WIDE_16_10)
+		return WIDE_16_10_WIDTH;
 	if (console_window_settings.wide == WIDE_16_9)
 		return WIDE_16_9_WIDTH;
 	if (console_window_settings.wide == WIDE_20_9)
@@ -319,16 +322,18 @@ static void picture_size(int *width, int *height)
 static int shape_width, shape_height;    /* the screen WIDE was last chosen for */
 
 /* WIDE for a screen of 'width' x 'height' (either way up: its long side across): 20:9 where it is twice as wide
-   as high or more, 16:9 down to 3:2; a narrower one's none, the game's 4:3 picture filling it (a 4:3 handheld's:
-   issue 15), but a tablet's 16:9, the picture at the top and the controls and the route map under it (an open
-   Fold's: Sebas) */
+   as high or more, 16:9 from 16:9 on, 16:10 from 3:2 on; a narrower one's none, the game's 4:3 picture filling
+   it (a 4:3 handheld's: issue 15), but a tablet's 16:9, the picture at the top and the controls and the route
+   map under it (an open Fold's: Sebas) */
 static int wide_for_screen(int width, int height)
 {
 	const int long_side = SDL_max(width, height), short_side = SDL_min(width, height);
 
 	if (long_side >= 2 * short_side)
 		return WIDE_20_9;
-	return 2 * long_side >= 3 * short_side || tablet_screen(width, height) ? WIDE_16_9 : WIDE_OFF;
+	if (9 * long_side >= 16 * short_side || tablet_screen(width, height))
+		return WIDE_16_9;
+	return 2 * long_side >= 3 * short_side ? WIDE_16_10 : WIDE_OFF;
 }
 
 /* The screen's size at a frame, as the renderer has it: WIDE chosen again where it changed (the log says so) */
@@ -340,7 +345,8 @@ static void follow_screen(int width, int height)
 	shape_height = height;
 	console_window_settings.wide = wide_for_screen(width, height);
 	fprintf(stderr, "screen %dx%d: WIDE %s\n", width, height, console_window_settings.wide == WIDE_20_9 ? "20:9"
-		: console_window_settings.wide == WIDE_16_9 ? "16:9" : "OFF");
+		: console_window_settings.wide == WIDE_16_9 ? "16:9" : console_window_settings.wide == WIDE_16_10 ? "16:10"
+		: "OFF");
 }
 #endif
 

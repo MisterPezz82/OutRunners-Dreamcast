@@ -3,9 +3,9 @@
  *    Description: runs the game with no screen or sound, with the controls a script drives, and writes a
  *                 hash of the board state (and of the frames the video draws) after every frame, in the
  *                 format tools/core/system32/reference/s32ref uses
- *    Version:     0.1.0
+ *    Version:     0.1.1
  *    Created:     11-10-2026
- *    Modified:    06-11-2026
+ *    Modified:    07-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -64,8 +64,9 @@
 	" [--video-hashes FILE] [--video-dump N ... --video-dir DIR] [--sound-hashes FILE]" \
 	" [--sprite-census FILE] [--tile-census FILE] [--memory-census FILE] [--assets FOLDER|PACK.assets]" \
 	" [--write-pack PACK.assets] [--workers N] [--screens 1|2] [--sound-wav FILE]" \
-	" (orunners_console_headless: [--actions FILE] [--wide | --wide-20-9] [--autopilot] [--ghost-folder DIR]" \
-	" [--pause-dump N] [--side-map] [--real-time] [--name NAME] [--network-log FRAMES] [--restart N])\n"
+	" (orunners_console_headless: [--actions FILE] [--wide | --wide-20-9 | --wide-16-10] [--autopilot]" \
+	" [--ghost-folder DIR] [--pause-dump N] [--side-map] [--real-time] [--name NAME] [--network-log FRAMES]" \
+	" [--restart N])\n"
 #define MAX_VIDEO_DUMPS 64
 #define CENSUS_SLOTS (1u << 22)     /* open addressing for the censuses' hashes */
 #define TILE_CENSUS_EVERY 30        /* the tilemaps are looked at every this many frames */
@@ -522,6 +523,8 @@ int main(int argc, char **argv)
 			console_window_settings.wide = WIDE_16_9;    /* (OPTIONS > VIDEO > WIDE) */
 		else if (strcmp(argv[index], "--wide-20-9") == 0)
 			console_window_settings.wide = WIDE_20_9;
+		else if (strcmp(argv[index], "--wide-16-10") == 0)
+			console_window_settings.wide = WIDE_16_10;
 		else if (strcmp(argv[index], "--autopilot") == 0)
 			autopilot = true;
 		else if (strcmp(argv[index], "--restart") == 0 && index + 1 < argc)

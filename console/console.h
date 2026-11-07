@@ -164,6 +164,8 @@ enum
 	WIDE_OFF,           /* the board's 320 pixels, 4:3 */
 	WIDE_16_9,          /* 48 more at each side (S32_VIDEO_WIDE_SIDE_16_9) */
 	WIDE_20_9,          /* 88 more at each side (S32_VIDEO_WIDE_SIDE_20_9): a phone's screen */
+	WIDE_16_10,         /* 32 more at each side (S32_VIDEO_WIDE_SIDE_16_10): a Steam Deck's (after the others:
+	                       outrunners.ini keeps the number) */
 	WIDE_KINDS
 };
 

@@ -2,9 +2,9 @@
  *    Name:        console.c
  *    Description: the console build's own versions of the game functions console/replaced.txt lists, and
  *                 what it tells the port
- *    Version:     0.1.0
+ *    Version:     0.1.1
  *    Created:     29-10-2026
- *    Modified:    01-11-2026
+ *    Modified:    07-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -426,6 +426,7 @@ int console_wide_side(void)
 		return 0;    /* (2 PLAYERS: both screens alike) */
 	switch (console_window_settings.wide)
 	{
+		case WIDE_16_10: return S32_VIDEO_WIDE_SIDE_16_10;
 		case WIDE_16_9: return S32_VIDEO_WIDE_SIDE_16_9;
 		case WIDE_20_9: return S32_VIDEO_WIDE_SIDE_20_9;
 		default: return 0;

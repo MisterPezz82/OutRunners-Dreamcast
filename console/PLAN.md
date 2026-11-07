@@ -374,7 +374,14 @@ merged here; this repository adds console/, the ports and their documents.
   at each call), stopped with the motor, in the pause and at the end. STEERING > PHONE VIBRATION (Android's,
   on at first, phone_vibration in outrunners.ini) turns it off; the manifest asks for VIBRATE (SDL's Vibrator
   throws without it). Built for Android (arm64, the base APK, with VIBRATE in it) and Windows without
-  warnings; not checked on a phone.
+  warnings; checked by Sebas on a Galaxy Z Fold 7 (an APK made with OutRunners APK): "anda perfecto".
+- VIDEO's WIDE 16:10 (Sebas: a Steam Deck's 1280 x 800), as TMNT's: 32 columns more at each side
+  (S32_VIDEO_WIDE_SIDE_16_10, frames of 384), the window showing 358 (16:10 at 224 rows); WIDE_16_10 after the
+  others in the enum (outrunners.ini keeps the number), VIDEO going through them narrowest first (OFF, 16:10,
+  16:9, 20:9). Android's WIDE by the screen: 16:10 from 3:2 up to 16:9 (a tablet's still 16:9, its controls
+  under the picture). The headless's --wide-16-10. Checked: the same frames of a FULL race (the start, the
+  pre-stage's fork, stage 1) in 16:10 and 16:9 as the window crops them, the sides drawn whole; VIDEO from OFF
+  one step right to 16:10; built for Windows, Linux and Android without warnings. Not checked on a Steam Deck.
 
 ## To do
 
