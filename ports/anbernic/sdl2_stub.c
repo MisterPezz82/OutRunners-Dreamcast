@@ -2,9 +2,9 @@
  *    Name:        sdl2_stub.c
  *    Description: a stand-in for the handheld's own SDL2 (libSDL2-2.0.so.0) to link the game against: the
  *                 functions the window port calls, by name only
- *    Version:     0.1.1
+ *    Version:     0.1.2
  *    Created:     30-10-2026
- *    Modified:    06-11-2026
+ *    Modified:    07-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -264,8 +264,18 @@ void SDL_HapticDestroyEffect(void)
 {
 }
 
+void SDL_HapticName(void);
+void SDL_HapticName(void)
+{
+}
+
 void SDL_HapticNewEffect(void);
 void SDL_HapticNewEffect(void)
+{
+}
+
+void SDL_HapticOpen(void);
+void SDL_HapticOpen(void)
 {
 }
 
@@ -276,6 +286,21 @@ void SDL_HapticOpenFromJoystick(void)
 
 void SDL_HapticQuery(void);
 void SDL_HapticQuery(void)
+{
+}
+
+void SDL_HapticRumbleInit(void);
+void SDL_HapticRumbleInit(void)
+{
+}
+
+void SDL_HapticRumblePlay(void);
+void SDL_HapticRumblePlay(void)
+{
+}
+
+void SDL_HapticRumbleStop(void);
+void SDL_HapticRumbleStop(void)
 {
 }
 
@@ -411,6 +436,11 @@ void SDL_Log(void)
 
 void SDL_MapRGB(void);
 void SDL_MapRGB(void)
+{
+}
+
+void SDL_NumHaptics(void);
+void SDL_NumHaptics(void)
 {
 }
 
