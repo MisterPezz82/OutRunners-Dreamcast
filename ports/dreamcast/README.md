@@ -1,3 +1,5 @@
+> **Note:** these are the developer notes from the first prototype, and their status line is out of date. Version 0.1 boots and plays with sound and VMU saves. See the [top-level README](../../README.md) for the current status, disc building and controls.
+
 # Dreamcast Port: Experimental OutRunners
 
 **Status:** Prototype CDI built and launched. Boot/rendering not yet verified. No audio, VMU, or FPS claims. No real hardware test.

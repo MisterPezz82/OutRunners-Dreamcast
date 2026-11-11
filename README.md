@@ -1,125 +1,114 @@
-# OutRunners — port
+# OutRunners for Dreamcast
 
-Sega's 1992 arcade game *OutRunners* as a native game for computers, the Nintendo Switch, Android and Anbernic's
-handhelds, built on its decompilation, [outrunners-decomp](https://github.com/cheviman/outrunners-decomp): the
-game's program in C, checked frame by frame against MAME in picture and sound. Two games come out of it:
+A native **Sega Dreamcast** port of **OutRunners** (Sega, arcade, 1992). It runs the game's own logic and
+uses its own PowerVR renderer and AICA sound.
 
-- **OutRunners Arcade**: the arcade game as it is, both cabinet screens side by side.
-- **OutRunners**: the console version, the arcade game made for playing at home.
+It's built on [cheviman/outrunners-port](https://github.com/cheviman/outrunners-port), the native port of
+the verified C decompilation of the arcade game. All the game code comes from there; this repository adds the
+Dreamcast port. Upstream's own README is kept at [docs/UPSTREAM_README.md](docs/UPSTREAM_README.md).
 
-This repository contains no game data: you bring your own ROM set (MAME's `orunners`, World), and the game takes
-its assets out of it.
+> ### Bring your own ROM
+> **This repository contains no Sega data**: no graphics, sound, music or program tables from the arcade ROMs.
+> You build the disc yourself from your own, legally owned ROM set, and the disc you make is for your own use.
+> Please don't share disc images.
 
-<p align="center">
-  <img src="docs/screenshots/title_menu.png" width="32%" alt="The title and its menu, in 16:9: ARCADE, 2 PLAYERS, NETWORK, & KNUCKLES, OPTIONS, EXIT">
-  <img src="docs/screenshots/race_fork.png" width="32%" alt="A race at the pre-stage's fork: WEST or EAST, in 16:9">
-  <img src="docs/screenshots/network_room.png" width="32%" alt="NETWORK: a room with two devices, SEBAS and NICO, and the host's START">
-  <img src="docs/screenshots/reverse_map.png" width="32%" alt="& KNUCKLES > REVERSE: the goal picked on the route map">
-  <img src="docs/screenshots/options.png" width="32%" alt="OPTIONS over the title's opening">
-  <br>
-  <img src="docs/screenshots/two_players.png" width="65%" alt="2 PLAYERS: both seats in one race, side by side">
-</p>
+## Status
 
-## Playing it
+**Experimental.** Version 0.1 is playable. It has been tested in the Flycast emulator and on a Dreamcast with
+GDEMU (hardware testing has only just begun). Work towards 0.2 (the PC version's title menu and OPTIONS page)
+is in progress.
 
-Download the package for Windows, Linux or macOS from the
-[releases](https://github.com/cheviman/outrunners-port/releases). Keep `orunners.zip` beside the game, or drop it
-on its window when it asks: the first time, it takes the assets out of it.
+Known gaps:
+- Sample sound can drop for a moment when the game switches sample banks, for example at the start of a race.
+- FM music is still emulated on the main CPU, and sound LFOs aren't reproduced.
+- In the busiest stretches a frame can be dropped to keep the game and its music at full speed, and distant
+  scenery can appear a moment late.
+- One player only: no link play or network.
 
-The package also has the tools that make the game for your devices, with your ROM set:
+## Making the disc
 
-- **Nintendo Switch**: OutRunners NSP makes `OutRunners.nsp`, for a console with Atmosphere
-  ([ports/switch](ports/switch/README.md)).
-- **Android**: OutRunners APK makes `OutRunners.apk` ([ports/android](ports/android/README.md)).
-- **Anbernic's H700 handhelds** (RG35XX, RG40XX...): OutRunners Anbernic makes the folder for PORTS
-  ([ports/anbernic](ports/anbernic/README.md)).
+You need:
+- your OutRunners ROM set as MAME names it: **`orunners.zip`** (the World set);
+- **Windows 10 or 11** (the release package includes everything else), or **Linux/WSL** with `python3`, a C
+  compiler and [mkdcdisc](https://gitlab.com/simulant/mkdcdisc) 0.0.4 or later.
 
-What a tool makes has the game's data in it: it is yours alone, never share it.
+Using a release package:
+- **Windows:** drag `orunners.zip` onto `make_disc.bat`, or run it and choose the zip.
+- **Linux/WSL:** `./make_disc.sh /path/to/orunners.zip`
 
-## The console version
+It takes two or three minutes. It checks and extracts your ROM set, converts the data for the Dreamcast, and
+builds `output/OutRunners.cdi`. That file works with GDEMU, MODE, emulators (Flycast, Redream) or a CD-R. For
+GDEMU, copy it into a new numbered folder on the SD card.
 
-- **ARCADE**: the arcade's game, one player.
-- **2 PLAYERS**: both seats in one race, side by side or one over the other.
-- **NETWORK**: up to four devices on the local network (below).
-- **& KNUCKLES**: CLASSIC (the arcade's game, a little more time), TIME ATTACK (against your fastest run's ghost),
-  FULL (all 31 courses in one race), REVERSE (from a goal back to the start).
-- **OPTIONS**: controls, difficulty, time, video (window, full screen, sharp, smooth or CRT pixels, a wider
-  picture: 16:10 for a Steam Deck, 16:9 or 20:9; VSYNC), volume, sound test, steering, FPS.
-- **The pause** in a race: CONTINUE, RESTART, QUIT GAME.
+## Picture
 
-## Controls
+| Cable | Output |
+|---|---|
+| VGA box or cable | **480p**: the arcade's 320 × 224 picture at exactly twice its size, each pixel and line doubled by the video hardware. Sharp, with no scaling shimmer or blur. |
+| RGB/SCART, S-Video, composite | **240p at 60 Hz**, progressive, like the arcade board's own picture, on PAL consoles too (at 50 Hz the game would run slow). Your TV must accept 60 Hz. |
 
-- **Keyboard**: the arrows steer, accelerate and brake; Q and A shift up and down; space is the radio; Enter
-  starts and pauses.
-- **Game controller**: the left stick or the d-pad steers, the right trigger accelerates, the left trigger
-  brakes, the shoulders shift. OPTIONS > CONTROLS changes them.
-- **Racing wheel**: a wheel SDL knows (a Logitech G29) works as it is plugged in. Any other (a Thrustmaster
-  T300RS) is set up once in OPTIONS > STEERING > SET UP WHEEL: turn the wheel left, press the gas, the brake, and
-  the buttons it asks for. Also in STEERING: WHEEL ROTATION (your wheel's range: 900 on a G29), CENTRING (the
-  cabinet's spring, on a wheel with force feedback), VIBRATION (the cabinet's wheel shaking in a crash and off the
-  road, or a controller's rumble) and INPUT TEST.
-- **Android**: touch controls on the screen, or a controller. With the touch controls the phone itself vibrates
-  in a crash and off the road, at VIBRATION's strength; STEERING > PHONE VIBRATION turns it off.
+## Controls (standard controller, port A)
 
-## NETWORK
+| Dreamcast | Arcade |
+|---|---|
+| Analogue stick (small centre dead zone) | Steering wheel |
+| D-pad left / right | Full lock |
+| R trigger (analogue) | Accelerator |
+| L trigger (analogue) | Brake |
+| A / B | Gear shift up / down |
+| X | Insert coin |
+| Start | Start |
+| Y | Music select |
+| D-pad up / down | Previous / next music |
+| A + B + X + Y + Start | Leave the game |
 
-Up to four devices race together on the same local network (a house's Wi-Fi, or a phone's hotspot), as the
-arcade's linked cabinets: computers, phones and the Switch alike.
+## Saving
 
-1. NETWORK > NAME: your name, as the rooms show it.
-2. One device picks HOST.
-3. The others pick JOIN, and the room.
-4. The host's START starts a race of all of them; after it, back to the room.
+Course records, the game's settings and its bookkeeping are saved to the first VMU found, in a file called
+`ORUNNERS` (about 2 blocks), and loaded when the game starts. Records and settings are saved within ten
+seconds of a change; the rest is saved at most every five minutes.
 
-A device that stops being heard holds the race a moment (WAIT); after 3 seconds the race goes on without it. If
-the one gone was the host, the next device hosts on. A firewall that asks about the game should let it reach the
-private network. The rooms and the race's datagrams are [arcade-lan](https://github.com/cheviman/arcade-lan)'s,
-which the ports of other decompiled arcade games share.
+## Sound
 
-## What comes next
+The arcade board serves two cabinets and sends each seat's sound to one speaker. Here both sides go to both
+speakers, so the music and effects are centred.
 
-- **4 PLAYERS on the Switch**: up to four players in one race on one console.
-- **iOS and the New Nintendo 3DS**: their ports, by [yoshisuga](https://github.com/yoshisuga), in
-  [pull request 14](https://github.com/cheviman/outrunners-port/pull/14).
+## Building from source
 
-## Supporting it
-
-If you enjoy the game, you can support it on [GitHub Sponsors](https://github.com/sponsors/cheviman): it buys the
-time for what comes next. Thank you!
-
-## Building it
-
-Python 3.10 or newer, CMake 3.20 or newer, a C11 / C++17 compiler and SDL2 2.30 or newer (on Windows its
-development package for Visual C++ unpacked in `build/downloads/sdl2/`; elsewhere the system's, `libsdl2-dev` on
-Debian and Ubuntu; or `-DORUNNERS_STATIC_SDL2=ON` to build it from its source). Clone it with its submodules and
-build it:
+You need a [KallistiOS](https://github.com/KallistiOS/KallistiOS) toolchain (an SH4 cross-compiler and KOS).
+Clone with the submodules (`lan` and `tools/core` are upstream's own repositories):
 
 ```bash
-git clone --recursive https://github.com/cheviman/outrunners-port
+git clone --recurse-submodules https://github.com/MisterPezz82/OutRunners-Dreamcast.git
+cd OutRunners-Dreamcast
+source /opt/toolchains/dc/kos/environ.sh
+cd ports/dreamcast
+make runtime-check game-check prototype      # -> build/outrunners-prototype.elf
 ```
 
-```bash
-cmake -S . -B build/cmake
-```
+The disc builder (`make_disc.py`, with its `.bat` / `.sh` wrappers) is in `ports/dreamcast/dist/`. The
+host-side tools (asset packing, the AICA ADPCM encoder, draw-list checks, Flycast test scripts) are in
+`tools/dreamcast/`. The renderer's design notes are in
+[docs/dreamcast/PVR-RENDERER-DESIGN.md](docs/dreamcast/PVR-RENDERER-DESIGN.md).
 
-```bash
-cmake --build build/cmake --config Release
-```
+## Where things are
 
-Both games land in `build/bin/`, and take their assets out of `orunners.zip` the first time (beside them, or in
-`rom/`). The devices' builds are in `ports/switch/`, `ports/android/` and
-`ports/anbernic/`, each with its README; `console/PLAN.md` holds the console version's plan and what is done. The
-decompilation itself (its status, the tools, the assets' formats, the checks against MAME) is
-[outrunners-decomp](https://github.com/cheviman/outrunners-decomp)'s README.
+| Path | What's there |
+|---|---|
+| `ports/dreamcast/` | The port: KallistiOS start-up and tasks, PowerVR renderer (`pvr/`), AICA PCM sound, input, VMU saves, streamed media and the page cache, the disc builder (`dist/`) |
+| `tools/dreamcast/` | Host tools and tests for the port |
+| `runtime/`, `console/` | Upstream's runtime and console layer, with small changes for the Dreamcast |
+| `docs/dreamcast/` | Renderer design and controls |
 
-## Legal
+## Licence and credits
 
-- This project is licensed under the BSD 3-Clause License; see `LICENSE`.
-- The board's runtime (`runtime/`) follows the behavior of MAME's System 32 and Multi 32 driver, its sound chips
-  and ymfm's YM3438, BSD 3-Clause, whose terms are in `tools/core/system32/reference/mame/LICENSE` and
-  `ymfm/LICENSE` beside it.
-- NETWORK's rooms and datagrams are [arcade-lan](https://github.com/cheviman/arcade-lan) (`lan/`, a submodule),
-  BSD 3-Clause, whose terms are in `lan/LICENSE`.
-- The window port links SDL2 (zlib License); the packages carry it inside the executable, with its terms and the
-  ones above in `licenses/`.
-- OutRunners is a trademark of SEGA. This project is not affiliated with or endorsed by SEGA.
+- **Game code and port:** BSD 3-Clause, see [LICENSE](LICENSE). The upstream project is © Sebastian Toyos
+  ([cheviman](https://github.com/cheviman)). Third-party licences inside the tree (for example
+  `ports/sdl2/prompts/License.txt`) are unchanged.
+- **Upstream:** [cheviman/outrunners-port](https://github.com/cheviman/outrunners-port),
+  [arcade-decomp](https://github.com/cheviman/arcade-decomp) and
+  [arcade-lan](https://github.com/cheviman/arcade-lan). This port wouldn't exist without them.
+- **Other projects:** [KallistiOS](https://github.com/KallistiOS/KallistiOS) and
+  [mkdcdisc](https://gitlab.com/simulant/mkdcdisc) are separate projects under their own licences.
+  [Flycast](https://github.com/flyinghead/flycast) was used for testing.
+- **OutRunners** is © SEGA. This is an unofficial fan project and isn't affiliated with or endorsed by SEGA.
