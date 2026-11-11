@@ -160,7 +160,11 @@ void dc_controls_update(void)
     {
         extern volatile int dc_overlay_on;
         static bool combo_held;
+#ifdef ORUNNERS_CONSOLE    /* (Start is the pause there: X + Y) */
+        const bool combo = (pad->buttons & CONT_X) && (pad->buttons & CONT_Y);
+#else
         const bool combo = (pad->buttons & CONT_START) && (pad->buttons & CONT_Y);
+#endif
         if (combo && !combo_held) dc_overlay_on = !dc_overlay_on;
         combo_held = combo;
     }

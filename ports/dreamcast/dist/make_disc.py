@@ -15,7 +15,7 @@ HERE = Path(__file__).resolve().parent
 SRC = HERE / 'source'
 WINDOWS = os.name == 'nt'
 DISC_FILES = ('core.assets', 'tiles4.z', 'sprites.z', 'pcm.bin', 'aica_fixed.bin', 'aica_index.bin')
-VERSION = '0.1'
+VERSION = '0.2'
 # the loading screen's two pictures, as the game itself draws them from your set: the title screen, and
 # one of its cars (the frames, and where on the screen the car is, for MAME's World set)
 SPLASH = {'SPLASH_BG': '3840', 'SPLASH_CAR': '3920', 'SPLASH_RECT': '150,140,275,182'}
@@ -123,7 +123,7 @@ def main():
         shutil.copy2(work / 'split' / f, out / 'assets' / f)
         shutil.copy2(work / 'split' / f, disc / f)
     common = ['-e', HERE / 'bin' / 'outrunners.elf', '-D', work / 'disc', '-n', 'OutRunners', '-a', 'Homebrew',
-              '-s', 'ORDC00001', '-P', 'V0.100', '-H', 'E000F10', '-m', '--temp-dir', work]
+              '-s', 'ORDC00001', '-P', 'V0.200', '-H', 'E000F10', '-m', '--temp-dir', work]
 
     step('6/6 CDI image')
     run([mkdcdisc, *common, '-N', '-o', out / 'OutRunners.cdi'])

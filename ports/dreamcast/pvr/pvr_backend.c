@@ -424,7 +424,7 @@ static const rt_backend backend = { t_alloc, t_free, t_write, q_textured, q_shad
      E  textures out of memory (total)    S  held texture writes that had to drain (total) */
 volatile uint32_t dc_build_budget_us;
 volatile int dc_safe_mode;
-#ifdef DC_TEST_OVERLAY
+#if defined(DC_TEST_OVERLAY) && !defined(DC_TEST_OVERLAY_HIDDEN)
 volatile int dc_overlay_on = 1;    /* (test builds, -DDC_TEST_OVERLAY: on from the start; Start + Y hides it) */
 #else
 volatile int dc_overlay_on;
