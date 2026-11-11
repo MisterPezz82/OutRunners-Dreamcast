@@ -20,12 +20,13 @@ New in 0.2: the PC version's **title menu** (ARCADE, & KNUCKLES, OPTIONS), a **p
 options saved to the VMU.
 
 What has been tested:
+- **Version 0.2 on a Dreamcast with GDEMU:** it boots and plays.
 - **Version 0.1:** on a Dreamcast with GDEMU, and in the Flycast emulator.
 - **The 0.2 disc:** in Flycast it boots through the loading screen and the SEGA intro to the title screen.
 - **The menus, the first OPTIONS page, & KNUCKLES > REVERSE and the pause:** checked in Flycast with scripted
   inputs only.
-- **Not tested yet:** 0.2 on a real console, a real pad in the menus, the other OPTIONS pages, CLASSIC, TIME
-  ATTACK, FULL, vibration and saving options to the VMU. Reports are very welcome.
+- **Not individually checked yet:** each menu with a real pad, the other OPTIONS pages, CLASSIC, TIME ATTACK,
+  FULL, vibration and saving options to the VMU. Reports are very welcome.
 
 Known gaps:
 - Large distant scenery can **flicker** on some stages (the pyramids, the snow).
