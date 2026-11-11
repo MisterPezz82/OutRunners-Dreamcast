@@ -38,6 +38,7 @@ typedef struct
 {
 	const uint8_t *const *tile_pens;
 	uint32_t tile_count;
+	const uint8_t *(*tile_at)(uint32_t tile);
 	uint32_t (*sprite_word)(uint32_t place);
 	uint32_t sprite_banks;                  /* of 1M words */
 } s32_graphics;
@@ -89,6 +90,11 @@ int s32_video_side(void);
 #define S32_SPRITE_EXTRA_PALETTE 0x0080
 void s32_video_use_extra_palette(bool used);
 void s32_video_extra_colour(int screen, uint32_t index, uint16_t colour);
+/* The colour set for the index, for a port's own renderer: false where none is. (With
+   S32_VIDEO_EXTRA_ELSEWHERE the three are the port's own: the Dreamcast's drawlist.c, which keeps the
+   software video's buffers out of its memory) */
+bool s32_video_extra_at(int screen, uint32_t index, uint16_t *colour);
+bool s32_video_extra_used(void);
 
 /* Ghosts (a port's console build, with the extra palette on): sprites whose colour word (the eighth) has
    S32_SPRITE_GHOST set, a bit the board does not read, are drawn see-through: each pixel half its own colour

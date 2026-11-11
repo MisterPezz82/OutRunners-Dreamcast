@@ -322,6 +322,18 @@ static void on_frame_done(void)
 		dump_state();
 	if (video_hashes)
 		fprintf(video_hashes, "%" PRIu64 " %016" PRIx64 "\n", program_frames() - 1, s32_video_frame_hash());
+#ifdef S32_RENDER_CENSUS
+	{
+		/* (a development aid: ORUNNERS_RENDER_CENSUS=FILE with --video-hashes, runtime/src/video.c) */
+		extern void s32_video_census_write(FILE *out, uint64_t frame);
+		static FILE *census;
+
+		if (!census && getenv("ORUNNERS_RENDER_CENSUS"))
+			census = fopen(getenv("ORUNNERS_RENDER_CENSUS"), "w");
+		if (census && video_hashes)
+			s32_video_census_write(census, program_frames() - 1);
+	}
+#endif
 	if (sound_hashes || sound_wav)
 	{
 		/* the sound board up to the frame's end, then the samples that start before it */
@@ -650,6 +662,15 @@ int main(int argc, char **argv)
 		s32_video_init_graphics(assets_graphics());
 #endif
 	s32_video_show_screens(screens == 1 ? 1 : 3);
+#ifdef DL_CHECK
+	/* (a development aid: the Dreamcast drawlist checked against this video, tools/dreamcast/drawlist_check.c) */
+	{
+		extern void dl_init(const s32_graphics *graphics);
+		extern void dl_install_check_hooks(void);
+		dl_init(assets_graphics());
+		dl_install_check_hooks();
+	}
+#endif
 	if (sound_hashes_path || sound_wav)
 	{
 #ifdef ORUNNERS_SCAFFOLD

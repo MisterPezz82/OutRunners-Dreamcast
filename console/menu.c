@@ -118,7 +118,9 @@ static void set_menu_lines(void)
 	menu_lines[menu_line_count++] = MENU_ARCADE;
 	if (two_players_offered)
 		menu_lines[menu_line_count++] = MENU_TWO_PLAYERS;
+#ifndef ORUNNERS_NO_NETWORK    /* (a build without the network game: the Dreamcast's) */
 	menu_lines[menu_line_count++] = MENU_NETWORK;
+#endif
 	menu_lines[menu_line_count++] = MENU_DELUXE;
 	menu_lines[menu_line_count++] = MENU_OPTIONS;
 #ifndef ORUNNERS_SYSTEM_EXIT

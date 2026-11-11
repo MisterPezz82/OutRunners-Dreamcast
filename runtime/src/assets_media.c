@@ -707,11 +707,36 @@ int assets_read_samples(const char *folder)
 	return 1;
 }
 
+#ifdef S32_PCM_CENSUS
+/* (a development aid: which 1 KiB blocks of the sample ROM the sound plays, and from which frame;
+   written at exit to the file ORUNNERS_PCM_CENSUS names) */
+#include "s32/program.h"
+static uint32_t pcm_first_frame[PCM_SIZE / 1024];
+static void pcm_census_write(void)
+{
+	FILE *out = getenv("ORUNNERS_PCM_CENSUS") ? fopen(getenv("ORUNNERS_PCM_CENSUS"), "w") : NULL;
+	size_t present = 0;
+	if (!out) return;
+	for (size_t i = 0; i < pcm_block_count; i++) present += pcm_blocks[i].length;
+	fprintf(out, "# sample data present %zu bytes in %zu blocks\n", present, pcm_block_count);
+	for (size_t i = 0; i < PCM_SIZE / 1024; i++)
+		if (pcm_first_frame[i]) fprintf(out, "%zu,%u\n", i, pcm_first_frame[i] - 1);
+	fclose(out);
+}
+#endif
+
 uint8_t assets_pcm_byte(uint32_t place)
 {
 	size_t low = 0, high = pcm_block_count;
 
 	place %= PCM_SIZE;
+#ifdef S32_PCM_CENSUS
+	{
+		static bool registered;
+		if (!registered) { registered = true; atexit(pcm_census_write); }
+		if (!pcm_first_frame[place / 1024]) pcm_first_frame[place / 1024] = (uint32_t)program_frames() + 1;
+	}
+#endif
 	if (place < sizeof(pcm_headers))
 		return pcm_headers[place];
 	if (last_pcm < pcm_block_count && place - pcm_blocks[last_pcm].offset < pcm_blocks[last_pcm].length)

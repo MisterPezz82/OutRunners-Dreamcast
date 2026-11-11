@@ -69,8 +69,19 @@ static uint64_t now(void)
 /* board cycles 'clocks' of the YM3438 (which runs on the Z80's clock) take, rounded up */
 static uint64_t fm_span(uint64_t clocks)
 {
+#if S32_CPU_CLOCK * 2ull == S32_SOUND_CLOCK * 5ull
+	/* (the same value without a 64-bit division, a library call on the Dreamcast's SH4: this runs for
+	   every YM3438 write and timer load, a couple of hundred times a frame) */
+	return (clocks * 5u + 1u) >> 1;
+#else
 	return (clocks * S32_CPU_CLOCK + S32_SOUND_CLOCK - 1) / S32_SOUND_CLOCK;
+#endif
 }
+
+/* the earlier of the two timers' ends, kept for sound_cpu.c's z80_block, which runs 5,000 times a frame
+   and only needs to come here when a timer is due */
+uint64_t sound_chips_next_deadline = NO_TIMER;
+static void deadlines_changed(void);
 
 static void append(sample_buffer *buffer, int32_t first, int32_t second)
 {
@@ -87,12 +98,30 @@ static void append(sample_buffer *buffer, int32_t first, int32_t second)
 
 static void fm_catch_up(uint64_t time)
 {
+#ifdef S32_SOUND_SILENT
+	/* (no samples are made, so nothing to catch up: not even the count, whose 64-bit division is a
+	   library call on the Dreamcast's SH4, a couple of hundred times a frame) */
+	(void)time;
+	return;
+#endif
 	const uint64_t due = (time + FM_PERIOD - 1) / FM_PERIOD;
 	int32_t out[2];
 
+#ifdef S32_SOUND_SILENT
+	/* (a port with no sound output yet: the chips' registers, timers and busy times run as ever, the
+	   samples are not made) */
+	(void)out;
+	if (sound.fm_samples < due)
+		sound.fm_samples = due;
+#endif
 	while (sound.fm_samples < due)
 	{
+#ifdef S32_FM_MUTE
+		/* (a development aid: the MultiPCM alone, to compare with a port's own sample playback) */
+		out[0] = out[1] = 0;
+#else
 		s32_fm_generate(&sound.fm, out);
+#endif
 		append(&sound.fm_buffer, out[0], out[1]);
 		sound.fm_samples++;
 	}
@@ -102,6 +131,7 @@ static void fm_set_timer(void *opaque, int timer, int32_t clocks)
 {
 	(void)opaque;
 	sound.deadline[timer] = clocks < 0 ? NO_TIMER : now() + fm_span((uint64_t)clocks);
+	deadlines_changed();
 }
 
 static void fm_update_irq(void *opaque, bool asserted)
@@ -130,6 +160,17 @@ static uint64_t fm_next_timer(void)
 	return sound.deadline[0] < sound.deadline[1] ? sound.deadline[0] : sound.deadline[1];
 }
 
+static void deadlines_changed(void)
+{
+	sound_chips_next_deadline = fm_next_timer();
+}
+
+/* (for sound_cpu.c's idle skip) the board time until which the chips change nothing the Z80 can read by
+   themselves: the next timer to run out; and whether the YM3438's busy flag is still up at 'time' */
+uint32_t sound_chips_timer_expiries;
+uint64_t sound_chips_quiet_until(void) { return fm_next_timer(); }
+bool sound_chips_busy_at(uint64_t time) { return time < sound.busy_until; }
+
 void sound_chips_timers_due(uint64_t time)
 {
 	/* the timers due by 'time', in the order they run out */
@@ -139,6 +180,8 @@ void sound_chips_timers_due(uint64_t time)
 		const uint64_t when = sound.deadline[timer];
 
 		sound.deadline[timer] = NO_TIMER;
+		deadlines_changed();
+		sound_chips_timer_expiries++;
 		fm_catch_up(when);
 		sound.override = when;
 		s32_fm_timer_expired(&sound.fm, timer);
@@ -161,10 +204,20 @@ static void fm_write(int offset, uint8_t data)
 
 static void pcm_catch_up(uint64_t time)
 {
+#ifdef S32_SOUND_SILENT
+	(void)time;
+	return;
+#endif
 	const uint64_t due = (time + PCM_PERIOD - 1) / PCM_PERIOD;
 	int32_t first[256];
 	int32_t second[256];
 
+#ifdef S32_SOUND_SILENT
+	(void)first;
+	(void)second;
+	if (sound.pcm_samples < due)
+		sound.pcm_samples = due;
+#endif
 	while (sound.pcm_samples < due)
 	{
 		const int count = due - sound.pcm_samples > 256 ? 256 : (int)(due - sound.pcm_samples);
@@ -182,10 +235,20 @@ static uint8_t pcm_read(int offset)
 	return multipcm_read(&sound.pcm);
 }
 
+void (*sound_chips_pcm_observer)(const multipcm *chip, int offset, uint8_t data);
+
 static void pcm_write(int offset, uint8_t data)
 {
 	pcm_catch_up(now());
 	multipcm_write(&sound.pcm, offset, data);
+	/* (a port that plays the MultiPCM on other hardware follows the chip's state from here) */
+	if (sound_chips_pcm_observer)
+		sound_chips_pcm_observer(&sound.pcm, offset, data);
+}
+
+const multipcm *sound_chips_multipcm(void)
+{
+	return &sound.pcm;
 }
 
 void sound_chips_pcm_banks_changing(void)
@@ -331,6 +394,7 @@ void sound_chips_attach(void)
 {
 	memset(&sound.fm, 0, sizeof(sound.fm));
 	sound.deadline[0] = sound.deadline[1] = NO_TIMER;
+	deadlines_changed();
 	sound.fm.host = NULL;
 	sound.fm.set_timer = fm_set_timer;
 	sound.fm.update_irq = fm_update_irq;

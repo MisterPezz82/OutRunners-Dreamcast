@@ -21,6 +21,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(_WIN32)
+#define aligned_alloc(alignment, size) malloc(size)    /* (the alignment is for the Dreamcast's disc DMA; Windows
+                                                         has no aligned_alloc that free() takes) */
+#endif
 #include <string.h>
 
 #define PACK_MAGIC      "ORAP"
@@ -125,8 +129,9 @@ const char *assets_load_pack(const char *path)
 
 	if (!input)
 		return "the assets pack cannot be read";
+	setvbuf(input, NULL, _IONBF, 0);    /* (one read for the whole pack, not one a buffer) */
 	if (fseek(input, 0, SEEK_END) != 0 || (size = ftell(input)) <= 0 || fseek(input, 0, SEEK_SET) != 0
-		|| !(bytes = malloc((size_t)size)) || fread(bytes, 1, (size_t)size, input) != (size_t)size)
+		|| !(bytes = aligned_alloc(32, ((size_t)size + 31) & ~(size_t)31)) || fread(bytes, 1, (size_t)size, input) != (size_t)size)
 	{
 		fclose(input);
 		return "the assets pack cannot be read";

@@ -3,13 +3,14 @@
  *    Description: DEFLATE (RFC 1951) decompression, for the .zip of the player's ROM set
  *    Version:     0.1.0
  *    Created:     25-10-2026
- *    Modified:    25-10-2026
+ *    Modified:    09-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
  *    The three kinds of block (stored, fixed and dynamic Huffman codes), decoded a bit at a time with
- *    canonical codes: counts of codes by length and the symbols in code order. Speed does not matter: it
- *    runs once, on the first run.
+ *    canonical codes: counts of codes by length and the symbols in code order. A table of the codes up to
+ *    FAST_BITS long decodes most symbols in one look-up (the Dreamcast port unpacks its graphics with it
+ *    while playing); longer codes go a bit at a time.
  */
 #include "inflate.h"
 
@@ -31,10 +32,13 @@ typedef struct
 	size_t out_size, out_at;
 } stream;
 
+#define FAST_BITS       9
+
 typedef struct
 {
 	uint16_t counts[MAX_BITS + 1];    /* how many codes of each length */
 	uint16_t symbols[LITERALS];       /* the symbols, by code */
+	uint16_t fast[1 << FAST_BITS];    /* the next FAST_BITS bits' code: length << 12 | symbol, 0 if longer */
 } codes;
 
 static const uint16_t length_base[29] = {
@@ -90,6 +94,31 @@ static int build_codes(codes *table, const uint8_t *lengths, int count)
 	for (symbol = 0; symbol < count; symbol++)
 		if (lengths[symbol] != 0)
 			table->symbols[offsets[lengths[symbol]]++] = (uint16_t)symbol;
+	/* the short codes' table: each code, bit-reversed as the stream holds it, at every index it starts */
+	{
+		uint16_t next[MAX_BITS + 2];
+		int code = 0;
+		memset(table->fast, 0, sizeof(table->fast));
+		/* (canonical: codes of one length are consecutive, starting where the shorter ones left off) */
+		code = 0;
+		for (length = 1; length <= MAX_BITS; length++)
+		{
+			next[length] = (uint16_t)code;
+			code = (code + table->counts[length]) << 1;
+		}
+		for (symbol = 0; symbol < count; symbol++)
+		{
+			const int l = lengths[symbol];
+			if (l == 0) continue;
+			const int c = next[l]++;
+			if (l > FAST_BITS) continue;
+			int reversed = 0;
+			for (int b = 0; b < l; b++)
+				reversed |= ((c >> b) & 1) << (l - 1 - b);
+			for (int i = reversed; i < (1 << FAST_BITS); i += 1 << l)
+				table->fast[i] = (uint16_t)(l << 12 | symbol);
+		}
+	}
 	return 1;
 }
 
@@ -98,6 +127,22 @@ static int decode(stream *s, const codes *table)
 {
 	int code = 0, first = 0, index = 0, length;
 	uint32_t bit;
+
+	while (s->bit_count < FAST_BITS && s->in_at < s->in_size)
+	{
+		s->bits |= (uint32_t)s->in[s->in_at++] << s->bit_count;
+		s->bit_count += 8;
+	}
+	if (s->bit_count >= FAST_BITS)
+	{
+		const uint16_t e = table->fast[s->bits & ((1u << FAST_BITS) - 1u)];
+		if (e)
+		{
+			s->bits >>= e >> 12;
+			s->bit_count -= e >> 12;
+			return e & 0xfff;
+		}
+	}
 
 	for (length = 1; length <= MAX_BITS; length++)
 	{

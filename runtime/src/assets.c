@@ -25,6 +25,10 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(_WIN32)
+#define aligned_alloc(alignment, size) malloc(size)    /* (the alignment is for the Dreamcast's disc DMA; Windows
+                                                         has no aligned_alloc that free() takes) */
+#endif
 #include <string.h>
 
 
@@ -89,8 +93,9 @@ char *assets_read_file(const char *path)
 
 	if (!input)
 		return NULL;
+	setvbuf(input, NULL, _IONBF, 0);    /* (whole-file reads: one read each, not one a buffer) */
 	if (fseek(input, 0, SEEK_END) != 0 || (size = ftell(input)) < 0 || fseek(input, 0, SEEK_SET) != 0
-		|| !(text = malloc((size_t)size + 1)))
+		|| !(text = aligned_alloc(32, ((size_t)size + 32) & ~(size_t)31)))    /* (aligned: disc DMA on the Dreamcast) */
 	{
 		fclose(input);
 		return NULL;
@@ -1120,6 +1125,21 @@ int assets_pack_read_data(pack_reader *reader)
 			if (!pack_get32(reader, &each->address) || !pack_get32(reader, &each->size)
 				|| !(each->data = (uint8_t *)pack_get_bytes(reader, each->size)))
 				return 0;
+			/* The piece's bytes lined up as the board has them, its address and its place in memory alike
+			   modulo 4: the pack holds them wherever the headers before them left them, and the game reads
+			   16 and 32-bit values straight from its tables, which a CPU that traps a misaligned read (the
+			   Dreamcast's SH4) cannot do from an odd place. They move back by up to 3 bytes, over their own
+			   header, already read (the next piece's header follows them, untouched) */
+#ifndef S32_NO_PACK_ALIGN
+			{
+				const size_t back = ((uintptr_t)each->data - each->address) & 3u;
+				if (back)
+				{
+					memmove(each->data - back, each->data, each->size);
+					each->data -= back;
+				}
+			}
+#endif
 			region->bytes += each->size;
 		}
 	}

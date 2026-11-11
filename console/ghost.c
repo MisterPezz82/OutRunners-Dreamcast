@@ -145,6 +145,10 @@ static void save(int goal)
 
 static void load_all(void)
 {
+#ifdef ORUNNERS_NO_GHOST
+	/* (a build without the memory for a run's recording: TIME ATTACK alone, no ghost) */
+	return;
+#endif
 	if (ghost.loaded)
 		return;
 	ghost.loaded = true;

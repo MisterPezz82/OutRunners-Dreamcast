@@ -35,6 +35,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef S32_RENDER_CENSUS
+#include <stdio.h>
+#endif
 
 #define WIDTH   S32_VIDEO_MAX_WIDTH
 #define HEIGHT  S32_VIDEO_HEIGHT
@@ -137,6 +140,43 @@ static struct
 
 static const uint16_t transparent_row[WIDTH] = { 0 };
 
+#ifdef S32_RENDER_CENSUS
+/* Development aid (host builds only): what each frame of the left screen uses, for the design of a
+   polygon renderer. Written by s32_video_census_write. Needs the serial workers (one thread). */
+static struct
+{
+	int layer;                              /* LAYER_ being drawn, for page_pixel */
+	uint8_t tile_colors[LAYERS][512 / 8];   /* the cell colours with a visible pen, per layer */
+	uint32_t layer_pixels[LAYERS];
+	int zoom_x[2], zoom_y[2];
+	int row_scroll[4], row_select[4], clipped[LAYERS];
+	int sprites, sprites_zoomed, sprites_indirect, sprites_shadow, sprites_bits8, sprites_ram, sprites_clipped;
+	uint32_t sprite_pixels;                 /* screen pixels the sprites cover (before overdraw) */
+	uint8_t sprite_banks[0x800 / 8];        /* 16-colour banks of direct sprites (colour >> 4) */
+	int indirect_tables;
+	int blending, offsets_used, shadow_mask, grouping;
+	int priorities[LAYERS];
+	uint16_t last_palette[S32_PALETTE_ENTRIES];
+	int palette_changes;
+	int drawn;
+} census;
+
+static void census_mark(uint8_t *bits, unsigned index)
+{
+	bits[index >> 3] |= (uint8_t)(1u << (index & 7));
+}
+
+static int census_count(const uint8_t *bits, size_t bytes)
+{
+	int total = 0;
+	for (size_t i = 0; i < bytes; i++)
+		total += __builtin_popcount(bits[i]);
+	return total;
+}
+
+void s32_video_census_write(FILE *out, uint64_t frame);
+#endif
+
 /* A sprite pixel's marks (the extra palette's plane) */
 #define EXTRA_COLOURS 1    /* its colour from the extra palette, where one is set */
 #define EXTRA_GHOST   2    /* half its colour, half the colour under it */
@@ -215,7 +255,11 @@ static void clip_area(area *target, const area *bounds)
 /* The pen (0-15) of a pixel of a 16x16 tile */
 static int tile_pen(uint32_t tile, int x, int y)
 {
-	return video.graphics.tile_pens[tile % video.graphics.tile_count][y * 16 + x];
+	if (video.graphics.tile_count == 0)
+		return 15;
+	uint32_t index = tile % video.graphics.tile_count;
+	const uint8_t *pens = video.graphics.tile_at ? video.graphics.tile_at(index) : (video.graphics.tile_pens ? video.graphics.tile_pens[index] : NULL);
+	return pens ? pens[y * 16 + x] : 15;
 }
 
 /* A pixel of a tilemap page (32 x 16 cells, 512 x 256 pixels). A cell is the tile number (13 bits, the
@@ -228,6 +272,10 @@ static uint16_t page_pixel(int page, int bank, int y, int x)
 	const int line = (cell & 0x8000) ? 15 - (y & 15) : (y & 15);
 	const int pen = tile_pen(tile, column, line);
 
+#ifdef S32_RENDER_CENSUS
+	if (pen)
+		census_mark(census.tile_colors[census.layer], (cell >> 4) & 0x1ff);
+#endif
 	return pen ? (uint16_t)(((cell >> 4) & 0x1ff) << 4 | pen) : 0;
 }
 
@@ -532,6 +580,12 @@ static void draw_zoomed(int number)
 		(video_register(0x06) >> (4 * number)) & 0x0f, &video.runs);
 
 	flips_of(number, &flip_x, &flip_y);
+#ifdef S32_RENDER_CENSUS
+	census.layer = LAYER_NBG0 + number;
+	census.zoom_x[number] = x_zoom;
+	census.zoom_y[number] = y_zoom;
+	census.clipped[LAYER_NBG0 + number] = bit(video_register(0x02), 11 + number);
+#endif
 	if (x_zoom < 0x80)
 		x_zoom = 0x80;
 	if (y_zoom < 0x80)
@@ -644,6 +698,12 @@ static void draw_scrolled(int number)
 	scrolled.first_drawn = find_clip_runs(bit(video_register(0x02), 11 + number), bit(video_register(0x02), 6 + number),
 		(video_register(0x06) >> (4 * number)) & 0x0f, &video.runs);
 	flips_of(number, &scrolled.flip_x, &scrolled.flip_y);
+#ifdef S32_RENDER_CENSUS
+	census.layer = LAYER_NBG0 + number;
+	census.row_scroll[number] = scrolled.row_scroll;
+	census.row_select[number] = scrolled.row_select;
+	census.clipped[LAYER_NBG0 + number] = bit(video_register(0x02), 11 + number);
+#endif
 	s32_workers_rows(draw_scrolled_rows, &scrolled, video.visible.top, video.visible.bottom);
 }
 
@@ -666,6 +726,9 @@ static void draw_text_rows(void *context, int first, int last)
 
 static void draw_text(void)
 {
+#ifdef S32_RENDER_CENSUS
+	census.layer = LAYER_TEXT;
+#endif
 	bool flip = bit(video_register(0x00), 9);
 
 	s32_workers_rows(draw_text_rows, &flip, video.visible.top, video.visible.bottom);
@@ -995,6 +1058,26 @@ static int draw_sprite(uint32_t entry, int x_offset, int y_offset, const area *i
 
 	x_zoom = (((sprite.bits8 ? 4 : 8) * source_width) << 16) / width;
 	y_zoom = (source_height << 16) / height;
+#ifdef S32_RENDER_CENSUS
+	if (screen == 0)
+	{
+		census.sprites++;
+		census.sprites_zoomed += x_zoom != 0x10000 || y_zoom != 0x10000;
+		census.sprites_indirect += sprite.indirect;
+		census.sprites_shadow += sprite.shadow;
+		census.sprites_bits8 += sprite.bits8;
+		census.sprites_ram += from_ram;
+		census.sprites_clipped += inside->left > 0 || inside->right < video.visible.right || outside->right >= outside->left;
+		census.sprite_pixels += (uint32_t)(width * height);
+		if (sprite.indirect)
+			census.indirect_tables++;
+		else if (sprite.bits8)
+			for (int b = 0; b < 16; b++)
+				census_mark(census.sprite_banks, ((sprite.color >> 4) & 0x7f0) | (unsigned)b);
+		else
+			census_mark(census.sprite_banks, (sprite.color >> 4) & 0x7ff);
+	}
+#endif
 
 	/* place it: the list's offset, then its alignment (0 or 3 centered, 1 by the far edge, 2 by the near) */
 	x = sign_extend(sprite_word(entry + 5), 12) + (bit(flags, 4) ? x_offset : 0) + video.sprite_side;
@@ -1400,6 +1483,24 @@ static void mix(int screen, int drawn)
 		sprites->offsets = color_offsets(screen, bit(mixer_register(screen, 0x3e), 6), bit(sprite_control, 15));
 	}
 
+#ifdef S32_RENDER_CENSUS
+	if (screen == 0)
+	{
+		census.blending = 0;
+		for (int index = 0; index < count; index++)
+			census.blending |= sorted[index].blend != 0;
+		census.offsets_used = 0;
+		for (int channel = 0; channel < 3; channel++)
+			census.offsets_used |= (offsets[0][channel] != 0) | ((offsets[1][channel] != 0) << 1);
+		census.shadow_mask = shadow_mask != 0;
+		census.grouping = sprite_control & 0x0f;
+		for (int index = 0; index < LAYERS; index++)
+			census.priorities[index] = -1;
+		for (int index = 0; index < count; index++)
+			census.priorities[sorted[index].index] = sorted[index].priority >> 3;
+		census.drawn = drawn;
+	}
+#endif
 	setup.screen = screen;
 	setup.blend_factor = blend_factor;
 	setup.grouping = grouping;
@@ -1578,7 +1679,7 @@ void s32_video_init(const uint8_t *tiles, size_t tiles_size, const uint8_t *spri
 	   of the row swapped */
 	static const uint8_t byte_of_column[16] = { 0, 0, 2, 2, 1, 1, 3, 3, 4, 4, 6, 6, 5, 5, 7, 7 };
 	const uint32_t count = (uint32_t)(tiles_size / 128);
-	s32_graphics graphics;
+	s32_graphics graphics = {0};
 
 	free(video.image_pens);
 	free((void *)video.image_tiles);
@@ -1615,9 +1716,23 @@ const uint32_t *s32_video_frame(int screen, int *width)
 	return &video.frame[screen & 1][0][0];
 }
 
+#ifndef S32_VIDEO_EXTRA_ELSEWHERE
 void s32_video_use_extra_palette(bool used)
 {
 	video.extra_used = used;
+}
+
+bool s32_video_extra_used(void)
+{
+	return video.extra_used;
+}
+
+bool s32_video_extra_at(int screen, uint32_t index, uint16_t *colour)
+{
+	if (!video.extra_set[screen & 1][index & 0x3fff])
+		return false;
+	*colour = video.extra_palette[screen & 1][index & 0x3fff];
+	return true;
 }
 
 void s32_video_extra_colour(int screen, uint32_t index, uint16_t colour)
@@ -1625,6 +1740,7 @@ void s32_video_extra_colour(int screen, uint32_t index, uint16_t colour)
 	video.extra_palette[screen & 1][index & 0x3fff] = colour;
 	video.extra_set[screen & 1][index & 0x3fff] = true;
 }
+#endif
 
 void s32_video_set_wide_side(int side)
 {
@@ -1647,3 +1763,52 @@ uint64_t s32_video_frame_hash(void)
 					hash = (hash ^ ((video.frame[screen][y][x] >> shift) & 0xff)) * 0x100000001b3ull;
 	return hash;
 }
+
+#ifdef S32_RENDER_CENSUS
+/* One CSV row for the frame just drawn, then the counters start again */
+void s32_video_census_write(FILE *out, uint64_t frame)
+{
+	int tile_colors_all = 0;
+	uint8_t all[512 / 8] = { 0 };
+
+	for (int layer = LAYER_NBG0; layer <= LAYER_NBG3; layer++)
+		for (int i = 0; i < 64; i++)
+			all[i] |= census.tile_colors[layer][i];
+	tile_colors_all = census_count(all, sizeof(all));
+	census.palette_changes = 0;
+	for (int i = 0; i < S32_PALETTE_ENTRIES; i++)
+		if (census.last_palette[i] != s32_board.palette[0][i])
+		{
+			census.palette_changes++;
+			census.last_palette[i] = s32_board.palette[0][i];
+		}
+	if (frame == 0)
+		fprintf(out, "frame,drawn,pri_text,pri_nbg0,pri_nbg1,pri_nbg2,pri_nbg3,pri_bitmap,zoom0x,zoom0y,zoom1x,zoom1y,"
+			"rowscroll2,rowscroll3,rowselect2,rowselect3,clip0,clip1,clip2,clip3,"
+			"colors_nbg0,colors_nbg1,colors_nbg2,colors_nbg3,colors_tiles_all,"
+			"sprites,zoomed,indirect,shadow,bits8,from_ram,clipped,sprite_pixels,sprite_banks,indirect_tables,"
+			"blending,offsets,shadow_mask,grouping,palette_changes\n");
+	fprintf(out, "%llu,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%u,%d,%d,%d,%d,%d,%d,%d\n",
+		(unsigned long long)frame, census.drawn, census.priorities[LAYER_TEXT], census.priorities[LAYER_NBG0],
+		census.priorities[LAYER_NBG1], census.priorities[LAYER_NBG2], census.priorities[LAYER_NBG3],
+		census.priorities[LAYER_BITMAP], census.zoom_x[0], census.zoom_y[0], census.zoom_x[1], census.zoom_y[1],
+		census.row_scroll[2], census.row_scroll[3], census.row_select[2], census.row_select[3],
+		census.clipped[LAYER_NBG0], census.clipped[LAYER_NBG1], census.clipped[LAYER_NBG2], census.clipped[LAYER_NBG3],
+		census_count(census.tile_colors[LAYER_NBG0], 64), census_count(census.tile_colors[LAYER_NBG1], 64),
+		census_count(census.tile_colors[LAYER_NBG2], 64), census_count(census.tile_colors[LAYER_NBG3], 64),
+		tile_colors_all, census.sprites, census.sprites_zoomed, census.sprites_indirect, census.sprites_shadow,
+		census.sprites_bits8, census.sprites_ram, census.sprites_clipped, census.sprite_pixels,
+		census_count(census.sprite_banks, sizeof(census.sprite_banks)), census.indirect_tables,
+		census.blending, census.offsets_used, census.shadow_mask, census.grouping, census.palette_changes);
+	memset(census.tile_colors, 0, sizeof(census.tile_colors));
+	memset(census.sprite_banks, 0, sizeof(census.sprite_banks));
+	census.sprites = census.sprites_zoomed = census.sprites_indirect = census.sprites_shadow = 0;
+	census.sprites_bits8 = census.sprites_ram = census.sprites_clipped = 0;
+	census.sprite_pixels = 0;
+	census.indirect_tables = 0;
+	memset(census.row_scroll, 0, sizeof(census.row_scroll));
+	memset(census.row_select, 0, sizeof(census.row_select));
+	memset(census.clipped, 0, sizeof(census.clipped));
+	census.zoom_x[0] = census.zoom_x[1] = census.zoom_y[0] = census.zoom_y[1] = 0;
+}
+#endif

@@ -12,3 +12,9 @@ __pycache__/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 CLAUDE.md
+
+# Dreamcast local build products
+/ports/dreamcast/build/
+/ports/dreamcast/*.elf
+/ports/dreamcast/*.map
+/ports/dreamcast/*.bin

@@ -138,6 +138,16 @@ void s32_z80_out(uint8_t port, uint8_t data)
 			s32_board.sound_bank = data & 0x3f;
 			break;
 		case 0xb0:
+#ifdef S32_PCM_CENSUS
+			if (data != s32_board.pcm_bank && getenv("ORUNNERS_PCM_BANKS"))
+			{
+				/* (a development aid: when the sample ROM's banks change) */
+				extern uint64_t program_frames(void);
+				static FILE *banks;
+				if (!banks) banks = fopen(getenv("ORUNNERS_PCM_BANKS"), "w");
+				if (banks) { fprintf(banks, "%llu,%d,%d\n", (unsigned long long)program_frames(), data & 7, (data >> 3) & 7); fflush(banks); }
+			}
+#endif
 			s32_board.pcm_bank = data;
 			break;
 		case 0xc0:

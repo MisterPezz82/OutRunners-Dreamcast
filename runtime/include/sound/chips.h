@@ -46,6 +46,12 @@ const int32_t *sound_chips_frame_samples(int chip, size_t *count);
 const int16_t *sound_chips_frame_mix(size_t *frames);
 uint32_t sound_chips_mix_rate(void);
 
+/* For a port that plays the MultiPCM on its own sound hardware: called after every write to the chip,
+   with the chip's state (s32/multipcm.h); and that state at any time */
+#include "s32/multipcm.h"
+extern void (*sound_chips_pcm_observer)(const multipcm *chip, int offset, uint8_t data);
+const multipcm *sound_chips_multipcm(void);
+
 /* The mix's speakers: apart (each chip's second output to the left speaker, its first to the right one,
    as the cabinet's sides have them: the arcade's), or together (both outputs to both speakers: one sound
    for the two sides, a port's console build) */
