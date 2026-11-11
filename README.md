@@ -156,6 +156,21 @@ host-side tools (asset packing, the AICA ADPCM encoder, draw-list checks, Flycas
 | `runtime/`, `console/` | Upstream's runtime and console layer, with small changes for the Dreamcast |
 | `docs/dreamcast/` | Renderer design and controls |
 
+## Yes, AI helped (a lot)
+
+Full disclosure: this port was built with heavy help from AI coding tools: OpenAI's Codex as project
+manager, a local Qwen model (via Ollama) doing bounded implementation tasks, and Anthropic's Claude for
+debugging, reviews and write-ups. Call it artisanal, hand-tested slop. 🤖🏎️
+
+The slop got checked, though:
+- **Builds:** every change was built and reviewed.
+- **Emulator:** behaviour was checked in Flycast.
+- **Real hardware:** the console-only bugs (unaligned accesses, the video chip's timing, texture
+  interpolation) were found from videos of a real Dreamcast and fixed one by one. 0.2 was played on a real
+  console with GDEMU.
+
+If you find a bug, it's probably the robots. Report it anyway.
+
 ## Licence and credits
 
 - **Game code and port:** BSD 3-Clause, see [LICENSE](LICENSE). The upstream project is © Sebastian Toyos
