@@ -1,16 +1,19 @@
 /**
  *    Name:        tasks.c
  *    Description: native stacks for the game's tasks (host/tasks.h): fibers on Windows, the registers on the
- *                 task's stack on the Switch and Android (aarch64), ucontext elsewhere
+ *                 task's stack on the Switch, Android and iOS (aarch64), ucontext elsewhere
  *    Version:     0.1.0
  *    Created:     20-10-2026
- *    Modified:    30-10-2026
+ *    Modified:    25-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
  */
 #if defined(__APPLE__) && !defined(_XOPEN_SOURCE)
 #define _XOPEN_SOURCE 600    /* (macOS keeps the ucontext routines behind it, and marks them deprecated) */
+#endif
+#ifdef __APPLE__
+#include <TargetConditionals.h>    /* (TARGET_OS_IPHONE: iOS and its Simulator) */
 #endif
 #include "host/tasks.h"
 
@@ -82,20 +85,28 @@ void host_task_switch(host_task *to)
 	SwitchToFiber(to->fiber);
 }
 
-#elif defined(__aarch64__) && (defined(__SWITCH__) || defined(__ANDROID__))
+#elif defined(__aarch64__) && (defined(__SWITCH__) || defined(__ANDROID__) || (defined(__APPLE__) && TARGET_OS_IPHONE))
 
-/* The Switch's C library and Android's have no ucontext: a task's registers are kept on its own stack. What
-   a call keeps for its caller (AAPCS64: x19-x29, the return address x30, d8-d15) is pushed where the task
-   stops and popped where it goes on; the stack pointer is all the task keeps beside it */
+/* The Switch's C library and Android's have no ucontext, and iOS's has it no longer (Apple's headers: "No longer
+   supported"; outrunners-port's pull request 14, yoshisuga's, tried on an iPhone): a task's registers are kept on
+   its own stack. What a call keeps for its caller (AAPCS64: x19-x29, the return address x30, d8-d15) is pushed
+   where the task stops and popped where it goes on; the stack pointer is all the task keeps beside it */
 #define SAVED_BYTES 160    /* x19-x30 and d8-d15, 8 bytes each */
 
 void host_switch_stacks(void **from_stack, void *to_stack);
 
+#ifdef __APPLE__
+/* (Mach-O's names: a C function's with an underscore before it, and no symbol types nor sizes) */
+#define SWITCH_STACKS_START ".global _host_switch_stacks\n" "_host_switch_stacks:\n"
+#define SWITCH_STACKS_END ""
+#else
+#define SWITCH_STACKS_START ".global host_switch_stacks\n" ".type host_switch_stacks, %function\n" "host_switch_stacks:\n"
+#define SWITCH_STACKS_END ".size host_switch_stacks, .-host_switch_stacks\n"
+#endif
+
 __asm__(
 	".text\n"
-	".global host_switch_stacks\n"
-	".type host_switch_stacks, %function\n"
-	"host_switch_stacks:\n"
+	SWITCH_STACKS_START
 	"	sub sp, sp, #160\n"
 	"	stp x19, x20, [sp, #0]\n"
 	"	stp x21, x22, [sp, #16]\n"
@@ -122,7 +133,7 @@ __asm__(
 	"	ldp d14, d15, [sp, #144]\n"
 	"	add sp, sp, #160\n"
 	"	ret\n"
-	".size host_switch_stacks, .-host_switch_stacks\n");
+	SWITCH_STACKS_END);
 
 struct host_task
 {

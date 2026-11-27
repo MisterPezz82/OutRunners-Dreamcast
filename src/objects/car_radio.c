@@ -3,7 +3,7 @@
  *    Description: the car radio: the songs, the DJ and his messages, the songs' titles
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -36,15 +36,15 @@ void car_radio_start(void)
 	do
 	{
 		player = RACER_NUMBERS(race)[0];
-		current_object->car_radio.car_models[game->car_numbers[player]] = game->race_copies[player].model;
+		current_object->car_radio.car_models[world->car_numbers[player]] = (uint8_t)(game->race_copies[player].state.car_choice_and_model >> 8u);
 		racers_left--;
 		race++;
 	} while (racers_left != 0u);
-	current_object->car_radio.car_number = game->car_numbers[screen->player];
+	current_object->car_radio.car_number = world->car_numbers[screen->player];
 	screen->nearing_fork = 0u;
 	player_car->song = car_model_songs[player_car->model];
 	current_object->car_radio.stage = screen->route_stage;
-	current_object->handler = car_radio_wait_start_ADDRESS;
+	current_object->handler = FUNCTION_car_radio_wait_start;
 	car_radio_wait_start();
 }
 
@@ -54,7 +54,7 @@ void car_radio_wait_start(void)
 {
 	if (OBJECT(player_car->object)->player_car.timer != 0u)
 		return;
-	current_object->handler = car_radio_read_buttons_ADDRESS;
+	current_object->handler = FUNCTION_car_radio_read_buttons;
 	car_radio_read_buttons();
 }
 
@@ -73,7 +73,7 @@ void car_radio_read_buttons(void)
 	current_object->car_radio.buttons = 0u;
 	current_object->car_radio.talk_step = 5u;
 	screen->button_lamps = 0u;
-	current_object->handler = car_radio_update_ADDRESS;
+	current_object->handler = FUNCTION_car_radio_update;
 	car_radio_update();
 }
 
@@ -426,7 +426,7 @@ void car_radio_dj_leader(void)
 {
 	uint8_t message = 0;
 
-	message = (uint8_t)(game->car_numbers[RACE(screen->host_record)->race_order] + 0x11u);
+	message = (uint8_t)(world->car_numbers[RACE(screen->host_record)->race_order] + 0x11u);
 	start_dj_message(message);
 }
 
@@ -520,7 +520,7 @@ struct object *start_song_title(uint32_t song_title)
 	struct object *object = NULL;
 
 	object = start_object();
-	object->handler = song_title_show_ADDRESS;
+	object->handler = FUNCTION_song_title_show;
 	object->song_title.text = song_title;
 	object->song_title.time_left = 0x3C;
 	return object;

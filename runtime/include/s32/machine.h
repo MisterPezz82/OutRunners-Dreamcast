@@ -277,6 +277,9 @@ void s32_sound_clear_irq(int input);
 /* A byte of the MultiPCM's address space (22 bits) through the banks: the chip's sample memory */
 uint8_t s32_pcm_sample_read(uint32_t address);
 
+/* Where an address of the MultiPCM's is in the pcm region's 4 MB, through the banks as they are now */
+uint32_t s32_pcm_region_address(uint32_t address);
+
 /* Board time when a frame starts (VBLANK ends) and when one of its lines starts */
 uint64_t s32_frame_start(uint64_t frame);
 uint64_t s32_line_start(uint64_t frame, int line);

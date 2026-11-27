@@ -2,9 +2,9 @@
  *    Name:        console.c
  *    Description: the console build's own versions of the game functions console/replaced.txt lists, and
  *                 what it tells the port
- *    Version:     0.1.4
+ *    Version:     0.1.5
  *    Created:     29-10-2026
- *    Modified:    15-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -54,17 +54,17 @@ void load_settings(uint32_t checksum)
 	uint32_t setting;
 
 	original_load_settings(checksum);
-	if (game->free_play != 0u)
+	if (game->eeprom.settings.free_play != 0u)
 		return;
 	for (setting = 0; setting < COIN_SETTINGS - 1u; setting++)
-		if ((int8_t)COIN_SETTING_RECORD(coin_setting_records_ADDRESS + setting * 4u)->coins < 0)
+		if ((int8_t)coin_setting_records[setting].coins < 0)
 			break;
-	game->coin_setting = (uint8_t)setting;
-	game->coins_per_credit = 1u;
-	game->bonus_adder = 0xFFu;
-	game->first_chute_multiplier = 1u;
-	game->second_chute_multiplier = 1u;
-	game->free_play = 0xFFu;
+	game->eeprom.settings.coin_setting = (uint8_t)setting;
+	game->eeprom.settings.coins_per_credit = 1u;
+	game->eeprom.settings.bonus_adder = 0xFFu;
+	game->eeprom.settings.first_chute_multiplier = 1u;
+	game->eeprom.settings.second_chute_multiplier = 1u;
+	game->eeprom.settings.free_play = 0xFFu;
 	eeprom_write_settings();
 }
 
@@ -98,21 +98,21 @@ void console_settings_to_race(void)
 {
 	const uint32_t race = RACE_1;
 
-	RACE(race)->master_game_difficulty = game->game_difficulty;
-	memcpy(RACE(race)->master_time_difficulty, game->time_difficulty, sizeof(RACE(race)->master_time_difficulty));
+	RACE(race)->master_game_difficulty = game->eeprom.settings.game_difficulty;
+	memcpy(RACE(race)->master_time_difficulty, game->eeprom.settings.time_difficulty, sizeof(RACE(race)->master_time_difficulty));
 }
 
 void console_master_settings(void)
 {
 	const uint32_t race = RACE_1;
 
-	RACE(race)->master_advertise_sound = game->advertise_sound;
-	RACE(race)->master_steering_wheel_reaction = game->steering_wheel_reaction;
-	RACE(race)->master_coins_per_credit = game->coins_per_credit;
-	RACE(race)->master_first_chute_multiplier = game->first_chute_multiplier;
-	RACE(race)->master_bonus_adder = game->bonus_adder;
-	RACE(race)->master_coin_setting = game->coin_setting;
-	RACE(race)->master_free_play = game->free_play;
+	RACE(race)->master_advertise_sound = game->eeprom.settings.advertise_sound;
+	RACE(race)->master_steering_wheel_reaction = game->eeprom.settings.steering_wheel_reaction;
+	RACE(race)->master_coins_per_credit = game->eeprom.settings.coins_per_credit;
+	RACE(race)->master_first_chute_multiplier = game->eeprom.settings.first_chute_multiplier;
+	RACE(race)->master_bonus_adder = game->eeprom.settings.bonus_adder;
+	RACE(race)->master_coin_setting = game->eeprom.settings.coin_setting;
+	RACE(race)->master_free_play = game->eeprom.settings.free_play;
 	console_settings_to_race();
 }
 
@@ -123,8 +123,8 @@ void network_check_stand_alone(void)
 {
 	const uint32_t race = RACE_1;
 
-	game->link_off = 1u;
-	game->player_count = 2u;
+	world->link_off = game->link_off = 1u;
+	world->player_count = game->player_count = 2u;
 	game->machine_count = 1u;
 	SCREEN(SCREEN_1)->car_number = 0u;
 	RACE(RACE_1)->car_number = 0u;
@@ -147,23 +147,91 @@ void network_check_stand_alone(void)
 
 /* ---- the picture ---- */
 
-/* The sprites on the background that the game draws every other frame so that they look faint (the spray of
-   Niagara's falls, the pyramids of stages 13 and 20): two of the screen's frames on and two off, which shows
-   as a blink (a player's report). Here they are drawn every frame and see-through: the count kept odd for the
-   game's handler, which draws when its next is even, and the sprites it puts in the list marked as a ghost's
-   (S32_SPRITE_GHOST: half their colour, half the colour under them), what the frames on and off add up to */
-void backdrop_translucent_update(void)
+/* The sprites put in the list from 'first' on (the object's, this frame) marked as a ghost's (S32_SPRITE_GHOST:
+   half their colour, half the colour under them), on both screens' lists */
+static void sprites_see_through(uint32_t first)
 {
-	const uint32_t first = screen->sprite_list_last + 0x10u;
-
-	current_object->backdrop_translucent.frame_count |= 1u;
-	original_backdrop_translucent_update();
 	for (uint32_t sprite = first; sprite <= screen->sprite_list_last; sprite += 0x10u)
 		if ((SPRITE_WORDS(sprite)[0] >> 14) == 0u)    /* (a sprite, not the group's jump) */
 		{
 			SPRITE_WORDS(sprite)[7] |= S32_SPRITE_GHOST;
 			SPRITE_WORDS(sprite + 0x3000u)[7] |= S32_SPRITE_GHOST;
 		}
+}
+
+/* The sprites on the background that the game draws every other frame so that they look faint (the spray of
+   Niagara's falls, the pyramids of stages 13 and 20): two of the screen's frames on and two off, which shows
+   as a blink (a player's report). Here they are drawn every frame and see-through: the count kept odd for the
+   game's handler, which draws when its next is even, and the sprites it puts in the list marked as a ghost's,
+   what the frames on and off add up to */
+void backdrop_translucent_update(void)
+{
+	const uint32_t first = screen->sprite_list_last + 0x10u;
+
+	current_object->backdrop_translucent.frame_count |= 1u;
+	original_backdrop_translucent_update();
+	sprites_see_through(first);
+}
+
+/* The northern lights over stage 26 (issue 32), drawn by the game every other frame (when their countdown is odd)
+   so that they look faint, which blinks as the spray did. Their countdown also times their animations, so it is
+   left as it is: the frames the game leaves out draw the same picture again (draw_object, no animation_advance:
+   their animation at its own pace), and every frame's sprites are see-through, as the spray's */
+void aurora_update(void)
+{
+	const uint32_t first = screen->sprite_list_last + 0x10u;
+
+	original_aurora_update();
+	if ((current_object->aurora.countdown & 1u) == 0u)
+		draw_object(0u);    /* (a frame the game leaves out: the same picture) */
+	sprites_see_through(first);
+}
+
+/* The close-up route map's one picture at half its rate (its record's half_rate, issue 32): the game steps its
+   animation and draws it every other frame (toggle), which blinks; here the frames it leaves out draw the same
+   picture again (its animation at half its rate still), and every frame's sprites are see-through, as the
+   spray's. The others, and the frame it ends at, as the game's */
+void route_map_landmark_update(void)
+{
+	const uint32_t first = screen->sprite_list_last + 0x10u;
+	const bool half_rate = current_object->state == 1u && current_object->route_map_landmark.index_then_half_rate != 0u;
+
+	original_route_map_landmark_update();
+	if (!half_rate || current_object->flags == 0u)
+		return;
+	if (current_object->route_map_landmark.toggle != 0u)
+	{
+		map_depth_from_y();
+		draw_object(0u);    /* (a frame the game leaves out: the same picture) */
+	}
+	sprites_see_through(first);
+}
+
+/* WIDE's sides as the game's edges read them (support.h's SCREEN_MORE_LEFT and SCREEN_MORE_RIGHT): where the
+   game takes an object away, stops drawing it, turns it back or puts it in at a side, past the wider screen's
+   side; 0 with WIDE off and in 2 PLAYERS. console_set_sides sets them each frame. */
+int screen_more_left, screen_more_right;
+
+/* Whether a sprite on the background is wholly off the screen, with WIDE's sides: past the wider screen's side,
+   so that WIDE shows the spray of Niagara's falls, the pyramids and the landmarks at the sides too (the
+   decompilation keeps the function's numbers: its A0 is both the screen's middle and how far each edge is from
+   it). While the sprite waits to come in (state 0: off the screen first, so that it does not pop up in view)
+   and with no sides it is the game's own, so that when it comes in, and all the board's 320 columns show, are
+   the board's. */
+uint32_t backdrop_off_screen(void)
+{
+	const int16_t centre = (int16_t)(current_object->x - 0xA0u);
+	const int16_t half_width = (int16_t)current_object->backdrop.half_width;
+
+	if (current_object->state == 0u || (screen_more_left == 0 && screen_more_right == 0))
+		return original_backdrop_off_screen();
+	if ((int16_t)(centre - half_width) > 0xA0 + screen_more_right
+		|| (int16_t)(0 - centre - half_width) > 0xA0 + screen_more_left)
+	{
+		current_object->flags &= 0xDFu;    /* (as the game's) */
+		return 1u;
+	}
+	return 0u;
 }
 
 /* ---- the sound ---- */
@@ -282,7 +350,7 @@ uint32_t check_game_start(uint32_t mode, uint32_t seat_credits)
 		console.quit_seats &= (uint8_t)~(1u << screen->index);
 		if (mode == GAME_MODE_PLAY)
 		{
-			game->wheel_motor[screen->index] = 0u;
+			world->wheel_motor[screen->index] = game->wheel_motor[screen->index] = 0u;
 			reset_screen_sound();
 			AS32(screen->game_mode) = GAME_MODE_RESTART;
 			return GAME_MODE_RESTART;
@@ -324,7 +392,7 @@ uint32_t check_game_start(uint32_t mode, uint32_t seat_credits)
 		   end's); over with the game */
 		if (mode == GAME_MODE_PLAY)
 		{
-			RACE(screen->race)->time_left = TIME_ATTACK_TIME_LEFT;
+			RACE(screen->race)->state.time_left = TIME_ATTACK_TIME_LEFT;
 			console_ghost_frame();
 		}
 		else
@@ -390,22 +458,22 @@ void console_classic_time(uint8_t passes)
 
 	if (!console.classic || screen->is_host == 0u)
 		return;
-	if (!console.classic_start && screen->race_started == 0u && RACE(race)->time_left == start_time)
+	if (!console.classic_start && screen->race_started == 0u && RACE(race)->state.time_left == start_time)
 	{
-		RACE(race)->time_left += CLASSIC_EXTRA * 0x1Eu;
+		RACE(race)->state.time_left += CLASSIC_EXTRA * 0x1Eu;
 		for (uint32_t seat = SCREEN_1; seat <= SCREEN_2; seat += SCREEN_2 - SCREEN_1)
 		{
 			if (SCREEN(seat)->in_game == 0u || SCREEN(seat)->host_record == 0u)
 				continue;
-			if (RACE(SCREEN(seat)->host_record)->time_left == start_time)
-				RACE(SCREEN(seat)->host_record)->time_left += CLASSIC_EXTRA * 0x1Eu;    /* (the copy it reads) */
+			if (RACE(SCREEN(seat)->host_record)->state.time_left == start_time)
+				RACE(SCREEN(seat)->host_record)->state.time_left += CLASSIC_EXTRA * 0x1Eu;    /* (the copy it reads) */
 			if (CAR(seat + SCREEN_CAR)->time_left == start_time)
 				CAR(seat + SCREEN_CAR)->time_left += CLASSIC_EXTRA * 0x1Eu;
 		}
 		console.classic_start = true;
 	}
-	if (RACE(race)->pass_count != passes && RACE(race)->pass_order == 0u && RACE(race)->pass_checkpoint != 5u)
-		RACE(race)->time_left += CLASSIC_EXTRA * 0x1Eu;
+	if (RACE(race)->state.pass_count != passes && RACE(race)->state.pass_order == 0u && RACE(race)->state.pass_checkpoint != 5u)
+		RACE(race)->state.time_left += CLASSIC_EXTRA * 0x1Eu;
 }
 
 /* The car select's WAITING FOR CHALLENGERS! (then JUST A MOMENT PLEASE) once the player's choices are made,
@@ -470,9 +538,15 @@ void console_attach(void)
 
 static int screen_wide;    /* WIDE AUTO's, as the port says the screen is (WIDE_OFF till it does) */
 
+/* A WIDE of a width of its own (not OFF, not AUTO), else WIDE_OFF */
+static int wide_width_kind(int kind)
+{
+	return kind > WIDE_OFF && kind < WIDE_KINDS && kind != WIDE_AUTO ? kind : WIDE_OFF;
+}
+
 void console_set_screen_wide(int kind)
 {
-	screen_wide = kind > WIDE_OFF && kind < WIDE_AUTO ? kind : WIDE_OFF;
+	screen_wide = wide_width_kind(kind);
 }
 
 int console_wide_in_effect(void)
@@ -481,7 +555,7 @@ int console_wide_in_effect(void)
 
 	if (wide == WIDE_AUTO)
 		return screen_wide;
-	return wide > WIDE_OFF && wide < WIDE_AUTO ? wide : WIDE_OFF;
+	return wide_width_kind(wide);
 }
 
 int console_wide_side(void)
@@ -493,8 +567,18 @@ int console_wide_side(void)
 		case WIDE_16_10: return S32_VIDEO_WIDE_SIDE_16_10;
 		case WIDE_16_9: return S32_VIDEO_WIDE_SIDE_16_9;
 		case WIDE_20_9: return S32_VIDEO_WIDE_SIDE_20_9;
+		case WIDE_21_9: return S32_VIDEO_WIDE_SIDE_21_9;
 		default: return 0;
 	}
+}
+
+void console_set_sides(void)
+{
+	const int side = console_wide_side();
+
+	s32_video_set_wide_side(side);
+	screen_more_left = side;
+	screen_more_right = side;
 }
 
 bool console_both_screens(void)
@@ -505,7 +589,7 @@ bool console_both_screens(void)
 int console_test_autopilot(void)
 {
 	/* the wheel back toward the middle of the road, by the left seat's place across it (race road_x) */
-	const int across = (int16_t)RACE(RACE_1)->road_x;
+	const int across = (int16_t)RACE(RACE_1)->state.road_x;
 	const int wheel = 0x80 - across / 6;
 
 	return wheel < 0x10 ? 0x10 : (wheel > 0xF0 ? 0xF0 : wheel);
@@ -524,22 +608,55 @@ bool console_can_pause(void)
 		&& !console_network_linked();
 }
 
-/* ---- the radio's hidden song ---- */
+/* ---- the radio: MUSIC round it all, and its hidden song ---- */
 
 #define LAST_RADIO_SONG     9u    /* Last Wave: the game's >> goes on from it to the first, Magical Sound Shower */
 #define FIRST_RADIO_SONG    0u
 #define HIDDEN_RADIO_SONG   10u   /* Jingle Bell, radio_songs' eleventh */
+#define RADIO_ON_SONGS      1u    /* the radio's states 0 and 1 play the car's song (car_radio_update); 2 on, the station */
 
-void console_radio_buttons(int player, bool *previous, bool *next)
+/* The seat's radio (the object car_radio_read_buttons runs while its car races; its objects are the 0x7C00
+   bytes before its block, as console_find_object's of the screen), or 0 */
+static uint32_t seat_radio(uint32_t seat)
 {
-	static bool held[CONTROL_PLAYERS][2];    /* the seat's << and >> the frame before */
+	for (uint32_t object = seat - 0x7C00u; object < seat; object += 0x100u)
+		if ((OBJECT(object)->flags & 1u) != 0u && OBJECT(object)->handler == FUNCTION_car_radio_read_buttons)
+			return object;
+	return 0u;
+}
+
+void console_radio_buttons(int player, bool *music, bool *previous, bool *next)
+{
+	static bool held[CONTROL_PLAYERS][3];        /* the seat's << , >> and MUSIC the frame before */
+	static bool music_steps[CONTROL_PLAYERS];    /* MUSIC, as it was pressed, held as >> */
 	const uint32_t seat = player == 0 ? SCREEN_1 : SCREEN_2;
-	const bool previous_pressed = *previous && !held[player][0], next_pressed = *next && !held[player][1];
+	const bool on_race = SCREEN(seat)->game_mode == GAME_MODE_PLAY && racing(seat);
+	bool previous_pressed, next_pressed;
 	uint8_t song;
 
+	if (*music && !held[player][2])
+	{
+		/* (MUSIC newly pressed: on a song but the last, >> while it is held; on the station back to the first
+		   song, which any of its buttons goes back to, from the car's) */
+		const uint32_t radio = on_race ? seat_radio(seat) : 0u;
+
+		music_steps[player] = false;
+		if (radio && OBJECT(radio)->state <= RADIO_ON_SONGS)
+			music_steps[player] = CAR(seat + SCREEN_CAR)->song != LAST_RADIO_SONG;
+		else if (radio)
+			CAR(seat + SCREEN_CAR)->song = FIRST_RADIO_SONG;
+	}
+	held[player][2] = *music;
+	if (*music && music_steps[player])
+	{
+		*music = false;
+		*next = true;
+	}
+	previous_pressed = *previous && !held[player][0];
+	next_pressed = *next && !held[player][1];
 	held[player][0] = *previous;
 	held[player][1] = *next;
-	if (previous_pressed == next_pressed || SCREEN(seat)->game_mode != GAME_MODE_PLAY || !racing(seat))
+	if (previous_pressed == next_pressed || !on_race)
 		return;
 	song = CAR(seat + SCREEN_CAR)->song;
 	if ((next_pressed && song == LAST_RADIO_SONG) || (previous_pressed && song == FIRST_RADIO_SONG))

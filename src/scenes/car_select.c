@@ -3,7 +3,7 @@
  *    Description: the car select: the attendant and the turntable, the cars, the transmission, the flags of the other cabinets' choices, the countdown and the entry traffic
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -15,7 +15,7 @@
 void car_select_start(void)
 {
 	current_object->car_select.time_left = 0x276u;
-	current_object->handler = car_select_run_ADDRESS;
+	current_object->handler = FUNCTION_car_select_run;
 	car_select_run();
 }
 
@@ -74,11 +74,11 @@ void CONSOLE_ORIGINAL(car_select_run)(void)
 		current_object->car_select.rowselect_address = setup->rowselect_address;
 		background = setup->background;
 		setup_bits = address_of(&setup->video_register_bits);
-		set_up_background(background);
+		set_up_background(rom_pointer(background));
 		game->video_registers[2] |= CAR_SELECT_TILEMAP_SETUP(setup_bits - 0x1Cu)->video_register_bits;
 		VIDEO_REGISTER_WORDS(current_object->car_select.second_scroll_y_address)[0] = 0xE0u;
 		object = start_object();
-		object->handler = welcome_letter_start_ADDRESS;
+		object->handler = FUNCTION_welcome_letter_start;
 		current_object->state++;
 		first_rowselect = current_object->car_select.rowselect_address;
 		second_rowselect = first_rowselect + 0x800u;
@@ -110,16 +110,16 @@ void CONSOLE_ORIGINAL(car_select_run)(void)
 		if (screen->unpack_state != 0u)
 			return;
 		object = start_object();
-		object->handler = car_attendant_run_ADDRESS;
+		object->handler = FUNCTION_car_attendant_run;
 		object->car_attendant.car_select = address_of(current_object);
 		object = start_object();
-		object->handler = car_select_entries_run_ADDRESS;
+		object->handler = FUNCTION_car_select_entries_run;
 		object->car_select_entries.car_select = address_of(current_object);
 		car_index = 8u;
 		do
 		{
 			object = start_object();
-			object->handler = turntable_car_show_ADDRESS;
+			object->handler = FUNCTION_turntable_car_show;
 			object->turntable_car.car_select = address_of(current_object);
 			cars_left = car_index;
 			car_index = (uint8_t)(cars_left - 1u);
@@ -129,7 +129,7 @@ void CONSOLE_ORIGINAL(car_select_run)(void)
 		do
 		{
 			object = start_object();
-			object->handler = turntable_scenery_show_ADDRESS;
+			object->handler = FUNCTION_turntable_scenery_show;
 			object->turntable_scenery.car_select = address_of(current_object);
 			groups_left = group_index;
 			group_index = (uint8_t)(groups_left - 1u);
@@ -192,10 +192,10 @@ void CONSOLE_ORIGINAL(car_select_run)(void)
 		}
 		current_object->state++;
 		object = start_object();
-		object->handler = select_car_heading_show_ADDRESS;
+		object->handler = FUNCTION_select_car_heading_show;
 		object->select_car_heading.car_select = address_of(current_object);
 		object = start_object();
-		object->handler = car_caption_show_ADDRESS;
+		object->handler = FUNCTION_car_caption_show;
 		object->car_caption.car_select = address_of(current_object);
 		remaining_time = current_object->car_select.time_left;
 		remaining_time = remaining_time / 0x1Eu;
@@ -288,15 +288,15 @@ void CONSOLE_ORIGINAL(car_select_run)(void)
 		current_object->car_select.car_chosen = 0xFFu;
 		race = pointer_to(screen->race);
 		model = player_car->model;
-		race->model = model;
-		race->car_choice = model + 1u;
+		race->state.car_choice_and_model = (race->state.car_choice_and_model & 0xFFu) | ((model & 0xFFu) << 8u);
+		race->state.car_choice_and_model = (race->state.car_choice_and_model & 0xFF00u) | (model + 1u & 0xFFu);
 		current_object->car_select.confirm_delay = 0x1Eu;
 		car_sound = car_select_car_sounds[model];
 		request_sound(car_sound);
 		if ((int16_t)current_object->car_select.time_left < 0xB4)
 			current_object->car_select.time_left = 0xB4u;
 		object = start_object();
-		object->handler = transmission_choice_run_ADDRESS;
+		object->handler = FUNCTION_transmission_choice_run;
 		object->transmission_choice.car_select = address_of(current_object);
 		current_object->state++;
 		car_select_turn_to_choice();
@@ -324,7 +324,7 @@ void CONSOLE_ORIGINAL(car_select_run)(void)
 			}
 		}
 		object = start_object();
-		object->handler = waiting_banner_show_ADDRESS;
+		object->handler = FUNCTION_waiting_banner_show;
 		object->waiting_banner.car_select = address_of(current_object);
 		current_object->car_select.transmission_chosen = 0xFFu;
 		current_object->state++;
@@ -906,12 +906,12 @@ void welcome_letter_start(void)
 	do
 	{
 		object = start_object();
-		object->handler = welcome_letter_show_ADDRESS;
+		object->handler = FUNCTION_welcome_letter_show;
 		object->welcome_letter.index = letter_index;
 		letter_index--;
 	} while (letter_index != 0u);
 	current_object->welcome_letter.index = letter_index;
-	current_object->handler = welcome_letter_show_ADDRESS;
+	current_object->handler = FUNCTION_welcome_letter_show;
 	welcome_letter_show();
 }
 
@@ -989,7 +989,7 @@ void select_car_heading_show(void)
 		while (piece->animation != 0u)
 		{
 			object = start_object();
-			object->handler = select_instruction_show_ADDRESS;
+			object->handler = FUNCTION_select_instruction_show;
 			object->select_instruction.car_select = current_object->select_car_heading.car_select;
 			object->select_instruction.piece_animation = piece->animation;
 			object->palette = piece->palette;
@@ -1162,10 +1162,10 @@ void transmission_choice_run(void)
 	{
 	case 0:
 		object = start_object();
-		object->handler = automatic_panel_show_ADDRESS;
+		object->handler = FUNCTION_automatic_panel_show;
 		object->automatic_panel.choice = address_of(current_object);
 		object = start_object();
-		object->handler = manual_panel_show_ADDRESS;
+		object->handler = FUNCTION_manual_panel_show;
 		object->manual_panel.choice = address_of(current_object);
 		current_object->transmission_choice.shown_transmission = 0xFFu;
 		current_object->state++;
@@ -1190,7 +1190,7 @@ void transmission_choice_run(void)
 			}
 			current_object->transmission_choice.slide_frames = 0xAu;
 			object = start_object();
-			object->handler = driver_couple_start_ADDRESS;
+			object->handler = FUNCTION_driver_couple_start;
 			object->driver_couple.left_side = couple_left_side;
 			current_object->state++;
 			object = pointer_to(current_object->transmission_choice.car_select);
@@ -1266,7 +1266,7 @@ void automatic_panel_show(void)
 	{
 	case 0:
 		object = start_object();
-		object->handler = transmission_label_start_automatic_ADDRESS;
+		object->handler = FUNCTION_transmission_label_start_automatic;
 		object->transmission_label.panel = address_of(current_object);
 		current_object->draw_mode = 0xAu;
 		current_object->depth_layer = 0xF0u;
@@ -1317,7 +1317,7 @@ void manual_panel_show(void)
 	{
 	case 0:
 		object = start_object();
-		object->handler = transmission_label_start_manual_ADDRESS;
+		object->handler = FUNCTION_transmission_label_start_manual;
 		object->transmission_label.panel = address_of(current_object);
 		current_object->draw_mode = 0xAu;
 		current_object->depth_layer = 0xF0u;
@@ -1368,7 +1368,7 @@ void transmission_label_start_automatic(void)
 	current_object->palette = 0x2A8u;
 	current_object->x_offset = 0;
 	current_object->y_offset = 0x24;
-	current_object->handler = transmission_label_follow_ADDRESS;
+	current_object->handler = FUNCTION_transmission_label_follow;
 	transmission_label_follow();
 }
 
@@ -1387,7 +1387,7 @@ void transmission_label_start_manual(void)
 	current_object->palette = 0x2A8u;
 	current_object->x_offset = -0x18;
 	current_object->y_offset = 0x5C;
-	current_object->handler = transmission_label_follow_ADDRESS;
+	current_object->handler = FUNCTION_transmission_label_follow;
 	transmission_label_follow();
 }
 
@@ -1427,7 +1427,7 @@ void driver_couple_start(void)
 	if (current_object->driver_couple.left_side != 0u)
 		current_object->x = 0x50u;
 	current_object->y = 0xD0u;
-	current_object->handler = draw_object_ADDRESS;
+	current_object->handler = FUNCTION_draw_object;
 }
 
 /* The caption of the car in front on the car select (EASY HANDLING, SMOOTH OPERATOR...: animation 26E,
@@ -1446,7 +1446,7 @@ void car_caption_show(void)
 	{
 	case 0:
 		object = start_object();
-		object->handler = car_gears_caption_show_ADDRESS;
+		object->handler = FUNCTION_car_gears_caption_show;
 		object->car_gears_caption.car_select = current_object->car_caption.car_select;
 		current_object->draw_mode = 0u;
 		current_object->depth_layer = 0x19Eu;
@@ -1736,13 +1736,13 @@ void car_select_entries_run(void)
 		if (screen->lcd_scroll != 0u)
 			return;
 		move_string(entry_lcd_text_ADDRESS, 3u, address_of(screen) + 0xF12u, 7u, 2u, 0u, 0u, 0u, &lcd_text_end, &ignored);
-		players_left = game->player_count;
+		players_left = world->player_count;
 		do
 		{
-			LCD_CHARACTERS(lcd_text_end)[game->car_numbers[players_left - 1u]] = 0x5Fu;
+			LCD_CHARACTERS(lcd_text_end)[world->car_numbers[players_left - 1u]] = 0x5Fu;
 			players_left--;
 		} while (players_left != 0u);
-		own_car_number = game->car_numbers[screen->player];
+		own_car_number = world->car_numbers[screen->player];
 		current_object->car_select_entries.own_number = own_car_number;
 		current_object->car_select_entries.digit_toggle = (own_car_number + 0x31u) ^ 0x5Fu;
 		current_object->car_select_entries.blink_timer = 8u;
@@ -1752,13 +1752,13 @@ void car_select_entries_run(void)
 		if (screen->lcd_scroll != 0u)
 			return;
 		move_string(entry_lcd_text_ADDRESS, 3u, address_of(screen) + 0xF12u, 7u, 2u, 0u, 0u, 0u, &lcd_text_end, &ignored);
-		players_left = game->player_count;
+		players_left = world->player_count;
 		do
 		{
-			LCD_CHARACTERS(lcd_text_end)[game->car_numbers[players_left - 1u]] = 0x5Fu;
+			LCD_CHARACTERS(lcd_text_end)[world->car_numbers[players_left - 1u]] = 0x5Fu;
 			players_left--;
 		} while (players_left != 0u);
-		own_car_number = game->car_numbers[screen->player];
+		own_car_number = world->car_numbers[screen->player];
 		current_object->car_select_entries.own_number = own_car_number;
 		current_object->car_select_entries.digit_toggle = (own_car_number + 0x31u) ^ 0x5Fu;
 		current_object->car_select_entries.blink_timer = 8u;
@@ -1784,9 +1784,9 @@ void car_select_entries_run(void)
 		racer_place++;
 		if (screen->player != racer && (current_object->car_select_entries.shown_players & shl32(1u, (int)(racer))) == 0u)
 		{
-			racer_car_number = game->car_numbers[racer];
+			racer_car_number = world->car_numbers[racer];
 			screen->lcd_text[(int32_t)(racer_car_number + 8u)] = racer_car_number + 0x31u;
-			car_choice = game->race_copies[racer].car_choice - 1u;
+			car_choice = (uint8_t)game->race_copies[racer].state.car_choice_and_model - 1u;
 			chosen_car = car_choice;
 			if ((int32_t)car_choice >= 0)
 			{
@@ -1794,14 +1794,14 @@ void car_select_entries_run(void)
 				object = start_object();
 				if (car_flag == NULL)
 				{
-					object->handler = choice_flag_start_ADDRESS;
+					object->handler = FUNCTION_choice_flag_start;
 					object->choice_flag.top_flag = address_of(object);
 					object->choice_flag.entries = address_of(current_object);
 					current_object->car_select_entries.car_flags[(int32_t)chosen_car] = address_of(object);
 				}
 				else
 				{
-					object->handler = stacked_choice_flag_start_ADDRESS;
+					object->handler = FUNCTION_stacked_choice_flag_start;
 					object->stacked_choice_flag.below = car_flag->choice_flag.top_flag;
 					car_flag->choice_flag.top_flag = address_of(object);
 				}
@@ -1835,9 +1835,9 @@ void choice_flag_start(void)
 	current_object->palette = choice_flag_palettes[car];
 	current_object->choice_flag.angle = car << 9;
 	object = start_object();
-	object->handler = choice_flag_number_start_ADDRESS;
+	object->handler = FUNCTION_choice_flag_number_start;
 	object->choice_flag_number.flag = address_of(current_object);
-	current_object->handler = choice_flag_follow_ADDRESS;
+	current_object->handler = FUNCTION_choice_flag_follow;
 	choice_flag_follow();
 }
 
@@ -1905,9 +1905,9 @@ void stacked_choice_flag_start(void)
 	animation_start(animation);
 	current_object->palette = choice_flag_palettes[current_object->car];
 	object = start_object();
-	object->handler = choice_flag_number_start_ADDRESS;
+	object->handler = FUNCTION_choice_flag_number_start;
 	object->choice_flag_number.flag = address_of(current_object);
-	current_object->handler = stacked_choice_flag_follow_ADDRESS;
+	current_object->handler = FUNCTION_stacked_choice_flag_follow;
 	stacked_choice_flag_follow();
 }
 
@@ -1942,10 +1942,10 @@ void choice_flag_number_start(void)
 
 	current_object->draw_mode = 0xAu;
 	current_object->depth_layer = 0xEFu;
-	animation = choice_flag_number_animations[game->car_numbers[OBJECT(current_object->choice_flag_number.flag)->choice_flag.player]];
+	animation = choice_flag_number_animations[world->car_numbers[OBJECT(current_object->choice_flag_number.flag)->choice_flag.player]];
 	animation_start(animation);
 	current_object->palette = 0x27u;
-	current_object->handler = choice_flag_number_follow_ADDRESS;
+	current_object->handler = FUNCTION_choice_flag_number_follow;
 	choice_flag_number_follow();
 }
 
@@ -2008,7 +2008,7 @@ uint16_t turntable_draw(uint32_t across, uint32_t down, uint32_t point_depth)
 			across = across * scale;
 			carry = (across >> 11) & 1u;
 			across = ((int32_t)across >> 12) + 0xA0u + carry;
-			if ((int32_t)across <= -0x28 || (int32_t)across >= 0x168)
+			if ((int32_t)across <= PAST_LEFT(0x28) || (int32_t)across >= PAST_RIGHT(0x28))
 			{
 				current_object->flags &= 0xDFu;
 				return scale;
@@ -2105,7 +2105,7 @@ void entry_countdown_start(void)
 	struct object *object = NULL;
 
 	background_setup = entry_countdown_backgrounds_ADDRESS + screen->index * 5u * 4u;
-	set_up_background(background_setup);
+	set_up_background(rom_pointer(background_setup));
 	palette_fades = entry_countdown_palette_fades_ADDRESS;
 	start_palette_fades(palette_fades);
 	clear_lcd();
@@ -2116,12 +2116,12 @@ void entry_countdown_start(void)
 	start_dj_message(dj_message);
 	screen->entry_countdown_shown = 0xFFu;
 	object = start_object();
-	object->handler = entry_banner_start_ADDRESS;
+	object->handler = FUNCTION_entry_banner_start;
 	object = start_object();
-	object->handler = entry_car_ring_start_ADDRESS;
+	object->handler = FUNCTION_entry_car_ring_start;
 	current_object->entry_countdown.car_ring = address_of(object);
 	object = start_object();
-	object->handler = entry_traffic_run_ADDRESS;
+	object->handler = FUNCTION_entry_traffic_run;
 	current_object->draw_mode = 0u;
 	current_object->depth_layer = 0x19Du;
 	animation = ENTRY_COUNTDOWN_DIGITS;
@@ -2129,7 +2129,7 @@ void entry_countdown_start(void)
 	current_object->palette = 0x4Eu;
 	current_object->x = 0xA0u;
 	current_object->y = 0x7Au;
-	current_object->handler = entry_countdown_count_ADDRESS;
+	current_object->handler = FUNCTION_entry_countdown_count;
 	entry_countdown_count();
 }
 
@@ -2148,7 +2148,7 @@ void entry_countdown_count(void)
 	{
 		screen->entry_countdown_shown = 0u;
 		fade_out_music();
-		current_object->handler = entry_countdown_done_ADDRESS;
+		current_object->handler = FUNCTION_entry_countdown_done;
 		entry_countdown_done();
 		return;
 	}
@@ -2188,7 +2188,7 @@ void entry_banner_start(void)
 	current_object->palette = 0x287u;
 	current_object->x = 0xA0u;
 	current_object->y = 0x70u;
-	current_object->handler = entry_banner_blink_ADDRESS;
+	current_object->handler = FUNCTION_entry_banner_blink;
 	entry_banner_blink();
 }
 
@@ -2217,7 +2217,7 @@ void entry_car_ring_start(void)
 	animation_start(animation);
 	current_object->width_scale = 0x40u;
 	current_object->height_scale = 0x40u;
-	current_object->handler = entry_car_ring_draw_ADDRESS;
+	current_object->handler = FUNCTION_entry_car_ring_draw;
 	entry_car_ring_draw();
 }
 
@@ -2285,7 +2285,7 @@ void entry_traffic_run(void)
 		if ((random & 0xFu) == 0u)
 		{
 			object = start_object();
-			object->handler = entry_traffic_car_drive_ADDRESS;
+			object->handler = FUNCTION_entry_traffic_car_drive;
 			current_object->entry_traffic.delay = 0xAu;
 			current_object->state++;
 		}

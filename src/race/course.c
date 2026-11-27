@@ -3,7 +3,7 @@
  *    Description: the course: its segments built ahead of the car, the road projected for the view
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -68,10 +68,10 @@ void player_car_extend_course(void)
 		return;
 	}
 	forks_reached = player_car->forks_reached;
-	if (screen->forks_decided < forks_reached)
+	if (screen->progress.forks_decided < forks_reached)
 		return;
 	course = rom_pointer(player_car->course);
-	branch = screen->route_branches[(int32_t)(forks_reached - 1u)];
+	branch = screen->progress.route_branches[(int32_t)(forks_reached - 1u)];
 	player_car->branch = branch;
 	branch_stages = course->branch_stages[(int32_t)branch];
 	player_car->course = (course->branch_courses[(int32_t)(branch * 4u)] | ((uint32_t)course->branch_courses[(int32_t)(branch * 4u) + 1] << 8u) | ((uint32_t)course->branch_courses[(int32_t)(branch * 4u) + 2] << 16u) | ((uint32_t)course->branch_courses[(int32_t)(branch * 4u) + 3] << 24u));
@@ -86,7 +86,7 @@ void player_car_extend_course(void)
 	player_car->at_fork = 0u;
 	queue_stage_load();
 	object = start_object();
-	object->handler = branch_arrow_update_ADDRESS;
+	object->handler = FUNCTION_branch_arrow_update;
 	for (;;)
 	{
 		player_car->course_records_read++;
@@ -104,7 +104,7 @@ void player_car_extend_course(void)
 			return;
 		case 6:
 			object = start_object();
-			object->handler = goal_update_ADDRESS;
+			object->handler = FUNCTION_goal_update;
 			object->position = player_car->built_segments;
 			player_car->course = address_of(course_place);
 			continue;
@@ -114,7 +114,7 @@ void player_car_extend_course(void)
 		case 2:
 			race = pointer_to(screen->race);
 			player_car->forks_reached++;
-			race->stage_count++;
+			race->state.stage_count++;
 			player_car->course = address_of(course_place);
 			player_car->at_fork = 0xFFu;
 			return;
@@ -193,7 +193,7 @@ void player_car_build_segment(uint16_t ring_mask)
 				return;
 			case 6:
 				object = start_object();
-				object->handler = goal_update_ADDRESS;
+				object->handler = FUNCTION_goal_update;
 				object->position = player_car->built_segments;
 				player_car->course = address_of(course_place);
 				continue;
@@ -203,7 +203,7 @@ void player_car_build_segment(uint16_t ring_mask)
 			case 2:
 				race = pointer_to(screen->race);
 				player_car->forks_reached++;
-				race->stage_count++;
+				race->state.stage_count++;
 				player_car->course = address_of(course_place);
 				player_car->at_fork = 0xFFu;
 				return;

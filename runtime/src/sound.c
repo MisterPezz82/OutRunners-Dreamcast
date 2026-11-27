@@ -118,7 +118,7 @@ uint8_t s32_z80_in(uint8_t port)
 
 /* The MultiPCM's 4 MB in its 2 MB of address space: 0x000000-0x0FFFFF fixed, then two 512 KB windows,
    each on the page its bank picks */
-uint8_t s32_pcm_sample_read(uint32_t address)
+static uint32_t pcm_region_address(uint32_t address)
 {
 	uint32_t page;
 
@@ -128,7 +128,18 @@ uint8_t s32_pcm_sample_read(uint32_t address)
 		page = (address < 0x180000) ? (s32_board.pcm_bank & 7u) : ((s32_board.pcm_bank >> 3) & 7u);
 		address = (page * 0x80000 + (address & 0x7ffff)) % S32_PCM_ROM_SIZE;
 	}
+	return address;
+}
+
+uint8_t s32_pcm_sample_read(uint32_t address)
+{
+	address = pcm_region_address(address);
 	return s32_board.pcm_rom ? s32_board.pcm_rom[address] : s32_board.pcm_at(address);
+}
+
+uint32_t s32_pcm_region_address(uint32_t address)
+{
+	return pcm_region_address(address);
 }
 
 void s32_z80_out(uint8_t port, uint8_t data)

@@ -3,7 +3,7 @@
  *    Description: the prompts for coins and the ignition key, and the credits shown
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -54,12 +54,12 @@ void coin_prompt_update(void)
 	current_object->coin_prompt.round_frames = 0x1Eu;
 	current_object->coin_prompt.car = current_object->coin_prompt.next_car;
 	object = start_object();
-	object->handler = coin_prompt_car_drive_ADDRESS;
+	object->handler = FUNCTION_coin_prompt_car_drive;
 	object->car = current_object->coin_prompt.next_car;
 	object->car_colour = current_object->coin_prompt.next_car;
 	current_object->coin_prompt.next_car++;
 	current_object->coin_prompt.next_car &= 7u;
-	if (game->free_play != 0u)
+	if (game->eeprom.settings.free_play != 0u)
 	{
 		message = 2u;
 		piece_count = 2u;
@@ -72,11 +72,11 @@ void coin_prompt_update(void)
 		{
 		case 0:
 			credits = game->seat1_credits;
-			coin_units = game->seat1_coin_units;
+			coin_units = world->seat1_coin_units;
 			break;
 		case 1:
 			credits = game->seat2_credits;
-			coin_units = game->seat2_coin_units;
+			coin_units = world->seat2_coin_units;
 			break;
 		}
 		if (credits != 0u)
@@ -96,7 +96,7 @@ void coin_prompt_update(void)
 		else
 			message = 0u;
 		object = start_object();
-		object->handler = coin_prompt_message_update_ADDRESS;
+		object->handler = FUNCTION_coin_prompt_message_update;
 		object->coin_prompt_message.prompt = address_of(current_object);
 		object->coin_prompt_message.message = message;
 	}
@@ -122,7 +122,7 @@ void coin_prompt_car_drive(void)
 		current_object->draw_mode = 0xAu;
 		current_object->width_scale = 0x40u;
 		current_object->height_scale = 0x40u;
-		current_object->x = 0x140u;
+		current_object->x = PAST_RIGHT(0);
 		current_object->y = 0xC0u;
 		current_object->frame = 4u;
 		current_object->depth_layer = 0x19Eu;
@@ -232,7 +232,7 @@ struct object *coin_prompt_start_key_prompt(uint32_t piece_count, uint8_t first_
 	do
 	{
 		object = start_object();
-		object->handler = ignition_key_prompt_update_ADDRESS;
+		object->handler = FUNCTION_ignition_key_prompt_update;
 		object->ignition_key_prompt.piece = first_piece;
 		first_piece++;
 		piece_count--;
@@ -302,7 +302,7 @@ void CONSOLE_ORIGINAL(credit_display_update)(void)
 			current_object->flags = 0u;
 			current_object->flags_high = 0u;
 		}
-		if (game->free_play != 0u)
+		if (game->eeprom.settings.free_play != 0u)
 		{
 			current_object->state++;
 			text = credit_free_play_text_ADDRESS;
@@ -322,11 +322,11 @@ void CONSOLE_ORIGINAL(credit_display_update)(void)
 	{
 	case 0:
 		credits = game->seat1_credits;
-		coin_units = game->seat1_coin_units;
+		coin_units = world->seat1_coin_units;
 		break;
 	case 1:
 		credits = game->seat2_credits;
-		coin_units = game->seat2_coin_units;
+		coin_units = world->seat2_coin_units;
 		break;
 	}
 	if (credits < 2u)
@@ -364,7 +364,7 @@ void CONSOLE_ORIGINAL(credit_display_update)(void)
 		current_object->x = 0xC0u;
 		credit_display_digit();
 		current_object->credit_display.digit_kind = 2u;
-		current_object->credit_display.digit = game->coins_per_credit;
+		current_object->credit_display.digit = game->eeprom.settings.coins_per_credit;
 		current_object->x = 0xC8u;
 		credit_display_digit();
 	}

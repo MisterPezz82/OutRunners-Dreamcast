@@ -4,7 +4,7 @@
  *                 cabinets in the room's races, over arcade-lan's linked game (lan/)
  *    Version:     0.2.1
  *    Created:     30-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -104,12 +104,12 @@ static void link_set_up(int machine, int machines)
 {
 	const uint32_t first = (uint32_t)(machine - 1) * 2u;
 
-	game->link_off = 0u;
-	game->link_failed = 0u;
+	world->link_off = game->link_off = 0u;
+	world->link_failed = game->link_failed = 0u;
 	game->machine_count = (uint8_t)machines;
-	game->player_count = (uint8_t)(machines * 2);
+	world->player_count = game->player_count = (uint8_t)(machines * 2);
 	for (int player = 0; player < SLOTS; player++)
-		game->car_numbers[player] = (uint8_t)player;
+		world->car_numbers[player] = game->car_numbers[player] = (uint8_t)player;
 	for (int seat = 0; seat < 2; seat++)
 	{
 		const uint32_t race = seat ? RACE_2 : RACE_1, screen_block = seat ? SCREEN_2 : SCREEN_1;
@@ -150,8 +150,8 @@ static void link_end(void)
 	clear_screen_entries(SCREEN_1);
 	clear_screen_entries(SCREEN_2);
 	memset(RACE(RACE_COPY_1), 0, SLOTS * RECORD_SIZE);
-	game->car_numbers[0] = 0u;
-	game->car_numbers[1] = 1u;
+	world->car_numbers[0] = game->car_numbers[0] = 0u;
+	world->car_numbers[1] = game->car_numbers[1] = 1u;
 }
 
 /* The machine whose blocks carry a slot's record: its own, or the first one still heard for one gone */
@@ -220,25 +220,25 @@ static void check_record(struct race *record, int slot)
 			order[index] = 0u;
 	if (record->entrant != 0xFFu && record->entrant >= players)
 		record->entrant = 0xFFu;
-	if (record->pass_player >= players)
-		record->pass_player = 0u;
-	if (record->pass_order >= players)
-		record->pass_order = 0u;
-	if (record->pass_checkpoint >= CHECKPOINTS)
-		record->pass_checkpoint = CHECKPOINTS - 1u;
-	record->pass_branch &= 1u;
-	if (record->stage_count > CHECKPOINTS)
-		record->stage_count = CHECKPOINTS;
-	if (record->stage > LAST_STAGE)
-		record->stage = LAST_STAGE;
-	if (record->model >= CAR_MODELS)
-		record->model = 0u;
-	if (record->car_choice > CAR_MODELS)
-		record->car_choice = 0u;
+	if (record->state.pass_player >= players)
+		record->state.pass_player = 0u;
+	if (record->state.pass_order >= players)
+		record->state.pass_order = 0u;
+	if (record->state.pass_checkpoint >= CHECKPOINTS)
+		record->state.pass_checkpoint = CHECKPOINTS - 1u;
+	record->state.pass_branch &= 1u;
+	if (record->state.stage_count > CHECKPOINTS)
+		record->state.stage_count = CHECKPOINTS;
+	if (record->state.stage > LAST_STAGE)
+		record->state.stage = LAST_STAGE;
+	if (RACE_MODEL(record) >= CAR_MODELS)
+		RACE_SET_MODEL(record, 0u);
+	if (RACE_CAR_CHOICE(record) > CAR_MODELS)
+		RACE_SET_CAR_CHOICE(record, 0u);
 	if (record->record_course >= COURSES)
 		record->record_course = 0u;
-	if (record->animation >= SPRITE_ANIMATIONS)
-		record->animation = 0u;
+	if (record->state.animation >= SPRITE_ANIMATIONS)
+		record->state.animation = 0u;
 }
 
 /* ---- the blocks ---- */
@@ -372,19 +372,19 @@ static void host_race_on(uint32_t screen_block, uint32_t old)
 
 	RACE(race)->racer_count = RACE(old)->racer_count;
 	memcpy(race_order(race), race_order(old), SLOTS);
-	RACE(race)->race_time = RACE(old)->race_time;
-	RACE(race)->time_left = RACE(old)->time_left;
-	RACE(race)->pass_count = RACE(old)->pass_count;
-	RACE(race)->pass_player = RACE(old)->pass_player;
-	RACE(race)->pass_checkpoint = RACE(old)->pass_checkpoint;
-	RACE(race)->pass_order = RACE(old)->pass_order;
-	RACE(race)->pass_branch = RACE(old)->pass_branch;
-	RACE(race)->pass_time = RACE(old)->pass_time;
-	RACE(race)->link_pad_5A = HOST_TAKEN;
-	memcpy(SCREEN(screen_block)->counted_passes, SCREEN(screen_block)->checkpoint_passes,
-		sizeof(SCREEN(screen_block)->counted_passes));
-	memcpy(SCREEN(screen_block)->counted_stages, SCREEN(screen_block)->checkpoints_passed,
-		sizeof(SCREEN(screen_block)->counted_stages));
+	RACE(race)->state.race_time = RACE(old)->state.race_time;
+	RACE(race)->state.time_left = RACE(old)->state.time_left;
+	RACE(race)->state.pass_count = RACE(old)->state.pass_count;
+	RACE(race)->state.pass_player = RACE(old)->state.pass_player;
+	RACE(race)->state.pass_checkpoint = RACE(old)->state.pass_checkpoint;
+	RACE(race)->state.pass_order = RACE(old)->state.pass_order;
+	RACE(race)->state.pass_branch = RACE(old)->state.pass_branch;
+	RACE(race)->state.pass_time = RACE(old)->state.pass_time;
+	RACE(race)->state.link_pad_5A = HOST_TAKEN;
+	memcpy(SCREEN(screen_block)->progress.counted_passes, SCREEN(screen_block)->progress.checkpoint_passes,
+		sizeof(SCREEN(screen_block)->progress.counted_passes));
+	memcpy(SCREEN(screen_block)->progress.counted_stages, SCREEN(screen_block)->progress.checkpoints_passed,
+		sizeof(SCREEN(screen_block)->progress.counted_stages));
 	SCREEN(screen_block)->is_host = 0xFFu;
 }
 
@@ -412,7 +412,7 @@ static bool follow_host(uint32_t screen_block)
 		return false;
 	if (next == SCREEN(screen_block)->player)
 		host_race_on(screen_block, old);
-	else if (RACE(copy_of(next))->link_pad_5A != HOST_TAKEN)
+	else if (RACE(copy_of(next))->state.link_pad_5A != HOST_TAKEN)
 		return true;    /* (the new host's record not here yet) */
 	SCREEN(screen_block)->host_player = (uint8_t)next;
 	SCREEN(screen_block)->host_record = copy_of(next);
@@ -447,7 +447,7 @@ static void take_lost_entries(struct race *record)
 			record->entrant = (uint8_t)player;
 			record->entry_serial++;
 			if (record->entry_frames == 0u)
-				record->entry_frames = entry_frames_by_machines[game->stand_alone == 0u ? game->machine_count : 0u];
+				record->entry_frames = entry_frames_by_machines[game->eeprom.settings.stand_alone == 0u ? game->machine_count : 0u];
 			in++;
 			break;
 		}
@@ -468,8 +468,8 @@ static void carry_lost_records(void)
 
 		if (!player_lost(slot) || publisher(slot) != net.machine)
 			continue;
-		record->segment = HIDDEN_SEGMENT;
-		record->ready = 0xFFu;
+		record->state.segment = HIDDEN_SEGMENT;
+		record->state.ready = 0xFFu;
 		record->entry_request = 0u;
 		record->entry_serial_seen = entry_serial;
 		if (slot != 0)
@@ -767,8 +767,8 @@ void console_network_describe(char *text, size_t size)
 
 		at += snprintf(text + at, size - (size_t)at, ", machine %d of %d, host player %u%s, racers %u, time %u, left %u,"
 			" segments", net.machine, net.machines, SCREEN(SCREEN_1)->host_player, SCREEN(SCREEN_1)->is_host ? " (this)" : "",
-			RACE(host)->racer_count, RACE(host)->race_time, RACE(host)->time_left);
+			RACE(host)->racer_count, RACE(host)->state.race_time, RACE(host)->state.time_left);
 		for (int slot = 0; slot < net.machines * 2 && at > 0 && (size_t)at < size; slot++)
-			at += snprintf(text + at, size - (size_t)at, " %u", RACE(RACE_COPY_1 + (uint32_t)slot * RECORD_SIZE)->segment);
+			at += snprintf(text + at, size - (size_t)at, " %u", RACE(RACE_COPY_1 + (uint32_t)slot * RECORD_SIZE)->state.segment);
 	}
 }

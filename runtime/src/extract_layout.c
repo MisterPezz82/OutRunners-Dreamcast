@@ -4,7 +4,7 @@
  *                 (extract.c), without their bytes
  *    Version:     0.1.0
  *    Created:     29-10-2026
- *    Modified:    11-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -111,7 +111,8 @@ const extract_piece extract_program_pieces[] = {
 	{ 0x002CA4u, 0x8u, "ranking_mixer_addresses" },
 	{ 0x002CACu, 0x8u, "ranking_background_page_numbers" },
 	{ 0x002CB4u, 0x4u, "ranking_background_scroll_xs" },
-	{ 0x002CB8u, 0xCu, "ranking_objects" },
+	{ 0x002CB8u, 0x4u, "ranking_objects" },
+	{ 0x002CBCu, 0x8u, "ranking_object_handlers" },
 	{ 0x002CC4u, 0x3Cu, "default_course_records" },
 	{ 0x002D00u, 0x20u, "name_entry_letters" },
 	{ 0x002D20u, 0xAu, "course_backgrounds" },

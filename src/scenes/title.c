@@ -3,7 +3,7 @@
  *    Description: the title screen: the cars and riders, the palms, the logo, the seagull, the pictures
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -46,7 +46,7 @@ void title_screen_update(void)
 		current_object->title_screen.second_scroll_x_address = title_screen_layer_setup->second_scroll_x_address;
 		current_object->title_screen.second_scroll_y_address = title_screen_layer_setup->second_scroll_y_address;
 		background_setup = title_background_setups_ADDRESS + screen->index * 5u * 4u;
-		set_up_background(background_setup);
+		set_up_background(rom_pointer(background_setup));
 		VIDEO_REGISTER_WORDS(current_object->title_screen.second_scroll_y_address)[0] = 0xFFF0u;
 		VIDEO_REGISTER_WORDS(current_object->title_screen.scroll_x_address)[0] = 0x360u;
 		scroll_x_address = current_object->title_screen.scroll_x_address;
@@ -58,15 +58,15 @@ void title_screen_update(void)
 		screen->link_event_data_1 = screen->attract_car;
 		screen->link_event = 5u;
 		object = start_object();
-		object->handler = credit_display_update_ADDRESS;
+		object->handler = FUNCTION_credit_display_update;
 		object = start_object();
-		object->handler = coin_prompt_update_ADDRESS;
+		object->handler = FUNCTION_coin_prompt_update;
 		objects_left = 8u;
 		object_index = 0u;
 		do
 		{
 			object = start_object();
-			object->handler = title_car_drive_ADDRESS;
+			object->handler = FUNCTION_title_car_drive;
 			object->title_car.index = object_index;
 			object_index++;
 			objects_left--;
@@ -85,15 +85,15 @@ void title_screen_update(void)
 		if (frames != 1u)
 			return;
 		object = start_object();
-		object->handler = title_logo_update_ADDRESS;
+		object->handler = FUNCTION_title_logo_update;
 		object = start_object();
-		object->handler = title_logo_copy_update_ADDRESS;
+		object->handler = FUNCTION_title_logo_copy_update;
 		objects_left = 3u;
 		object_index = 0u;
 		do
 		{
 			object = start_object();
-			object->handler = title_logo_car_update_ADDRESS;
+			object->handler = FUNCTION_title_logo_car_update;
 			object->title_logo_car.index = object_index;
 			object_index++;
 			objects_left--;
@@ -103,7 +103,7 @@ void title_screen_update(void)
 		do
 		{
 			object = start_object();
-			object->handler = title_logo_stripe_update_ADDRESS;
+			object->handler = FUNCTION_title_logo_stripe_update;
 			object->title_logo_stripe.index = object_index;
 			object_index++;
 			objects_left--;
@@ -126,7 +126,7 @@ void title_screen_update(void)
 		do
 		{
 			object = start_object();
-			object->handler = title_logo_car_update_ADDRESS;
+			object->handler = FUNCTION_title_logo_car_update;
 			object->title_logo_car.index = object_index;
 			object_index++;
 			objects_left--;
@@ -168,11 +168,11 @@ void title_car_drive(void)
 		current_object->depth_layer = 0x18Fu;
 		current_object->depth_layer += title_car_record->depth_layer;
 		object = start_object();
-		object->handler = title_car_passenger_update_ADDRESS;
+		object->handler = FUNCTION_title_car_passenger_update;
 		object->title_car_passenger.car = address_of(current_object);
 		object->title_car_passenger.model = model;
 		object = start_object();
-		object->handler = title_car_driver_update_ADDRESS;
+		object->handler = FUNCTION_title_car_driver_update;
 		object->title_car_driver.car = address_of(current_object);
 		object->title_car_driver.model = model;
 		current_object->state++;
@@ -277,14 +277,14 @@ void title_screen_start_palms(void)
 	if ((current_object->title_screen.palm_frames & 7u) == 0u)
 	{
 		object = start_object();
-		object->handler = title_palm_tree_update_ADDRESS;
+		object->handler = FUNCTION_title_palm_tree_update;
 		object->title_palm_tree.near_or_far = 0u;
 		return;
 	}
 	if ((current_object->title_screen.palm_frames & 1u) == 0u)
 	{
 		object = start_object();
-		object->handler = title_palm_tree_update_ADDRESS;
+		object->handler = FUNCTION_title_palm_tree_update;
 		object->title_palm_tree.near_or_far = 1u;
 		return;
 	}
@@ -308,7 +308,7 @@ void title_palm_tree_update(void)
 		{
 			current_object->width_scale = 0x60u;
 			current_object->height_scale = 0x60u;
-			current_object->x = 0x170u;
+			current_object->x = PAST_RIGHT(0x30);
 			current_object->y = 0x96u;
 			current_object->depth_layer = 0x185u;
 		}
@@ -316,7 +316,7 @@ void title_palm_tree_update(void)
 		{
 			current_object->width_scale = 0x100u;
 			current_object->height_scale = 0x100u;
-			current_object->x = 0x170u;
+			current_object->x = PAST_RIGHT(0x30);
 			current_object->y = 0xF0u;
 			current_object->depth_layer = 0x194u;
 		}
@@ -325,7 +325,7 @@ void title_palm_tree_update(void)
 	case 1:
 		break;
 	}
-	if ((int16_t)current_object->x <= -0x30)
+	if ((int16_t)current_object->x <= PAST_LEFT(0x30))
 	{
 		current_object->flags = 0u;
 		return;
@@ -404,13 +404,13 @@ void title_logo_update(void)
 		return;
 	}
 	object = start_object();
-	object->handler = title_board_palms_update_ADDRESS;
+	object->handler = FUNCTION_title_board_palms_update;
 	objects_left = 2u;
 	object_index = 0u;
 	do
 	{
 		object = start_object();
-		object->handler = title_seagull_fly_ADDRESS;
+		object->handler = FUNCTION_title_seagull_fly;
 		object->title_seagull.index = object_index;
 		object_index++;
 		objects_left--;
@@ -420,7 +420,7 @@ void title_logo_update(void)
 	do
 	{
 		object = start_object();
-		object->handler = title_picture_draw_ADDRESS;
+		object->handler = FUNCTION_title_picture_draw;
 		object->title_picture.index = object_index_2;
 		object_index_2 = (uint8_t)(object_index_2 + 1u);
 		objects_left--;
@@ -541,7 +541,7 @@ void title_logo_car_update(void)
 		return;
 	case 2:
 		current_object->x += 0x10u;
-		if ((int16_t)current_object->x <= 0x148)
+		if ((int16_t)current_object->x <= PAST_RIGHT(8))
 		{
 			draw_object(0u);
 			return;

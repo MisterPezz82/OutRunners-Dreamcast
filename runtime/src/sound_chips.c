@@ -61,6 +61,8 @@ static struct
 } sound = { .override = NO_TIMER };
 
 static bool sides_together;    /* sound_chips_join_sides */
+static double fm_gain = 1.0;   /* sound_chips_set_gains: the YM3438's in the mix */
+static uint8_t (*pcm_category_of)(uint32_t address);    /* sound_chips_set_categories */
 
 uint64_t sound_cpu_now(void);
 void sound_cpu_deadline_changed(void);
@@ -340,7 +342,7 @@ static void mix(void)
 				fm_part += 0.15 * sound.frame[0][index * 2 + (size_t)side];
 				pcm_part += pcm_frames ? 0.35 * sound.frame[1][at * 2 + (size_t)side] : 0.0;
 			}
-			sound.mix[index * 2 + (size_t)side] = clamp16(fm_part + pcm_part);
+			sound.mix[index * 2 + (size_t)side] = clamp16(fm_part * fm_gain + pcm_part);    /* (fm_gain 1: the same, exactly) */
 		}
 	}
 	sound.mix_frames = frames;
@@ -395,6 +397,19 @@ void sound_chips_join_sides(bool together)
 	sides_together = together;
 }
 
+void sound_chips_set_categories(uint8_t (*category_of)(uint32_t address))
+{
+	pcm_category_of = category_of;
+	sound.pcm.category_of = category_of;
+}
+
+void sound_chips_set_gains(double fm, const int32_t *pcm)
+{
+	fm_gain = fm;
+	for (int category = 0; category < MULTIPCM_CATEGORIES; category++)
+		sound.pcm.category_gain[category] = pcm ? pcm[category] : 256;
+}
+
 void sound_chips_attach(void)
 {
 	memset(&sound.fm, 0, sizeof(sound.fm));
@@ -408,6 +423,7 @@ void sound_chips_attach(void)
 	s32_fm_init(&sound.fm);
 	multipcm_init(&sound.pcm, S32_MULTIPCM_CLOCK, s32_pcm_sample_read);
 	multipcm_reset(&sound.pcm);
+	sound.pcm.category_of = pcm_category_of;    /* (a port's, kept across a reset) */
 	sound.fm_samples = sound.pcm_samples = 0;
 	sound.fm_buffer.first = sound.pcm_buffer.first = 0;
 	s32_board.chips.fm_read = fm_read;

@@ -78,6 +78,8 @@ static int watching = -1;         /* S32_BYTE_ORDER_WATCH: 0 none, 1 an address 
 static uint32_t watched;
 static const struct read *copied; /* the read a write was taken to copy, for watch() */
 static unsigned copied_back;
+static const uint8_t *range_read_at;    /* the last read wider than WIDEST: its address and size, for a copy's write */
+static size_t range_read_size;
 
 /* the places of the bytes at 'place', when all 'width' of them are in one of the two memories; with 'memory'
    the places of the whole memory and 'size' its size */
@@ -174,6 +176,23 @@ static void saved_written(const uint8_t *at)
 		before->written = 1;
 }
 
+/* the per-chunk place transfer of a move: 'size' bytes from 'from_places' (or all-zero when NULL) to
+   'to_places', in the memory 'to_memory' of 'to_size' bytes */
+static void move_places(int8_t *to_memory, size_t to_size, int8_t *to_places,
+                        const int8_t *from_places, size_t size, const char *how, const void *by)
+{
+	for (size_t index = 0; index < size; index += WIDEST)
+	{
+		const size_t part = size - index < WIDEST ? size - index : WIDEST;
+		int8_t moved[WIDEST];
+		if (from_places)
+			memcpy(moved, from_places + index, part);
+		else
+			memset(moved, 0, part);
+		place(to_memory, to_size, to_places + index, part, moved, how, by);
+	}
+}
+
 static void settle(void)
 {
 	const uint8_t *at = written;
@@ -187,19 +206,31 @@ static void settle(void)
 		return;
 	if (width > WIDEST)
 	{
+		/* a wide write that copies the range read right before it (the settings' backup copy, 60 bytes)
+		   takes the read's places, as a board move does */
+		if (range_read_at && range_read_size == width && memcmp(range_read_at, at, width) == 0)
+		{
+			int8_t *from_memory;
+			size_t from_size;
+			const int8_t *from_places = places_of(range_read_at, width, &from_memory, &from_size);
+			move_places(memory, size, places, from_places, width, "as a range read's bytes", written_by);
+			range_read_at = NULL;
+			return;
+		}
 		if (!blocks_said++)
 			fprintf(stderr, "byte order: a write of %u bytes at once, taken as bytes\n", (unsigned)width);
-		for (size_t index = 0; index < width; index += WIDEST)
-		{
-			const size_t part = width - index < WIDEST ? width - index : WIDEST;
-			memset(new_places, 0, part);
-			place(memory, size, places + index, part, new_places, "as bytes", written_by);
-		}
+		move_places(memory, size, places, NULL, width, "as bytes", written_by);
 		return;
 	}
+	/* a read narrower than the write after the one whose bytes it holds means the value was put together from
+	   parts, whatever bytes it came out as: write_bookkeeping_credits' credits and coin units, two bytes, came
+	   out as the bytes pulse_coin_meter had just read from a coin meter (two_players, frame 636); reads of the
+	   write's width in between are two copies the compiler interleaved */
 	for (unsigned back = 1; back <= READS; back++)
 	{
 		const struct read *read = &reads[(next_read - back) % READS];
+		if (read->width < width)
+			break;
 		if (read->width == width && memcmp(read->bytes, at, width) == 0)
 		{
 			copied = read;
@@ -234,8 +265,19 @@ void s32_order_loaded(const void *at, size_t width)
 	struct read *read, *before;
 	size_t size;
 
+	if (width > WIDEST)
+	{
+		/* a structure's copy (game->eeprom.backup_settings = game->eeprom.settings): GCC reports the write's
+		   range, then the read's, then copies with memcpy; a wide write of this width still pending is settled
+		   at the next hook, after the copy, against this read */
+		if (!written || written_width != width)
+			settle();
+		range_read_at = places_of(at, width, &memory, &size) ? at : NULL;
+		range_read_size = width;
+		return;
+	}
 	settle();
-	if (width > WIDEST || !(places = places_of(at, width, &memory, &size)))
+	if (!(places = places_of(at, width, &memory, &size)))
 		return;
 	before = &saved[((uintptr_t)at >> 1) % SAVED];
 	if (before->place != at || before->width != width || !before->written)
@@ -282,22 +324,13 @@ void s32_order_moved(const void *to, const void *from, size_t size)
 {
 	int8_t *memory, *places, *from_memory;
 	const int8_t *from_places;
-	int8_t moved[WIDEST];
 	size_t memory_size, from_size;
 
 	settle();
 	if (!(places = places_of(to, size, &memory, &memory_size)))
 		return;
 	from_places = places_of(from, size, &from_memory, &from_size);
-	for (size_t index = 0; index < size; index += WIDEST)
-	{
-		const size_t part = size - index < WIDEST ? size - index : WIDEST;
-		if (from_places)
-			memcpy(moved, from_places + index, part);
-		else
-			memset(moved, 0, part);
-		place(memory, memory_size, places + index, part, moved, "moved", __builtin_return_address(0));
-	}
+	move_places(memory, memory_size, places, from_places, size, "moved", __builtin_return_address(0));
 }
 
 void s32_order_placed(const void *at, const int8_t *new_places, size_t size)
@@ -372,6 +405,21 @@ void s32_order_in(const void *to, uint32_t address, size_t size)
 			return;
 	place(places_memory, memory_size, places, size, &out_places[memory][at], "as the bytes moved out there",
 		__builtin_return_address(0));
+}
+
+/* (the memory test writes its patterns and zeros over the sprite RAM it keeps a copy in: a zero where the copy
+   left a zero at that lane would otherwise be taken for the copy, test_mode at frame 5102) */
+void s32_order_bus_write(uint32_t address, uint16_t mask)
+{
+	const int memory = out_memory(address);
+	const size_t at = address & (sizeof(out_bytes[0]) - 2);
+
+	if (memory < 0)
+		return;
+	if (mask & 0x00ff)
+		out_kept[memory][at] = 0;
+	if (mask & 0xff00)
+		out_kept[memory][at + 1] = 0;
 }
 
 const uint8_t *s32_order_words(const uint8_t *memory)

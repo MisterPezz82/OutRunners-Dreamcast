@@ -1,4 +1,4 @@
-OutRunners for Dreamcast - version 0.4
+OutRunners for Dreamcast - version 0.5
 =====================================
 
 A native Dreamcast port of the OutRunners arcade game, built on the C reconstruction of the game
@@ -44,9 +44,10 @@ The title screen has the PC version's menu (press Start):
                           join with Start), TIME ATTACK (no time limit, racing your fastest run as a
                           see-through ghost car), FULL (all the stages in one race),
                           REVERSE (from a goal back to the start)
-    OPTIONS               DIFFICULTY, TIME, VOLUME, SOUND TEST, STEERING (the stick's dead zone and
-                          sensitivity, the D-pad's steering speed, vibration, an input test), FPS,
-                          2P MUSIC (in 2 PLAYERS, player 1's radio alone or both)
+    OPTIONS               DIFFICULTY, TIME, SOUND (VOLUME, and MUSIC, EFFECTS and VOICE each on its
+                          own), SOUND TEST, STEERING (the stick's dead zone and sensitivity, the
+                          D-pad's steering speed, vibration, an input test), FPS, 2P MUSIC (in
+                          2 PLAYERS, player 1's radio alone or both)
 In a race, Start pauses: CONTINUE, RESTART or QUIT GAME.
 
 DIFFICULTY sets the traffic and rivals; TIME sets the seconds each stage gives you. If the arcade
@@ -80,7 +81,7 @@ Controls (Dreamcast controller)
     L trigger             brake (analogue)
     A / B                 gear shift; in the menus A picks a line and B goes back
     Start                 start; picks a line in the menus; pauses a race
-    Y                     music select
+    Y                     music: goes round the songs, then the radio station, then the first song
     D-pad up / down       previous / next music (every car can play all ten songs; the hidden
                           Jingle Bell is on the way round, between Last Wave and Magical Sound
                           Shower)
@@ -134,13 +135,18 @@ Dreamcast, that is a bug worth reporting.
 
 Status
 ------
+Version 0.5: brought up to the PC version 1.4.0 (Sebastian Toyos, cheviman): OPTIONS > SOUND's MUSIC,
+EFFECTS and VOICE apart (the DJ can be turned down under the songs; here on the Dreamcast's own sound
+chip), the radio's MUSIC button going round the songs and the station, REVERSE's start at AUSTRALIA
+without the people over the water, the northern lights see-through, and the decompiled game's latest
+code (its variables, state and code tables reorganised).
 Version 0.4: a large rework of the drawing for speed. Most background planes are drawn straight from
 a tile store with the PowerVR's palettes, the planes look only at what changed each frame, the sound
 board's program runs about a third faster, and sprites find their textures and palettes far more
 cheaply: in one player a race now leaves roughly half of each frame spare. The garbage at the road's
-edges where a stage's colours change is almost gone. From the PC version (Sebastian Toyos, cheviman):
-Jingle Bell on the radio, REVERSE's and FULL's backgrounds and colours, REVERSE's finish, QUIT GAME
-stopping the race's sound, the route map's land under the sea and landmarks, 2P MUSIC, and the
-decompiled game's latest code.
+edges where a stage's colours change is almost gone. From the PC version: Jingle Bell on the radio,
+REVERSE's and FULL's backgrounds and colours, REVERSE's finish, QUIT GAME stopping the race's sound,
+the route map's land under the sea and landmarks, 2P MUSIC.
 Known gaps: an occasional frame can still be dropped to keep the game and its music at full speed,
-more often in 2 PLAYERS, which draws large scenery at half resolution; no NETWORK.
+more often in 2 PLAYERS, which draws large scenery at half resolution; no NETWORK; WIDE (a PC
+feature) is not offered.

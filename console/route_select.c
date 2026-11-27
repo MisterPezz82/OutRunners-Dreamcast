@@ -4,7 +4,7 @@
  *                 ten goals, a car on the one picked
  *    Version:     0.1.2
  *    Created:     29-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -89,7 +89,7 @@ static int car_place_x(int goal)
 
 static const struct route_map_registers *map_registers(void)
 {
-	return ROUTE_MAP_REGISTERS(route_map_register_sets_ADDRESS + ((uint32_t)screen->index << 6));
+	return &route_map_register_sets[screen->index];
 }
 
 /* The map's scroll (the routes' tilemap and the world's under it, as route_map_update has them) and the
@@ -97,14 +97,14 @@ static const struct route_map_registers *map_registers(void)
 static void map_scroll(int scroll)
 {
 	const struct route_map_registers *registers = map_registers();
-	const uint32_t panel = console_find_object(route_map_direction_sign_show_ADDRESS, 0u);
+	const uint32_t panel = console_find_object(FUNCTION_route_map_direction_sign_show, 0u);
 
 	pick.scroll = scroll;
 	VIDEO_REGISTER_WORDS(registers->scroll_x_address)[0] = (uint16_t)scroll;
 	VIDEO_REGISTER_WORDS(registers->register_scroll_x_address)[0] = (uint16_t)scroll;
 	VIDEO_REGISTER_WORDS(registers->second_scroll_x_address)[0] = (uint16_t)(scroll - 0x88);
 	VIDEO_REGISTER_WORDS(registers->second_register_scroll_x_address)[0] = (uint16_t)(scroll - 0x88);
-	game->send_video_registers = 0xFFu;
+	world->send_video_registers = game->send_video_registers = 0xFFu;
 	if (panel)
 		OBJECT(panel)->x = (uint16_t)(PANEL_X - scroll);
 }
@@ -116,8 +116,8 @@ static void map_set_up(int side)
 	const uint32_t index = screen->index;
 	const struct route_map_registers *registers = map_registers();
 
-	screen->route_branches[0] = (uint8_t)side;    /* (the panel's first place) */
-	set_up_background(0x4868u + (index * 10u + (uint32_t)side * 5u) * 4u);
+	screen->progress.route_branches[0] = (uint8_t)side;    /* (the panel's first place) */
+	set_up_background(rom_pointer(0x4868u + (index * 10u + (uint32_t)side * 5u) * 4u));
 	queue_palette(route_map_background_palette);
 	io_write16(route_map_sea_colour_addresses[index], 0u);
 	console_page_select(registers->pages_address, route_map_routes_pages[index]);
@@ -130,7 +130,7 @@ static void map_set_up(int side)
 	VIDEO_REGISTER_WORDS(registers->register_scroll_y_address)[0] = 0x70u;
 	VIDEO_REGISTER_WORDS(registers->second_scroll_y_address)[0] = 0u;
 	VIDEO_REGISTER_WORDS(registers->second_register_scroll_y_address)[0] = 0u;
-	start_object()->handler = route_map_direction_sign_show_ADDRESS;
+	start_object()->handler = FUNCTION_route_map_direction_sign_show;
 	map_scroll(route_map_whole_scroll_xs[side]);
 }
 
@@ -204,7 +204,7 @@ int console_route_select_frame(uint32_t pressed)
 
 		VIDEO_REGISTER_WORDS(registers->zoom_center_x_address)[0] = 0u;
 		VIDEO_REGISTER_WORDS(registers->zoom_center_y_address)[0] = 0u;
-		game->send_video_registers = 0xFFu;
+		world->send_video_registers = game->send_video_registers = 0xFFu;
 		pick.running = false;
 		clear_objects();
 		return pick.leaving;

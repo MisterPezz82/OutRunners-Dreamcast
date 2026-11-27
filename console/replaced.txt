@@ -21,3 +21,6 @@ car_select_run              # the pause's RESTART: the car and the transmission 
 link_receive_records        # the network: the other devices' race records as their datagrams bring them (network.c)
 link_send_records           # the network: none to a link board, the records go with the port's frame
 backdrop_translucent_update  # the spray of the falls and the pyramids: every frame and see-through, in place of every other frame
+backdrop_off_screen         # WIDE: a sprite on the background off the screen once past the wider screen's side (its A0 is both the middle and how far each edge is from it, so the decompilation keeps the number)
+aurora_update               # the northern lights of stage 26: every frame and see-through, in place of every other frame (issue 32)
+route_map_landmark_update   # the close-up route map's picture at half its rate: every frame and see-through (issue 32)

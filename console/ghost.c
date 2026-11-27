@@ -4,7 +4,7 @@
  *                 beside the player as a see-through car
  *    Version:     0.1.0
  *    Created:     29-10-2026
- *    Modified:    29-10-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -723,7 +723,7 @@ void console_ghost_start(void)
 	if (best.frames)
 	{
 		reader_start(&reader, &best);
-		RACE(record)->model = best.model;
+		RACE_SET_MODEL(RACE(record), best.model);
 		RACE(record)->car_number = best.car_number;
 	}
 }
@@ -739,7 +739,7 @@ void console_ghost_frame(void)
 		ghost.started = true;
 	if (!ghost.started)
 		;
-	else if (RACE(own)->finished == 0u && !record_full && recorded.frames < GHOST_FRAMES)
+	else if (RACE(own)->state.finished == 0u && !record_full && recorded.frames < GHOST_FRAMES)
 	{
 		if (!pack_frame(&recorded, &recorder, ram(own + RECORDED_FROM)))
 		{
@@ -747,10 +747,10 @@ void console_ghost_frame(void)
 			free_run(&recorded);
 		}
 	}
-	else if (RACE(own)->finished != 0u && recorded.frames)
+	else if (RACE(own)->state.finished != 0u && recorded.frames)
 	{
 		/* at the goal: the fastest yet? (then it is the one raced again) */
-		const uint32_t time = RACE(own)->race_time;
+		const uint32_t time = RACE(own)->state.race_time;
 
 		if (!record_full && (!best.frames || time < best.time))
 		{
@@ -760,7 +760,7 @@ void console_ghost_frame(void)
 			best = recorded;
 			ghost_generation++;
 			best.time = time;
-			best.model = RACE(own)->model;
+			best.model = RACE_MODEL(RACE(own));
 			best.car_number = RACE(own)->car_number;
 			memset(&recorded, 0, sizeof(recorded));
 			if (racing_best)
@@ -775,21 +775,21 @@ void console_ghost_frame(void)
 		const uint32_t at = ghost.frame < best.frames ? ghost.frame : best.frames - 1u;    /* (0 until the start) */
 		const uint8_t *frame = reader_frame(&reader, &best, at);
 		const uint8_t stage = frame[RACE_STAGE - RECORDED_FROM];
-		bool on_route = stage == RACE(own)->stage;
+		bool on_route = stage == RACE(own)->state.stage;
 
 		for (uint32_t taken = 0; taken <= player_car->forks_taken && taken < 6u && !on_route; taken++)
 			on_route = player_car->stage_history[taken] == stage;
 		memcpy(ram(record + RECORDED_FROM), frame, RECORDED_BYTES);
 		if (!on_route)
-			RACE(record)->segment = (uint16_t)(RACE(own)->segment - FAR_BEHIND);
-		RACE(record)->finished = 0u;
+			RACE(record)->state.segment = (uint16_t)(RACE(own)->state.segment - FAR_BEHIND);
+		RACE(record)->state.finished = 0u;
 	}
 	else if (ghost.object_count)
-		RACE(record)->segment = (uint16_t)(RACE(own)->segment - FAR_BEHIND);    /* (its run replaced: out of sight) */
+		RACE(record)->state.segment = (uint16_t)(RACE(own)->state.segment - FAR_BEHIND);    /* (its run replaced: out of sight) */
 #ifdef ORUNNERS_GHOST_TEST
 	if (getenv("ORUNNERS_GHOST_DEBUG") && ghost.frame % 60 == 0)
 		fprintf(stderr, "ghost frame %u raced %d objects %d seg %u own %u stage %u own %u\n", (unsigned)ghost.frame, ghost.raced,
-			ghost.object_count, (unsigned)RACE(record)->segment, (unsigned)RACE(own)->segment, (unsigned)RACE(record)->stage, (unsigned)RACE(own)->stage);
+			ghost.object_count, (unsigned)RACE(record)->state.segment, (unsigned)RACE(own)->state.segment, (unsigned)RACE(record)->state.stage, (unsigned)RACE(own)->state.stage);
 #endif
 	if (ghost.started)
 		ghost.frame++;
@@ -809,7 +809,7 @@ void console_ghost_start(void)
 	ghost.recording.frames = 0;
 	if (ghost.raced >= 0)
 	{
-		RACE(record)->model = ghost.runs[ghost.raced].model;
+		RACE_SET_MODEL(RACE(record), ghost.runs[ghost.raced].model);
 		RACE(record)->car_number = ghost.runs[ghost.raced].car_number;
 	}
 }
@@ -828,17 +828,17 @@ void console_ghost_frame(void)
 		ghost.started = true;
 	if (!ghost.started)
 		;    /* (before the start: nothing kept yet; the ghost waits on its first frame, below) */
-	else if (RACE(own)->finished == 0u && ghost.recording.frames < GHOST_FRAMES)
+	else if (RACE(own)->state.finished == 0u && ghost.recording.frames < GHOST_FRAMES)
 	{
 		memcpy(ghost.recording.data[ghost.recording.frames], ram(own + RECORDED_FROM), RECORDED_BYTES);
 		ghost.recording.frames++;
 	}
-	else if (RACE(own)->finished != 0u && ghost.recording.frames)
+	else if (RACE(own)->state.finished != 0u && ghost.recording.frames)
 	{
 		/* at the goal: the goal's fastest? */
 		const int goal = screen->built_stage - (int)FIRST_GOAL;
 		ghost_run *kept = goal >= 0 && goal < GOALS ? &ghost.runs[goal] : NULL;
-		const uint32_t time = RACE(own)->race_time;
+		const uint32_t time = RACE(own)->state.race_time;
 
 		if (kept && (!kept->frames || time < kept->time))
 		{
@@ -849,7 +849,7 @@ void console_ghost_frame(void)
 				memcpy(kept->data, ghost.recording.data, (size_t)ghost.recording.frames * RECORDED_BYTES);
 				kept->frames = ghost.recording.frames;
 				kept->time = time;
-				kept->model = RACE(own)->model;
+				kept->model = RACE_MODEL(RACE(own));
 				kept->car_number = RACE(own)->car_number;
 				save(goal);
 			}
@@ -863,15 +863,15 @@ void console_ghost_frame(void)
 		const uint32_t at = ghost.frame < run->frames ? ghost.frame : run->frames - 1u;    /* (0 until the start) */
 
 		const uint8_t stage = run->data[at][RACE_STAGE - RECORDED_FROM];
-		bool on_route = stage == RACE(own)->stage;
+		bool on_route = stage == RACE(own)->state.stage;
 
 		/* on the player's route: the stage the player is on, or one the player has taken (behind) */
 		for (uint32_t taken = 0; taken <= player_car->forks_taken && taken < 6u && !on_route; taken++)
 			on_route = player_car->stage_history[taken] == stage;
 		memcpy(ram(record + RECORDED_FROM), run->data[at], RECORDED_BYTES);
 		if (!on_route)
-			RACE(record)->segment = (uint16_t)(RACE(own)->segment - FAR_BEHIND);    /* (another route: not drawn) */
-		RACE(record)->finished = 0u;
+			RACE(record)->state.segment = (uint16_t)(RACE(own)->state.segment - FAR_BEHIND);    /* (another route: not drawn) */
+		RACE(record)->state.finished = 0u;
 	}
 	if (ghost.started)
 		ghost.frame++;
@@ -900,10 +900,10 @@ void race_cars_start(void)
 	original_race_cars_start();
 	if (!console.time_attack || ghost.raced < 0 || screen->index != LEFT_SEAT)
 		return;
-	model = RACE(record)->model & 7u;
+	model = RACE_MODEL(RACE(record)) & 7u;
 	car_number = RACE(record)->car_number & 7u;
 	car = address_of(start_object());
-	OBJECT(car)->handler = race_car_draw_ADDRESS;
+	OBJECT(car)->handler = FUNCTION_race_car_draw;
 	OBJECT(car)->race_car.player = GHOST_PLAYER;
 	OBJECT(car)->race_car.record = record;
 	OBJECT(car)->race_car.model = model;
@@ -948,7 +948,7 @@ void race_cars_start(void)
 	for (uint32_t rider = model; rider <= model + 8u; rider += 8u)
 	{
 		object = address_of(start_object());
-		OBJECT(object)->handler = rider_gesture_update_ADDRESS;
+		OBJECT(object)->handler = FUNCTION_rider_gesture_update;
 		OBJECT(object)->rider_gesture.car = car;
 		OBJECT(object)->rider_gesture.rider = (uint8_t)rider;
 		OBJECT(object)->rider_gesture.model = (uint8_t)model;
@@ -966,7 +966,7 @@ void ghost_object_update(void)
 		if (ghost.objects[index] == address_of(current_object))
 		{
 			current_object->handler = ghost.handlers[index];
-			call_code(ghost.handlers[index]);
+			call_function(ghost.handlers[index]);
 			if ((current_object->flags & 1u) != 0u)
 			{
 				ghost.handlers[index] = current_object->handler;    /* (a handler it took on) */

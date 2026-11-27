@@ -3,7 +3,7 @@
  *    Description: the interrupts: the VBLANK (the tasks, the mixer and scrolls, the test button, the sound requests, the lamps), the timers and the link
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -32,11 +32,11 @@ void int_vector_40(void)
 
 	saved_screen = address_of(screen);
 	saved_r12 = r12;
-	game->vblank_counter++;
-	game->vblanks_since_start++;
+	world->vblank_counter++;
+	world->vblanks_since_start++;
 	io_write16(IRQ_TIMER_0, vblank_timer_period);
-	game->timer_interrupts_left = 0x22u;
-	game->debug_timer_rounds--;
+	world->timer_interrupts_left = 0x22u;
+	world->debug_timer_rounds--;
 	if (screen->index != 0u)
 	{
 		saved_screen_2 = address_of(screen);
@@ -45,14 +45,14 @@ void int_vector_40(void)
 		screen = &game->screen_2;
 		vblank_update_mixer();
 		screen = pointer_to(saved_screen_2);
-		if (game->send_video_registers == 0u)
+		if (world->send_video_registers == 0u)
 		{
 			move_halfwords(NBG2_SCROLL_X_ADDRESS, video_registers_ADDRESS + 0x20u, 8u);
 			move_halfwords(VIDEO_RAM + 0x1FF40u, video_registers_ADDRESS + 0x40u, 8u);
 		}
 		else
 		{
-			game->send_video_registers = 0u;
+			world->send_video_registers = 0u;
 			move_halfwords(VIDEO_CONTROL_ADDRESS, video_registers_ADDRESS, 0x48u);
 		}
 		tile_bank_bits = game->tile_banks[0];
@@ -66,7 +66,7 @@ void int_vector_40(void)
 	if (screen->skip_scroll_update == 0u)
 		vblank_update_scrolls();
 	screen->skip_scroll_update = 0u;
-	if (game->test_mode_on == 0u)
+	if (world->test_mode_on == 0u)
 	{
 		read_switches_and_analog();
 		switch (screen->index)
@@ -79,14 +79,14 @@ void int_vector_40(void)
 			break;
 		}
 		check_test_button();
-		if (game->free_play == 0u)
+		if (game->eeprom.settings.free_play == 0u)
 			update_coins();
 	}
 	update_lamps();
 	lcd_refresh();
 	count_total_time();
 	game->frame_ready = 0xFFu;
-	if (game->single_task == 0u && ((game->test_mode_on != 0u && screen->index == 0u) || game->task_swapping != 0u))
+	if (world->single_task == 0u && ((world->test_mode_on != 0u && screen->index == 0u) || world->task_swapping != 0u))
 		swap_tasks();
 	screen_vblank_counter = pointer_to(screen_vblank_counters[screen->index]);
 	screen_vblank_counter[0]++;
@@ -123,7 +123,7 @@ void vblank_update_mixer(void)
 	if ((flags_2 & 8u) != 0u)
 	{
 		mixer = screen->mixer;
-		move_halfwords(address_of(screen) + 0x160u, address_of(screen) + 0x1B0u, 0x1Fu);
+		memcpy(screen->mixer_values.registers, screen->mixer_defaults.registers, sizeof screen->mixer_values.registers);
 		move_halfwords(address_of(screen) + 0x1ACu, address_of(screen) + 0x1FCu, 2u);
 		move_halfwords(mixer, address_of(screen) + 0x1B0u, 0x1Fu);
 		move_halfwords(mixer + 0x4Cu, address_of(screen) + 0x1FCu, 2u);
@@ -212,8 +212,8 @@ void int_vector_43(void)
 {
 	uint8_t interrupts_left = 0;
 
-	interrupts_left = game->timer_interrupts_left;
-	game->timer_interrupts_left = interrupts_left - 1u;
+	interrupts_left = world->timer_interrupts_left;
+	world->timer_interrupts_left = interrupts_left - 1u;
 	if (interrupts_left != 1u)
 		io_write16(IRQ_TIMER_0, lcd_timer_period);
 	lcd_send_next_nibble();
@@ -232,12 +232,12 @@ void int_vector_44(void)
 	uint32_t message_kind = 0;
 	uint8_t received_kind = 0;
 
-	if (game->isdn_mode == 0u)
+	if (game->eeprom.settings.isdn_mode == 0u)
 	{
 		io_write8(IRQ_ACKNOWLEDGE, 0xEFu);
 		return;
 	}
-	game->link_wait_count++;
+	world->link_wait_count++;
 	timer_period = 1u;
 	received_kind = io_read8(LINK_MESSAGE_KIND);
 	message_kind = received_kind;
@@ -249,7 +249,7 @@ void int_vector_44(void)
 		case 3:
 			link_isdn_receive_records();
 			timer_period = 0x168u;
-			game->link_wait_count = 0u;
+			world->link_wait_count = 0u;
 			break;
 		case 0:
 		case 1:
@@ -298,8 +298,8 @@ void int_vector_02(void)
    the inputs newly pressed); the boot task's loop then runs the test mode. */
 void check_test_button(void)
 {
-	if ((game->switches_pressed & 0x80u) != 0u)
-		game->test_mode_on = 0xFFu;
+	if ((world->switches_pressed & 0x80u) != 0u)
+		world->test_mode_on = 0xFFu;
 }
 
 /* In the vertical blank, sends the screen's next sound request to the sound CPU: one from its ring of 32
@@ -341,18 +341,18 @@ void count_total_time(void)
 	uint32_t total_time = 0;
 	uint32_t value_0_long = 0, backup_0_long = 0, value_0_long_2 = 0, backup_0_long_2 = 0;
 
-	if (game->test_mode_on != 0u)
+	if (world->test_mode_on != 0u)
 		return;
-	time_count = (uint16_t)(game->total_time_count + 0x11u);
+	time_count = (uint16_t)(world->total_time_count + 0x11u);
 	if (time_count < 0x3E8u)
 	{
-		game->total_time_count = time_count;
+		world->total_time_count = time_count;
 		return;
 	}
 	total_time = BOOKKEEPING_TOTAL_TIME_ADDRESS;
 	if ((BOOKKEEPING_TOTAL_TIME | ((uint32_t)BOOKKEEPING_TOTAL_TIME_HIGH << 16u)) % 0x49u != 0u)
 	{
-		game->total_time_count = time_count - 0x3E8u;
+		world->total_time_count = time_count - 0x3E8u;
 		if ((BOOKKEEPING_COUNT32(total_time)->value[0] | ((uint32_t)BOOKKEEPING_COUNT32(total_time)->value[1] << 16u)) != 0xFFFFFFFFu)
 		{
 			value_0_long = (BOOKKEEPING_COUNT32(total_time)->value[0] | ((uint32_t)BOOKKEEPING_COUNT32(total_time)->value[1] << 16u)) + 1u;
@@ -367,11 +367,11 @@ void count_total_time(void)
 	}
 	if (time_count < 0x7D0u)
 	{
-		game->total_time_count = time_count;
+		world->total_time_count = time_count;
 		return;
 	}
 	time_count -= 0x3E8u;
-	game->total_time_count = time_count - 0x3E8u;
+	world->total_time_count = time_count - 0x3E8u;
 	if ((BOOKKEEPING_COUNT32(total_time)->value[0] | ((uint32_t)BOOKKEEPING_COUNT32(total_time)->value[1] << 16u)) != 0xFFFFFFFFu)
 	{
 		value_0_long_2 = (BOOKKEEPING_COUNT32(total_time)->value[0] | ((uint32_t)BOOKKEEPING_COUNT32(total_time)->value[1] << 16u)) + 1u;
@@ -395,7 +395,8 @@ void count_total_time(void)
 void update_lamps(void)
 {
 	uint8_t port_d = 0;
-	uint32_t port_g = 0, screen_block = 0;
+	uint32_t port_g = 0;
+	struct screen *screen_block = NULL;
 	uint8_t checkpoint_timer = 0, leader_timer = 0, checkpoint_2_timer = 0, leader_2_timer = 0;
 
 	if (game->checkpoint_lamp_blinks != 0u)
@@ -421,8 +422,8 @@ void update_lamps(void)
 		}
 	}
 	port_d = game->port_d_outputs[0] | game->checkpoint_lamp[0] | game->leader_lamp[0];
-	if ((game->screen_1.demo_flags & 0x100u) == 0u && game->steering_wheel_reaction != 0u)
-		port_d |= game->wheel_motor[0];
+	if ((game->screen_1.demo_flags & 0x100u) == 0u && game->eeprom.settings.steering_wheel_reaction != 0u)
+		port_d |= world->wheel_motor[0];
 	io_write8(IO_1_PORT_D, port_d);
 	if (game->checkpoint_lamp_2_blinks != 0u)
 	{
@@ -447,15 +448,15 @@ void update_lamps(void)
 		}
 	}
 	port_d = game->port_d_outputs[1] | game->checkpoint_lamp_2 | game->leader_lamp_2;
-	if ((game->screen_2.demo_flags & 0x100u) == 0u && game->steering_wheel_reaction != 0u)
-		port_d |= game->wheel_motor[1];
+	if ((game->screen_2.demo_flags & 0x100u) == 0u && game->eeprom.settings.steering_wheel_reaction != 0u)
+		port_d |= world->wheel_motor[1];
 	io_write8(IO_2_PORT_D, port_d);
-	screen_block = SCREEN_1;
+	screen_block = &game->screen_1;
 	port_g = port_g_outputs_ADDRESS;
-	update_button_lamps(pointer_to(screen_block), port_g);
-	screen_block = SCREEN_2;
+	update_button_lamps(screen_block, port_g);
+	screen_block = &game->screen_2;
 	port_g = port_g_outputs_ADDRESS + 0x1u;
-	update_button_lamps(pointer_to(screen_block), port_g);
+	update_button_lamps(screen_block, port_g);
 }
 
 /* A screen's two button lamps, in its port G image (R11: port_g_outputs or port_g_outputs[1], which the

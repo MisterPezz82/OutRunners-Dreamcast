@@ -1,11 +1,11 @@
 /**
  *    Name:        support.h
  *    Description: what the decompiled game program uses besides memory: the processor status, the frame
- *                 loop and its interrupts, calls by address, and the V60's string and bit-string moves
- *                 and searches
+ *                 loop and its interrupts, calls by address, the V60's string and bit-string moves
+ *                 and searches, and the screen's edges
  *    Version:     0.1.0
  *    Created:     11-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -20,6 +20,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "game/assets.h"
 #include "s32/bus.h"
@@ -41,6 +42,15 @@ extern "C" {
    reaches it, and the board's memories as s32/machine.h says. */
 struct game;
 extern struct game *game;
+/* the game's variables the code reaches only by name, in the host's memory (ram.h's struct world): cleared
+   with the work RAM, put into it at their places for the state's hash and the routines that reach memory by
+   its address (world_project), and taken back (world_unproject) */
+void world_clear(void);
+void world_project(void);
+void world_unproject(void);
+/* (runtime/src/game.c) while code reaches memory by its address: the variables in the work RAM */
+void world_ram_begin(void);
+void world_ram_end(void);
 /* Functions that stop the game: the C compiler knows they do not come back */
 #if defined(_MSC_VER)
 #define GAME_NORETURN __declspec(noreturn)
@@ -313,6 +323,11 @@ extern const size_t game_code_count;
 void game_entry(void);                          /* the code at the reset vector */
 
 void call_code(uint32_t address);
+/* ... and through slots that hold a function's number (a game with memory.CODE_FIELDS): game_functions[number],
+   0 and past the table refused */
+extern void (*const game_functions[])(void);    /* written by tools/decompile.py (table.c) */
+extern const size_t game_function_count;
+void call_function(uint32_t number);
 GAME_NORETURN void unknown_code(uint32_t address);    /* a jump or call to an address no code was found at */
 /* Code the program does not have, at addresses a port's console build gives its own (its objects' handlers):
    call_code runs it there, true once run; NULL elsewhere */
@@ -365,6 +380,31 @@ void search_bytes(uint32_t address, uint32_t length, uint32_t value, uint32_t un
    remainder to high */
 void divx_pair(uint32_t divisor, uint32_t *low, uint32_t *high);
 void divux_pair(uint32_t divisor, uint32_t *low, uint32_t *high);
+
+/* ---- the screen's edges, as an object's x reads them ----
+   The board shows x 0000-013F (SCREEN_LEFT up to SCREEN_RIGHT) for the objects drawn at a screen position (draw
+   modes 0 and A: the title's, the backdrops); the race's objects have their x from the screen's middle (the
+   sprites' offset, A0, puts their x 0 there: FROM_MIDDLE). An object is put in a little past a side, and taken
+   away, no longer drawn or turned back a little past one. The code's numbers for those places are written by the
+   edge and how far past it they are (symbols.txt constant lines), so that a port with a wider screen moves them:
+   SCREEN_MORE_LEFT and SCREEN_MORE_RIGHT are how much more it shows at each side (a port's console build,
+   ORUNNERS_CONSOLE, sets screen_more_left and screen_more_right every frame), 0 on the board. */
+#define SCREEN_LEFT  0
+#define SCREEN_RIGHT 0x140
+#ifdef ORUNNERS_CONSOLE
+extern int screen_more_left, screen_more_right;
+#define SCREEN_MORE_LEFT  screen_more_left
+#define SCREEN_MORE_RIGHT screen_more_right
+#else
+#define SCREEN_MORE_LEFT  0
+#define SCREEN_MORE_RIGHT 0
+#endif
+/* The x 'margin' past the left edge (to its left) and past the right edge (the first x right of it); a negative
+   margin is inside the screen */
+#define PAST_LEFT(margin)  (SCREEN_LEFT - SCREEN_MORE_LEFT - (margin))
+#define PAST_RIGHT(margin) (SCREEN_RIGHT + SCREEN_MORE_RIGHT + (margin))
+/* The screen's x 'x' as the race's objects have it, from the board's middle (A0): its edges are -A0 and A0 */
+#define FROM_MIDDLE(x) ((x) - (SCREEN_LEFT + SCREEN_RIGHT) / 2)
 
 #ifdef __cplusplus
 }

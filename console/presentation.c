@@ -68,11 +68,11 @@ void presentation_logo_update(void)
 {
 	if (current_object->state == 0u)
 	{
-		const uint32_t picture = title_pictures_ADDRESS + (LOGO_PICTURE << 4);
+		const struct picture_record *picture = &title_pictures[LOGO_PICTURE];
 
 		current_object->draw_mode = 0u;
-		animation_start(PICTURE_RECORD(picture)->animation);
-		current_object->palette = PICTURE_RECORD(picture)->palette;
+		animation_start(picture->animation);
+		current_object->palette = picture->palette;
 		current_object->width_scale = LOGO_SCALE;
 		current_object->height_scale = LOGO_SCALE;
 		current_object->x = LOGO_X;

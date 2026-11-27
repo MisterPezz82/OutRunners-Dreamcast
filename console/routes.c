@@ -4,7 +4,7 @@
  *                 the 31 stages one after another from the pre-stage to the last goal
  *    Version:     0.1.3
  *    Created:     29-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -54,6 +54,7 @@
 #define GOALS               10
 #define GOAL_CHECKPOINT     5            /* the game's checkpoints: the forks 0-4, then the goal */
 #define REVERSE_START_EXTRA 59           /* REVERSE's start: 99 seconds, the clock's most beside FINAL STAGE */
+#define WATER_LEFT_GOAL     0x15         /* AUSTRALIA: its start has the harbour at the left (REVERSE's start line) */
 #define GOAL_FORK           1792         /* a goal stage's goal, where the routes fork */
 #define STAGE_FORK          1664         /* the other stages' fork */
 #define FORK_OBJECTS_FROM   1408         /* stage 1's stream: its fork camera on */
@@ -312,7 +313,9 @@ static uint32_t branch_stream(int branch, int shift)
 
 /* One of the pre-stage's start line's objects into a stream, with the console's handler
    (presentation_start_line_update, which runs the object's own and draws it in the pre-stage's colours); its
-   own handler kept by its record */
+   own handler kept by its record, as the function's number. The game's stream takes CONSOLE_CODE_START_LINE,
+   no function's address, as NO_FUNCTION: road_object_stream_read gives those objects the console's handler
+   (all of them, as before handlers were numbers: one whose record START_LINE_KINDS left out does nothing) */
 static void put_start_line_object(uint32_t entry)
 {
 	const uint32_t handler = u32_at(entry + 4u), record = u32_at(entry + 8u);
@@ -323,7 +326,7 @@ static void put_start_line_object(uint32_t entry)
 	if (kind == routes.start_line_kinds && kind < START_LINE_KINDS)
 	{
 		routes.start_line[kind].record = record;
-		routes.start_line[kind].handler = handler;
+		routes.start_line[kind].handler = function_number(handler);
 		routes.start_line_kinds++;
 	}
 	copy(entry, 4);
@@ -588,8 +591,23 @@ static void start_line_colours(void)
 	}
 }
 
-/* A start line object of REVERSE's (a goal stage's stream): its own handler, then its sprites (the entries it
-   put in the list) marked for the extra palette, where the pre-stage's colours are */
+/* A start line object's handler where REVERSE starts: its own, but at a goal with water at the left (AUSTRALIA's
+   harbour) the rows drawn at both sides of the road (the stands and the people: scenery_pair and
+   animated_scenery_pair) at the right alone, by their one side's (scenery and animated_scenery: the same record
+   and steps, the pair's first item, which is at the right) */
+static uint32_t start_line_handler(uint32_t handler)
+{
+	if (routes.running != ROUTE_REVERSE || routes.goal != WATER_LEFT_GOAL)
+		return handler;
+	if (handler == FUNCTION_scenery_pair_update)
+		return FUNCTION_scenery_update;
+	if (handler == FUNCTION_animated_scenery_pair_update)
+		return FUNCTION_animated_scenery_update;
+	return handler;
+}
+
+/* A start line object of REVERSE's (a goal stage's stream): its own handler (start_line_handler), then its sprites
+   (the entries it put in the list) marked for the extra palette, where the pre-stage's colours are */
 void presentation_start_line_update(void)
 {
 	const uint32_t record = current_object->parameter;
@@ -598,7 +616,7 @@ void presentation_start_line_update(void)
 	for (int kind = 0; kind < routes.start_line_kinds; kind++)
 		if (routes.start_line[kind].record == record)
 		{
-			call_code(routes.start_line[kind].handler);
+			call_function(start_line_handler(routes.start_line[kind].handler));
 			break;
 		}
 	for (uint32_t sprite = first; sprite <= screen->sprite_list_last; sprite += 0x10u)
@@ -638,40 +656,40 @@ static void full_fold(void)
 	routes.folded_stage = stage;
 	/* (the START banner and its lights never end, and the race's segments, which the game compares as 16 bits
 	   with a sign, would have them in front of the car again half way through: over once it has left them) */
-	for (uint32_t object = console_find_object(start_gate_update_ADDRESS, 0u); object;
-		object = console_find_object(start_gate_update_ADDRESS, object))
+	for (uint32_t object = console_find_object(FUNCTION_start_gate_update, 0u); object;
+		object = console_find_object(FUNCTION_start_gate_update, object))
 	{
 		OBJECT(object)->flags = 0u;
 		OBJECT(object)->flags_high = 0u;
 	}
-	fold = RACE(race)->stage_count - checkpoint_of(stage);
+	fold = RACE(race)->state.stage_count - checkpoint_of(stage);
 	if (fold > 0)
 	{
-		RACE(race)->stage_count -= (uint8_t)fold;
+		RACE(race)->state.stage_count -= (uint8_t)fold;
 		if (race_copy != race)
-			RACE(race_copy)->stage_count -= (uint8_t)fold;
-		screen->counted_stages[player] -= (uint8_t)fold;
-		screen->checkpoints_passed[player] -= (uint8_t)fold;
-		screen->forks_decided -= (uint8_t)fold;
+			RACE(race_copy)->state.stage_count -= (uint8_t)fold;
+		screen->progress.counted_stages[player] -= (uint8_t)fold;
+		screen->progress.checkpoints_passed[player] -= (uint8_t)fold;
+		screen->progress.forks_decided -= (uint8_t)fold;
 		screen->route_stage_level -= (uint8_t)fold;
 		player_car->forks_reached -= (uint8_t)fold;
 		player_car->forks_taken -= (uint8_t)fold;
 		player_car->extensions_shown -= (uint8_t)fold;
-		fold_objects(lap_timer_update_ADDRESS, offsetof(struct object, lap_timer.checkpoints), fold);
-		fold_objects(checkpoint_board_update_ADDRESS, offsetof(struct object, checkpoint_board.checkpoints_seen), fold);
-		fold_objects(stage_end_sounds_update_ADDRESS, offsetof(struct object, stage_end_sounds.stage), fold);
+		fold_objects(FUNCTION_lap_timer_update, offsetof(struct object, lap_timer.checkpoints), fold);
+		fold_objects(FUNCTION_checkpoint_board_update, offsetof(struct object, checkpoint_board.checkpoints_seen), fold);
+		fold_objects(FUNCTION_stage_end_sounds_update, offsetof(struct object, stage_end_sounds.stage), fold);
 		for (int checkpoint = checkpoint_of(stage); checkpoint <= GOAL_CHECKPOINT; checkpoint++)
 		{
-			screen->counted_passes[checkpoint] = 0u;
-			screen->checkpoint_passes[checkpoint] = 0u;
+			screen->progress.counted_passes[checkpoint] = 0u;
+			screen->progress.checkpoint_passes[checkpoint] = 0u;
 		}
 	}
 	/* (the race's time in thousandths, its checkpoints' in hundredths: the split times stay as they were) */
 	time = player_car->checkpoint_time;
 	routes.time_base += time;
-	RACE(race)->race_time -= time * 10u;
+	RACE(race)->state.race_time -= time * 10u;
 	if (race_copy != race)
-		RACE(race_copy)->race_time -= time * 10u;
+		RACE(race_copy)->state.race_time -= time * 10u;
 	player_car->race_time -= time * 10u;
 	player_car->checkpoint_time = 0u;
 }
@@ -680,7 +698,7 @@ static void full_fold(void)
    stage's) */
 static void full_total(void)
 {
-	const uint32_t goal = console_find_object(goal_update_ADDRESS, 0u);
+	const uint32_t goal = console_find_object(FUNCTION_goal_update, 0u);
 	char text[16];
 	uint32_t time;
 	int letters;
@@ -688,7 +706,7 @@ static void full_total(void)
 	if (routes.total_shown || !goal || OBJECT(goal)->state < 2u)
 		return;
 	routes.total_shown = true;
-	time = routes.time_base + screen->checkpoint_times_by_player[screen->player + 0x28u];
+	time = routes.time_base + screen->progress.checkpoint_times_by_player[screen->player + 0x28u];
 	letters = snprintf(text, sizeof text, "%u'%02u\"%02u", (unsigned)(time / 6000u), (unsigned)(time / 100u % 60u),
 		(unsigned)(time % 100u));
 	for (int letter = 0; letter <= letters; letter++)
@@ -721,7 +739,7 @@ bool console_routes_frame(uint32_t mode, uint32_t pressed)
 		if (routes.given_goal == 0)
 		{
 			if (!console_route_select_running())
-				console_route_select_start(RACE(screen->race)->model);
+				console_route_select_start(RACE_MODEL(RACE(screen->race)));
 			switch (console_route_select_frame(pressed))
 			{
 				case ROUTE_SELECT_START:
@@ -799,6 +817,8 @@ void road_object_stream_read(void)
 			: routes.full.goal_streams[stage - FIRST_GOAL];
 	}
 	original_road_object_stream_read();
+	for (uint32_t object = console_find_object(NO_FUNCTION, 0u); object; object = console_find_object(NO_FUNCTION, object))
+		OBJECT(object)->handler = CONSOLE_CODE_START_LINE;    /* (a start line's, from the console's stream) */
 }
 
 /* The background's page word, as the game writes it: its two halves, the upper pages the low one */
@@ -1069,37 +1089,37 @@ void race_progress_update(uint32_t *p_host_record, uint32_t *p_racer_copy)
 
 	if (!route_here())
 	{
-		passes = RACE(race)->pass_count;
+		passes = RACE(race)->state.pass_count;
 		original_race_progress_update(p_host_record, p_racer_copy);
 		console_classic_time(passes);
 		return;
 	}
-	if (routes.running == ROUTE_REVERSE && !routes.time_given && RACE(race)->time_left != 0u)
+	if (routes.running == ROUTE_REVERSE && !routes.time_given && RACE(race)->state.time_left != 0u)
 	{
 		/* (the start's time set by the car, player_car_update, with REVERSE_START_EXTRA in the setting: the
 		   setting back) */
 		game->race_copies[0].master_time_difficulty[0] = routes.start_difficulty;
 		routes.time_given = true;
 	}
-	stage = RACE(race_copy)->stage;
+	stage = RACE(race_copy)->state.stage;
 	read_stage = stage <= LAST_FORK_STAGE ? stage : LAST_FORK_STAGE;
-	passes = RACE(race)->pass_count;
-	RACE(race_copy)->stage = read_stage;
+	passes = RACE(race)->state.pass_count;
+	RACE(race_copy)->state.stage = read_stage;
 	original_race_progress_update(p_host_record, p_racer_copy);
-	RACE(race_copy)->stage = stage;
-	if (screen->leader_stage == read_stage)
-		screen->leader_stage = stage;    /* (one player: the leader) */
-	if (RACE(race)->pass_count != passes && RACE(race)->pass_order == 0u && RACE(race)->pass_checkpoint != GOAL_CHECKPOINT
+	RACE(race_copy)->state.stage = stage;
+	if (screen->progress.leader_stage == read_stage)
+		screen->progress.leader_stage = stage;    /* (one player: the leader) */
+	if (RACE(race)->state.pass_count != passes && RACE(race)->state.pass_order == 0u && RACE(race)->state.pass_checkpoint != GOAL_CHECKPOINT
 		&& stage < STAGES)
 	{
-		const uint8_t checkpoint = RACE(race)->pass_checkpoint, branch = RACE(race)->pass_branch;
+		const uint8_t checkpoint = RACE(race)->state.pass_checkpoint, branch = RACE(race)->state.pass_branch;
 		const int next = routes.running == ROUTE_FULL ? stage + 1 : routes.parents[stage][branch & 1u];
 		const int given = (int8_t)(stage_start_times[fork_next_stages[read_stage * 2 + branch]]
 			+ game->race_copies[0].master_time_difficulty[checkpoint]) * 0x1E;
 		const int due = routes.running == ROUTE_REVERSE ? reverse_checkpoint_time(checkpoint)
 			: (int8_t)(stage_start_times[next] + game->race_copies[0].master_time_difficulty[checkpoint]) * 0x1E;
 
-		RACE(race)->time_left = (uint16_t)(RACE(race)->time_left + due - given);
+		RACE(race)->state.time_left = (uint16_t)(RACE(race)->state.time_left + due - given);
 	}
 }
 

@@ -1,9 +1,9 @@
 """
 Name:        make_icon.py
-Description: makes the project's icon: Sebas's car (ports/sdl2/icon/car.png) on a plate in a sunset's colours
-Version:     0.2.0
+Description: makes the project's icon: Sebas's car (ports/sdl/icon/car.png) on a plate in a sunset's colours
+Version:     0.3.0
 Created:     30-10-2026
-Modified:    30-10-2026
+Modified:    25-11-2026
 Author:      Sebastian Toyos
 
 Usage: python tools/make_icon.py
@@ -15,7 +15,9 @@ which the HOME menu rounds itself), of the Android app (ports/android/res/mipmap
 two layers, the plate to the edges and the car in the middle 66 of its 108, which the launcher shapes and
 moves itself; the icon whole for the launchers before Android 8; and the picture the APK shows in a player's
 own picture's place until one is put there, ic_launcher_art.png) and of the computers' executables
-(ports/sdl2/icon: outrunners.png, 1024 x 1024, outrunners.ico and outrunners.icns). The plate is drawn at twice
+(ports/sdl/icon: outrunners.png, 1024 x 1024, outrunners.ico and outrunners.icns) and of the iOS app
+(ports/ios/Assets.xcassets: icon_1024.png, the plate to the edges with no see-through: iOS rounds it itself).
+The plate is drawn at twice
 the size and scaled down, so its edges are smooth; the car, a picture of pixels, is enlarged a whole number of
 times, its pixels kept square (Sebas: the car he chose, from a Steam page that offers it free to use).
 
@@ -29,9 +31,10 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "ports" / "sdl2" / "icon"
+OUT = ROOT / "ports" / "sdl" / "icon"
 CAR = OUT / "car.png"
 SWITCH = ROOT / "ports" / "switch" / "icon.jpg"
+IOS = ROOT / "ports" / "ios" / "Assets.xcassets" / "AppIcon.appiconset" / "icon_1024.png"
 ANDROID = ROOT / "ports" / "android" / "res" / "mipmap-xxxhdpi"
 ANDROID_ICON = 192              # (the launcher's icon at xxxhdpi: 48 dp)
 ANDROID_LAYER = 432             # (an adaptive icon's layer at xxxhdpi: 108 dp)
@@ -106,6 +109,9 @@ def main():
     SWITCH.parent.mkdir(parents=True, exist_ok=True)
     whole.resize((256, 256), Image.LANCZOS).save(SWITCH, quality=95)
     print(f"written: {SWITCH.relative_to(ROOT)}")
+    IOS.parent.mkdir(parents=True, exist_ok=True)
+    whole.resize((1024, 1024), Image.LANCZOS).save(IOS)    # (iOS's: the square whole and opaque, the system rounds it)
+    print(f"written: {IOS.relative_to(ROOT)}")
     ANDROID.mkdir(parents=True, exist_ok=True)
     icon.resize((ANDROID_ICON, ANDROID_ICON), Image.LANCZOS).save(ANDROID / "ic_launcher.png")
     background = plate(margin=0, radius=0).convert("RGB")

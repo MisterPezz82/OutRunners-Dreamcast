@@ -5,13 +5,14 @@
  *                 moves and searches
  *    Version:     0.1.0
  *    Created:     11-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
  *    Behavior follows MAME's V60 core (src/devices/cpu/v60/v60.cpp, op12.hxx, op7a.hxx;
  *    Farfetch'd, R. Belmont) and the frame timing of tools/core/system32/reference/s32ref.cpp.
  */
+#include <stdbool.h>
 #include "game/support.h"
 #include "host/tasks.h"
 #include "s32/byte_order.h"
@@ -122,11 +123,39 @@ void take_interrupts(void)
 	}
 }
 
+/* The work RAM holds the variables struct world keeps while code reaches memory by its address (the memory
+   test, a checksum, a copy, the string moves): world_ram_begin puts them there, world_ram_end takes back
+   what that code left, and a frame that ends in between hashes them as it left them */
+static unsigned world_ram_depth;
+
+void world_ram_begin(void)
+{
+	if (world_ram_depth++ == 0)
+		world_project();
+}
+
+void world_ram_end(void)
+{
+	if (--world_ram_depth == 0)
+		world_unproject();
+}
+
+/* (the Dreamcast port: false, as it neither hashes nor dumps the state at a frame's end, and the projection
+   there and back is about half a millisecond of its frame) */
+bool world_project_at_frame_end = true;
+
 void frame_end(void)
 {
 	frames++;
+	const bool project = world_ram_depth == 0 && world_project_at_frame_end;
+	if (project)
+		world_project();    /* (the port hashes the state and dumps it there) */
 	if (program_frame_done)
 		program_frame_done();
+	/* and back: the projection also puts the code's addresses in place of the function numbers the C
+	   keeps in the work RAM (the objects' handlers), which the C goes on reading */
+	if (project)
+		world_unproject();
 }
 
 /* ---- the game's two tasks ---- */
@@ -350,6 +379,23 @@ GAME_NORETURN void unknown_code(uint32_t address)
 	exit(3);
 }
 
+/* A call through a slot that holds a function's number (enum game_function): a number past the table is a
+   port's own object's code where the port has some (call_code_elsewhere, as call_code's addresses); any other
+   number that is no function's (NO_FUNCTION, which a ROM table's address no code was found at gives) is
+   reported and stops the program, never called */
+void call_function(uint32_t number)
+{
+	if (number >= game_function_count && call_code_elsewhere && call_code_elsewhere(number))
+		return;
+	if (number == 0 || number >= game_function_count)
+	{
+		fprintf(stderr, "No function has number %u (frame %llu)\n", (unsigned)number, (unsigned long long)frames);
+		print_recent_calls();
+		exit(3);
+	}
+	game_functions[number]();
+}
+
 /* The MEMORY TEST's ROM part (runtime/replaced.txt): the game's, original_test_mode_memory_test_checksum, sums
    the program ROM's code chips (from 000000) or its data chips (from 100000) as two 16-bit checks; the
    decompiled game has no chips to measure (the code is in none of its data), so it hands back the sums the
@@ -502,7 +548,7 @@ static void move_element(uint32_t dest, uint32_t source, uint32_t size)
 	s32_order_moved(to, from, size);
 }
 
-void move_string(uint32_t source, uint32_t source_length, uint32_t dest, uint32_t dest_length, uint32_t element_size,
+static void move_string_in_place(uint32_t source, uint32_t source_length, uint32_t dest, uint32_t dest_length, uint32_t element_size,
                  uint32_t fill_rest, uint32_t downward, uint32_t fill, uint32_t *dest_end, uint32_t *source_end)
 {
 	const uint32_t count = source_length < dest_length ? source_length : dest_length;
@@ -540,6 +586,16 @@ void move_string(uint32_t source, uint32_t source_length, uint32_t dest, uint32_
 		}
 		*dest_end = dest + (dest_length - i - 1) * step;
 	}
+}
+
+/* (the variables struct world keeps are in the work RAM while the routine reaches memory by its address,
+   and what it wrote there comes back) */
+void move_string(uint32_t source, uint32_t source_length, uint32_t dest, uint32_t dest_length, uint32_t element_size,
+                 uint32_t fill_rest, uint32_t downward, uint32_t fill, uint32_t *dest_end, uint32_t *source_end)
+{
+	world_ram_begin();
+	move_string_in_place(source, source_length, dest, dest_length, element_size, fill_rest, downward, fill, dest_end, source_end);
+	world_ram_end();
 }
 
 void move_bytes(uint32_t dest, uint32_t source, uint32_t count)
@@ -586,7 +642,7 @@ void set_halfwords(uint32_t dest, uint32_t count, uint32_t value)
 
 /* ---- MOVBSD / MOVBSU (op7a.hxx) ---- */
 
-void move_bits_down(uint32_t source, uint32_t source_offset, uint32_t dest, uint32_t dest_offset, uint32_t length,
+static void move_bits_down_in_place(uint32_t source, uint32_t source_offset, uint32_t dest, uint32_t dest_offset, uint32_t length,
                     uint32_t *dest_end, uint32_t *source_end)
 {
 	uint8_t source_data;
@@ -626,7 +682,15 @@ void move_bits_down(uint32_t source, uint32_t source_offset, uint32_t dest, uint
 		mem_write8(dest, dest_data);
 }
 
-void move_bits_up(uint32_t source, uint32_t source_offset, uint32_t dest, uint32_t dest_offset, uint32_t length,
+void move_bits_down(uint32_t source, uint32_t source_offset, uint32_t dest, uint32_t dest_offset, uint32_t length,
+                    uint32_t *dest_end, uint32_t *source_end)
+{
+	world_ram_begin();
+	move_bits_down_in_place(source, source_offset, dest, dest_offset, length, dest_end, source_end);
+	world_ram_end();
+}
+
+static void move_bits_up_in_place(uint32_t source, uint32_t source_offset, uint32_t dest, uint32_t dest_offset, uint32_t length,
                   uint32_t *dest_end, uint32_t *source_end)
 {
 	uint8_t source_data;
@@ -664,9 +728,17 @@ void move_bits_up(uint32_t source, uint32_t source_offset, uint32_t dest, uint32
 		mem_write8(dest, dest_data);
 }
 
+void move_bits_up(uint32_t source, uint32_t source_offset, uint32_t dest, uint32_t dest_offset, uint32_t length,
+                  uint32_t *dest_end, uint32_t *source_end)
+{
+	world_ram_begin();
+	move_bits_up_in_place(source, source_offset, dest, dest_offset, length, dest_end, source_end);
+	world_ram_end();
+}
+
 /* ---- SCH0BSU / SCH1BSU (op7a.hxx, opSCHBS) ---- */
 
-uint32_t search_bits_up(uint32_t address, uint32_t offset, uint32_t length, uint32_t bit, uint32_t *work)
+static uint32_t search_bits_up_in_place(uint32_t address, uint32_t offset, uint32_t length, uint32_t bit, uint32_t *work)
 {
 	uint8_t data;
 	uint32_t count;
@@ -690,9 +762,19 @@ uint32_t search_bits_up(uint32_t address, uint32_t offset, uint32_t length, uint
 	return count;
 }
 
+uint32_t search_bits_up(uint32_t address, uint32_t offset, uint32_t length, uint32_t bit, uint32_t *work)
+{
+	uint32_t result;
+
+	world_ram_begin();
+	result = search_bits_up_in_place(address, offset, length, bit, work);
+	world_ram_end();
+	return result;
+}
+
 /* ---- SCHCU.B / SKPCU.B (op7a.hxx, opSEARCHUB) ---- */
 
-void search_bytes(uint32_t address, uint32_t length, uint32_t value, uint32_t until_equal, uint32_t *index,
+static void search_bytes_in_place(uint32_t address, uint32_t length, uint32_t value, uint32_t until_equal, uint32_t *index,
 	uint32_t *found)
 {
 	uint32_t count;
@@ -702,6 +784,14 @@ void search_bytes(uint32_t address, uint32_t length, uint32_t value, uint32_t un
 			break;
 	*index = count;
 	*found = address + count;
+}
+
+void search_bytes(uint32_t address, uint32_t length, uint32_t value, uint32_t until_equal, uint32_t *index,
+	uint32_t *found)
+{
+	world_ram_begin();
+	search_bytes_in_place(address, length, value, until_equal, index, found);
+	world_ram_end();
 }
 
 /* ---- DIVX / DIVUX ---- */
@@ -740,6 +830,8 @@ void program_reset(void)
 	/* the board's work RAM is the game's state from here on (s32_init left it cleared, as the world is
 	   before its first run; from then on s32_init clears the world) */
 	s32_board.work_ram = (uint8_t *)game;
+	world_clear();
+	world_ram_depth = 0;
 	for (int number = 0; number < PRIVILEGED; number++)
 		privileged[number] = 0;
 	privileged[9] = 0x00006000;     /* PIR */

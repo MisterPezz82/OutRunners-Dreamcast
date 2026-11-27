@@ -3,7 +3,7 @@
  *    Description: the backgrounds: their layers and animations, the palette cycles, the sunset, the backdrops
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -319,7 +319,7 @@ void race_background_start_lower_animation(void)
 	object->race_background_lower_animation.delay = 2u;
 	object->race_background_lower_animation.step = screen->index;
 	object->race_background_lower_animation.page_word_address = current_object->race_background.page_word_address;
-	object->handler = race_background_lower_animation_wait_ADDRESS;
+	object->handler = FUNCTION_race_background_lower_animation_wait;
 }
 
 /* Waits until the animation's tiles are loaded (screen unpack_state), then goes on to
@@ -328,7 +328,7 @@ void race_background_lower_animation_wait(void)
 {
 	if (screen->unpack_state != 0u)
 		return;
-	current_object->handler = race_background_lower_animation_cycle_ADDRESS;
+	current_object->handler = FUNCTION_race_background_lower_animation_cycle;
 	race_background_lower_animation_cycle();
 }
 
@@ -372,7 +372,7 @@ void race_background_start_upper_animation(uint32_t animation)
 	object->race_background_upper_animation.delay = 3u;
 	object->race_background_upper_animation.step = screen->index;
 	object->race_background_upper_animation.page_word_address = current_object->race_background.page_word_address;
-	object->handler = race_background_upper_animation_wait_ADDRESS;
+	object->handler = FUNCTION_race_background_upper_animation_wait;
 }
 
 /* Waits until the animation's tiles are loaded (screen unpack_state), then goes on to
@@ -381,7 +381,7 @@ void race_background_upper_animation_wait(void)
 {
 	if (screen->unpack_state != 0u)
 		return;
-	current_object->handler = race_background_upper_animation_cycle_ADDRESS;
+	current_object->handler = FUNCTION_race_background_upper_animation_cycle;
 	race_background_upper_animation_cycle();
 }
 
@@ -420,7 +420,7 @@ void race_background_upper_animation_cycle(void)
    the record's +C (queue_tile_pages) and the palette record at +10 (queue_palette_list). Used by
    car_presentation, name_entry, route_map, car_select_run, entry_countdown_start and
    title_screen_update. */
-void set_up_background(uint32_t background_setup)
+void set_up_background(const struct background_setup *background_setup)
 {
 	uint32_t mixer_bits = 0, palette_list = 0, tile_pages = 0;
 	const struct background_registers *background_registers = NULL;
@@ -432,20 +432,16 @@ void set_up_background(uint32_t background_setup)
 
 	background_registers = rom_pointer(background_register_lists[screen->index]);
 	pages_address = pointer_to(background_registers->pages_address);
-	pages = BACKGROUND_SETUP(background_setup)->pages;
-	background_setup += 4u;
+	pages = background_setup->pages;
 	pages_address->upper_pages = (uint16_t)pages;
 	pages_address->lower_pages = (uint16_t)(pages >> 16u);
-	second_pages = BACKGROUND_SETUP(background_setup - 0x4u)->second_pages;
-	background_setup += 4u;
+	second_pages = background_setup->second_pages;
 	pages_address->second_upper_pages = (uint16_t)second_pages;
 	pages_address->second_lower_pages = (uint16_t)(second_pages >> 16u);
 	tile_banks_address = pointer_to(background_registers->tile_banks_address);
-	tile_bank = BACKGROUND_SETUP(background_setup - 0x8u)->tile_bank;
-	background_setup++;
+	tile_bank = background_setup->tile_bank;
 	tile_banks_address->tile_bank = tile_bank;
-	second_tile_bank = BACKGROUND_SETUP(background_setup - 0x9u)->second_tile_bank;
-	background_setup++;
+	second_tile_bank = background_setup->second_tile_bank;
 	tile_banks_address->second_tile_bank = second_tile_bank;
 	VIDEO_REGISTER_WORDS(background_registers->zoom_x_address)[0] = 0x200u;
 	VIDEO_REGISTER_WORDS(background_registers->zoom_y_address)[0] = 0x200u;
@@ -456,25 +452,23 @@ void set_up_background(uint32_t background_setup)
 	VIDEO_REGISTER_WORDS(background_registers->second_scroll_x_address)[0] = 0u;
 	VIDEO_REGISTER_WORDS(background_registers->second_scroll_y_address)[0] = 0u;
 	game->video_registers[2] &= background_registers->video_mask;
-	game->send_video_registers = 0xFFu;
+	world->send_video_registers = 0xFFu;
 	mixer_address = pointer_to(background_registers->mixer_address);
 	mixer_bits = (mixer_address[0] | ((uint32_t)mixer_address[1] << 16u));
 	mixer_bits = mixer_bits & ~0xFu;
-	mixer_address_0_long = mixer_bits | BACKGROUND_SETUP(background_setup - 0xAu)->priority;
+	mixer_address_0_long = mixer_bits | background_setup->priority;
 	mixer_address[0] = (uint16_t)mixer_address_0_long;
 	mixer_address[1] = (uint16_t)(mixer_address_0_long >> 16u);
 	mixer_address += 2;
 	mixer_bits = (mixer_address[0] | ((uint32_t)mixer_address[1] << 16u));
 	mixer_bits = mixer_bits & ~0xFu;
-	background_setup++;
-	mixer_address_0_long_2 = mixer_bits | BACKGROUND_SETUP(background_setup - 0xBu)->second_priority;
+	mixer_address_0_long_2 = mixer_bits | background_setup->second_priority;
 	mixer_address[0] = (uint16_t)mixer_address_0_long_2;
 	mixer_address[1] = (uint16_t)(mixer_address_0_long_2 >> 16u);
 	screen->flags |= 4u;
-	background_setup++;
-	tile_pages = BACKGROUND_SETUP(background_setup - 0xCu)->tile_pages;
+	tile_pages = background_setup->tile_pages;
 	queue_tile_pages(tile_pages);
-	palette_list = BACKGROUND_SETUP(background_setup - 0xCu)->palette_list;
+	palette_list = background_setup->palette_list;
 	queue_palette_list(palette_list);
 }
 
@@ -497,7 +491,7 @@ void race_background_start_objects(uint32_t stage)
 		do
 		{
 			object = start_object();
-			object->handler = OBJECT_LIST_PAIR(object_list)->handler;
+			object->handler = function_number(OBJECT_LIST_PAIR(object_list)->handler);
 			object_list += 4u;
 			object->list_data = OBJECT_LIST_PAIR(object_list - 0x4u)->data;
 			object->parent = address_of(current_object);
@@ -685,7 +679,7 @@ void sunset_fade_start(void)
 		fades_left--;
 		fade_slot++;
 	} while (fades_left != 0u);
-	current_object->handler = sunset_fade_wait_ADDRESS;
+	current_object->handler = FUNCTION_sunset_fade_wait;
 }
 
 /* Waits for its palette fades to finish, then ends; if the stage's background starts changing (screen
@@ -750,7 +744,7 @@ void backdrop_far_start(void)
 	current_object->draw_mode = 0xAu;
 	current_object->depth_layer = 1u;
 	animation_start(animation);
-	current_object->handler = backdrop_far_update_ADDRESS;
+	current_object->handler = FUNCTION_backdrop_far_update;
 	backdrop_far_update();
 }
 
@@ -812,7 +806,7 @@ void backdrop_near_start(void)
 	current_object->draw_mode = 0xAu;
 	current_object->depth_layer = 1u;
 	animation_start(animation);
-	current_object->handler = backdrop_near_update_ADDRESS;
+	current_object->handler = FUNCTION_backdrop_near_update;
 	backdrop_near_update();
 }
 
@@ -883,7 +877,7 @@ void backdrop_landmark_start(void)
 	current_object->depth_layer = 2u;
 	animation_start(animation);
 	current_object->backdrop_landmark.approach_start = 0u - backdrop_record->approach_distance + player_car->window_segment;
-	current_object->handler = backdrop_landmark_update_ADDRESS;
+	current_object->handler = FUNCTION_backdrop_landmark_update;
 	backdrop_landmark_update();
 }
 
@@ -975,7 +969,7 @@ void backdrop_flashing_start(void)
 	current_object->depth_layer = 1u;
 	animation_start(animation);
 	current_object->backdrop_flashing.other_palette = 0x120u;
-	current_object->handler = backdrop_flashing_update_ADDRESS;
+	current_object->handler = FUNCTION_backdrop_flashing_update;
 	backdrop_flashing_update();
 }
 
@@ -1042,7 +1036,7 @@ void backdrop_translucent_start(void)
 	current_object->depth_layer = 1u;
 	animation_start(animation);
 	current_object->backdrop_translucent.frame_count = 0u;
-	current_object->handler = backdrop_translucent_update_ADDRESS;
+	current_object->handler = FUNCTION_backdrop_translucent_update;
 	backdrop_translucent_update();
 }
 
@@ -1086,8 +1080,12 @@ void CONSOLE_ORIGINAL(backdrop_translucent_update)(void)
 }
 
 /* Whether the background sprite is wholly off the screen (zero set; it clears flags bit 5 then): its x
-   (field 30) more than half_width beyond the screen's edges (0..140). */
-uint32_t backdrop_off_screen(void)
+   (field 30) more than half_width beyond the screen's edges (0..140). The edges keep their number, not
+   PAST_LEFT and PAST_RIGHT (support.h): A0 is both the screen's middle (centre_x is x less A0) and how
+   far each edge is from it (half_screen, and the right edge's compare), which a symbols.txt constant
+   line, one name for each of a function's numbers, cannot tell apart; a port with a wider screen
+   replaces the function. */
+uint32_t CONSOLE_ORIGINAL(backdrop_off_screen)(void)
 {
 	uint32_t zero = 0;
 	uint16_t centre_x = 0, half_screen = 0, half_width = 0, minus_right_edge = 0;

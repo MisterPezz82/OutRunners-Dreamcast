@@ -3,7 +3,7 @@
  *    Description: the game modes: the title, the power on, the car presentation, the demo race, the ranking and the game itself
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -34,7 +34,7 @@ void game_mode_title(void)
 		colour_block = title_palette;
 		queue_palette(colour_block);
 		object = start_object();
-		object->handler = title_screen_update_ADDRESS;
+		object->handler = FUNCTION_title_screen_update;
 		screen->fade_kind = 1u;
 		screen->flags |= 1u;
 		screen->input_write_place = 0u;
@@ -103,7 +103,8 @@ void game_mode_restart(void)
    mode 4 (the demo race). attract_lamps_update every frame first. */
 void game_mode_car_presentation(void)
 {
-	uint32_t colour_block = 0, handler_list = 0;
+	uint32_t colour_block = 0;
+	const uint32_t *handler_list = NULL;
 	uint16_t mode_timer = 0;
 
 	attract_lamps_update();
@@ -147,7 +148,7 @@ void game_mode_car_presentation(void)
 	queue_palette(colour_block);
 	colour_block = black_background_palette_ADDRESS;
 	queue_palette(colour_block);
-	handler_list = car_presentation_objects_ADDRESS;
+	handler_list = car_presentation_objects;
 	start_object_list(handler_list);
 	screen->fade_kind = 1u;
 	screen->flags |= 1u;
@@ -273,8 +274,9 @@ uint32_t demo_race_end(uint32_t left_caller)
    1 (back to the title). attract_lamps_update every frame first. */
 void game_mode_ranking(void)
 {
-	uint32_t colour_block = 0, handler_list = 0;
+	uint32_t colour_block = 0;
 	struct object *object = NULL;
+	const uint32_t *handler_list = NULL;
 	uint16_t mode_timer = 0;
 
 	attract_lamps_update();
@@ -303,7 +305,7 @@ void game_mode_ranking(void)
 		return;
 	}
 	screen->demo_flags &= ~0x100u;
-	game->wheel_motor[screen->index] = 0u;
+	world->wheel_motor[screen->index] = 0u;
 	reset_screen_sound();
 	clear_objects();
 	reset_tile_layers();
@@ -313,10 +315,10 @@ void game_mode_ranking(void)
 	colour_block = ranking_palette;
 	queue_palette(colour_block);
 	screen->mode_step++;
-	handler_list = ranking_objects_ADDRESS;
+	handler_list = ranking_objects;
 	start_object_list(handler_list);
 	object = start_object();
-	object->handler = ranking_update_ADDRESS;
+	object->handler = FUNCTION_ranking_update;
 	screen->mode_timer = 0x10Eu;
 	RACE(screen->race)->game_over = 0u;
 }
@@ -364,9 +366,10 @@ void game_mode_play(void)
 {
 	uint32_t zero = 0;
 	uint8_t model = 0, player = 0, sound_code = 0, stage = 0;
-	uint32_t bookkeeping_entry = 0, colour_block = 0, demo_record = 0, handler_list = 0, index = 0, race = 0, racers_left = 0, song_title = 0, stage_level = 0, time_played = 0;
+	uint32_t bookkeeping_entry = 0, colour_block = 0, demo_record = 0, index = 0, race = 0, racers_left = 0, song_title = 0, stage_level = 0, time_played = 0;
 	const struct demo_race_choice *demo_race_choice = NULL;
 	struct object *car = NULL, *object = NULL;
+	const uint32_t *handler_list = NULL;
 	struct screen_lamps *lamp_place = NULL;
 	uint8_t racer = 0;
 	uint32_t flags = 0;
@@ -377,7 +380,7 @@ void game_mode_play(void)
 		sound_code = 0x21u;
 		queue_sound(sound_code);
 		screen->button_lamps = 0xFFFFu;
-		game->lcd_restart_frames = 0u;
+		world->lcd_restart_frames = 0u;
 		screen->fade_kind = 0u;
 		screen->flags |= 1u;
 		screen->game_step++;
@@ -401,7 +404,7 @@ void game_mode_play(void)
 			} while ((racers_left != 0u) & (racer != player));
 			if (zero)
 			{
-				if (screen->player == screen->host_player && game->isdn_mode == 0u)
+				if (screen->player == screen->host_player && game->eeprom.settings.isdn_mode == 0u)
 					io_write8(LINK_ENTRIES_CLOSED, 1u);
 				screen->game_step++;
 			}
@@ -409,7 +412,7 @@ void game_mode_play(void)
 		return;
 	case 2:
 		screen->demo_flags &= ~0x100u;
-		game->wheel_motor[screen->index] = 0u;
+		world->wheel_motor[screen->index] = 0u;
 		screen->game_start_time = (BOOKKEEPING_TOTAL_TIME | ((uint32_t)BOOKKEEPING_TOTAL_TIME_HIGH << 16u));
 		bookkeeping_entry = BOOKKEEPING_GAMES_A_ADDRESS + screen->index * 2u;
 		bookkeeping_increment16(bookkeeping_entry);
@@ -439,7 +442,7 @@ void game_mode_play(void)
 		lamp_place->leader_period = 0u;
 		lamp_place->leader_timer = 0u;
 		object = start_object();
-		object->handler = car_select_start_ADDRESS;
+		object->handler = FUNCTION_car_select_start;
 		screen->fade_kind = 1u;
 		screen->flags |= 1u;
 		if (screen->index != 0u)
@@ -483,31 +486,31 @@ void game_mode_play(void)
 		SCREEN(demo_record - 0x490u)->demo_stage = stage;
 		model = demo_race_choice->model;
 		player_car->model = model;
-		RACE(screen->race)->model = model;
+		RACE(screen->race)->state.car_choice_and_model = (RACE(screen->race)->state.car_choice_and_model & 0xFFu) | ((model & 0xFFu) << 8u);
 		screen->game_step = 0x1Bu;
 		colour_block = title_palette;
 		queue_palette(colour_block);
-		if (RACE(screen->race_copy)->published != 0u)
+		if (RACE(screen->race_copy)->state.published != 0u)
 			return;
 		if (screen->index != 0u)
 			io_write8(IO_2_CNT, 0x84u);
 		else
 			io_write8(IO_1_CNT, 4u);
 		queue_stage_load();
-		handler_list = player_car_objects_ADDRESS;
+		handler_list = player_car_objects;
 		car = start_object_list(handler_list);
 		car->player_car.place = screen->places[screen->player];
 		screen->game_step = 0x17u;
 		return;
 	case 27:
-		if (RACE(screen->race_copy)->published != 0u)
+		if (RACE(screen->race_copy)->state.published != 0u)
 			return;
 		if (screen->index != 0u)
 			io_write8(IO_2_CNT, 0x84u);
 		else
 			io_write8(IO_1_CNT, 4u);
 		queue_stage_load();
-		handler_list = player_car_objects_ADDRESS;
+		handler_list = player_car_objects;
 		car = start_object_list(handler_list);
 		car->player_car.place = screen->places[screen->player];
 		screen->game_step = 0x17u;
@@ -515,25 +518,25 @@ void game_mode_play(void)
 	case 5:
 		if ((screen->flags & 1u) != 0u)
 			return;
-		RACE(screen->race)->ready = 0u;
+		RACE(screen->race)->state.ready = 0u;
 		silence_and_clear_screen();
 		if (screen->index != 0u)
 			io_write8(IO_2_CNT, 0x84u);
 		else
 			io_write8(IO_1_CNT, 4u);
 		queue_stage_load();
-		handler_list = player_car_objects_ADDRESS;
+		handler_list = player_car_objects;
 		car = start_object_list(handler_list);
 		car->player_car.place = screen->places[screen->player];
 		screen->game_step = 0x17u;
 		return;
 	case 23:
-		if (RACE(screen->race_copy)->published == 0u)
+		if (RACE(screen->race_copy)->state.published == 0u)
 			return;
 		screen->race_running = 0xFFu;
-		handler_list = race_objects_ADDRESS;
+		handler_list = race_objects;
 		if ((screen->demo_flags & 0x100u) != 0u)
-			handler_list = demo_race_objects_ADDRESS;
+			handler_list = demo_race_objects;
 		start_object_list(handler_list);
 		screen->game_step++;
 		return;
@@ -592,7 +595,7 @@ void game_mode_play(void)
 		clear_objects();
 		return;
 	case 12:
-		if (RACE(screen->race_copy)->finished == 0u)
+		if (RACE(screen->race_copy)->state.finished == 0u)
 		{
 			reset_screen_sound();
 			song_title = meaning_of_the_light_title_ADDRESS;
@@ -602,7 +605,7 @@ void game_mode_play(void)
 		}
 		colour_block = route_map_palette;
 		queue_palette(colour_block);
-		handler_list = route_map_objects_ADDRESS;
+		handler_list = route_map_objects;
 		start_object_list(handler_list);
 		screen->fade_kind = 1u;
 		screen->flags |= 1u;
@@ -639,7 +642,7 @@ void game_mode_play(void)
 			clear_objects();
 			screen->game_step++;
 			object = start_object();
-			object->handler = name_entry_update_ADDRESS;
+			object->handler = FUNCTION_name_entry_update;
 		}
 		return;
 	case 19:
@@ -688,7 +691,7 @@ void game_mode_play(void)
 			bookkeeping_set16(bookkeeping_entry, (uint16_t)time_played);
 		}
 		stage_level = screen->current_stage_level;
-		if (RACE(screen->race_copy)->finished != 0u)
+		if (RACE(screen->race_copy)->state.finished != 0u)
 			stage_level = 6u;
 		bookkeeping_entry = BOOKKEEPING_HISTOGRAM_ADDRESS + stage_level * 2u;
 		bookkeeping_increment16(bookkeeping_entry);
@@ -751,6 +754,6 @@ void clear_race_state(void)
 {
 	race_record_clear();
 	move_halfwords(address_of(player_car), zero_block_ADDRESS, 0x180u);
-	move_halfwords(address_of(screen) + 0x330u, zero_block_ADDRESS, 0xB0u);
-	move_halfwords(address_of(screen) + 0x600u, zero_block_ADDRESS, 0x80u);
+	memset(&screen->progress, 0, sizeof screen->progress);
+	memset(screen->views, 0, sizeof screen->views);
 }

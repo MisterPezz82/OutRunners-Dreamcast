@@ -1,9 +1,9 @@
 /**
  *    Name:        console.h
  *    Description: what the console build tells the port
- *    Version:     0.1.5
+ *    Version:     0.1.7
  *    Created:     29-10-2026
- *    Modified:    15-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  */
 #ifndef ORUNNERS_CONSOLE_H
@@ -61,10 +61,13 @@ void console_restart_game(void);
    choice): the touch controls' gear buttons are shown then alone */
 bool console_manual_gears(int player);
 
-/* The radio's << and >> of player 'player''s seat, held this frame, before they go to the board: Jingle Bell,
-   the radio's hidden song, which the game plays for both pressed together (a game controller's pad cannot), is
-   reached with >> past Last Wave and with << before Magical Sound Shower (the other one pressed with it) */
-void console_radio_buttons(int player, bool *previous, bool *next);
+/* The radio's MUSIC, << and >> of player 'player''s seat, held this frame, before they go to the board. MUSIC goes
+   round it all (Sebas's: one button for the songs, as the space bar is): on a song it is >>, on the last one the
+   game's own (the station, the DJ), and on the station the game's own too, back to the first song. Jingle Bell,
+   the radio's hidden song, which the game plays for both << and >> pressed together (a game controller's pad
+   cannot), is reached with >> past Last Wave and with << before Magical Sound Shower (the other one pressed with
+   it) */
+void console_radio_buttons(int player, bool *music, bool *previous, bool *next);
 
 /* 2 PLAYERS in the title's menu where the build has none (a phone's): the port offers it each frame where it
    can show both players (a tablet's screen, the two facing each other) */
@@ -115,12 +118,13 @@ enum
 };
 #define CONTROL_PLAYERS 2
 
-/* OPTIONS > CONTROLS on screen: where, in the left screen's pixels, the pictures of 'control''s keys and
-   button go (their top left; false when the page is not shown): the first key's there, the second's and the
-   game controller button's that many pixels to the right */
+/* OPTIONS > CONTROLS on screen: where, in the left screen's pixels (WIDE's side counted), the pictures of
+   'control''s keys and buttons go (their top left; false when the page is not shown): the first key's there,
+   the second's and the game controller buttons' that many pixels to the right, a step each */
 bool console_controls_place(int control, int *x, int *y);
-#define CONSOLE_CONTROLS_SECOND_X   36     /* (room for a key two tiles wide, Enter or Space) */
-#define CONSOLE_CONTROLS_BUTTON_X   76
+#define CONSOLE_CONTROLS_SECOND_X    36    /* (room for a key two tiles wide, Enter or Space) */
+#define CONSOLE_CONTROLS_BUTTON_X    76
+#define CONSOLE_CONTROLS_BUTTON_STEP 20    /* (three in the column's 144) */
 
 /* The player whose controls CONTROLS shows (0, 1) */
 int console_controls_player(void);
@@ -174,18 +178,23 @@ enum
 	                       outrunners.ini keeps the number) */
 	WIDE_AUTO,          /* the one the screen's shape asks for (console_set_screen_wide): a computer's default, a
 	                       Steam Deck's 16:10 in its hands and 16:9 on a TV (issue 40) */
+	WIDE_21_9,          /* 108 more at each side (S32_VIDEO_WIDE_SIDE_21_9): an ultrawide monitor's (issue 44; after
+	                       AUTO: outrunners.ini keeps the number) */
 	WIDE_KINDS
 };
 
 #define CONSOLE_NAME_LENGTH 8    /* the player's name, NETWORK > NAME: letters of the game's font */
 
 /* OPTIONS > STEERING: the sticks' dead zone (percent of their travel, in steps of DEAD_ZONE_STEP), and the
-   sticks' sensitivity and the keys' and pads' speed (1 to STEERING_LEVELS, STEERING_NORMAL the game's own) */
+   sticks' sensitivity and the keys' and pads' speed (1 to STEERING_LEVELS, STEERING_NORMAL the game's own);
+   past the speed's last level, STEERING_SPEED_INSTANT: the wheel all the way at once while a key or a pad
+   holds it, and at the centre at once when let go (issue 45: a keyboard's keys as a digital pad's) */
 #define DEAD_ZONE_STEP      5
 #define DEAD_ZONE_MOST      50
 #define DEAD_ZONE_NORMAL    10
 #define STEERING_LEVELS     9
 #define STEERING_NORMAL     5
+#define STEERING_SPEED_INSTANT (STEERING_LEVELS + 1)
 
 /* OPTIONS > STEERING's WHEEL ROTATION: a racing wheel's turn from end to end, in degrees, as its driver has it;
    the game's wheel turns all the way at WHEEL_ROTATION_GAME's (the arcade's; a stick's whole travel), the rest
@@ -194,7 +203,7 @@ enum
 #define WHEEL_ROTATIONS     7
 extern const int console_wheel_rotations[WHEEL_ROTATIONS];    /* WHEEL_ROTATION_GAME up to 1080 */
 
-/* OPTIONS > STEERING's CENTRING and VIBRATION (ports/sdl2/forces.c): the spring that brings a racing wheel
+/* OPTIONS > STEERING's CENTRING and VIBRATION (ports/sdl/forces.c): the spring that brings a racing wheel
    with force feedback back to the centre, as the cabinet's did (a computer's), and how hard a wheel shakes or
    a game controller rumbles while the cabinet's wheel motor runs (in a crash, off the road); in percent of
    the device's strongest, in steps of FORCE_STEP, 0 none */
@@ -211,13 +220,16 @@ typedef struct
 	bool vsync;            /* VIDEO's VSYNC: each frame shown at the screen's refresh (a computer's) */
 	bool vertical;         /* 2 PLAYERS: one screen over the other (false: side by side) */
 	int volume;            /* 0-10: 5 is the game's own */
+	int music_volume;      /* SOUND's MUSIC, EFFECTS and VOICE (issue 57): 0-10, 5 the game's own */
+	int effects_volume;
+	int voice_volume;
 	char name[CONSOLE_NAME_LENGTH + 1];    /* the player's, as the network's rooms show it */
 	bool both_radios;      /* OPTIONS > 2P MUSIC: the right seat's radio heard too, as the cabinets' (false: the left one's alone) */
 	bool fps;              /* OPTIONS > FPS: the frames a second at the picture's top right, and in a window's title */
 	int dead_zone;         /* STEERING: DEAD_ZONE_* */
 	int sensitivity;       /* STEERING: the sticks', STEERING_LEVELS */
 	int wheel_rotation;    /* STEERING: a racing wheel's, one of console_wheel_rotations */
-	int steering_speed;    /* STEERING: the keys' and pads', STEERING_LEVELS */
+	int steering_speed;    /* STEERING: the keys' and pads', STEERING_LEVELS or STEERING_SPEED_INSTANT */
 	int centring;          /* STEERING: a racing wheel's spring, percent (FORCE_STEP) */
 	int vibration;         /* STEERING: the wheel motor's shake or rumble, percent (FORCE_STEP) */
 	bool phone_vibration;  /* STEERING (Android's): the phone itself vibrates too, for its touch controls */
@@ -226,9 +238,19 @@ typedef struct
 
 extern console_window console_window_settings;
 
+/* OPTIONS > SOUND's MUSIC, EFFECTS and VOICE (issue 57, sound_mix.c): a MultiPCM sample's category by its address as
+   the chip has it (for sound_chips_set_categories), and the gains the settings give the sound chips now (for
+   sound_chips_set_gains: 'pcm' of MULTIPCM_CATEGORIES); 5 each, the board's sound to the bit */
+uint8_t console_sample_category(uint32_t address);
+void console_sound_gains(double *fm, int32_t *pcm);
+
 /* WIDE draws the frames wider (s32_video_set_wide_side): the columns more at each side, or 0 (WIDE off, or
    2 PLAYERS, whose screens are both the board's) */
 int console_wide_side(void);
+
+/* Each frame, before VBLANK's sprites and the frame: WIDE's side for the video (s32_video_set_wide_side) and for
+   the game's edges (screen_more_left and screen_more_right, support.h's SCREEN_MORE_LEFT and SCREEN_MORE_RIGHT) */
+void console_set_sides(void);
 
 /* WIDE AUTO: the port says which WIDE the screen's shape asks for (WIDE_OFF till it does), and the one in effect
    is that one with AUTO, else the setting (what draws and sizes the picture reads this, not the setting) */

@@ -5,7 +5,7 @@
  *                 route as the left seat's car is
  *    Version:     0.1.1
  *    Created:     30-10-2026
- *    Modified:    07-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -89,7 +89,7 @@ static struct
 
 static const struct route_map_registers *map_registers(void)
 {
-	return ROUTE_MAP_REGISTERS(route_map_register_sets_ADDRESS + ((uint32_t)screen->index << 6));
+	return &route_map_register_sets[screen->index];
 }
 
 /* ---- the drive ---- */
@@ -115,7 +115,7 @@ static void step(place *at, int leg, int part)
 		case LEG_BRANCH:
 		{
 			/* (the fork's branch, the leg's level's: down where it is the first branch's) */
-			const bool down = (SCREEN(SCREEN_1)->route_branches[leg / 2] != 0u) == west;
+			const bool down = (SCREEN(SCREEN_1)->progress.route_branches[leg / 2] != 0u) == west;
 			const int across = scaled(1, part);
 
 			at->scroll_y += down ? pixels : -pixels;
@@ -186,7 +186,7 @@ static int race_progress(void)
 	{
 		leg++;
 		part = road > 0 ? (into - course) * STEP / road : STEP;
-		if (SCREEN(SCREEN_1)->forks_decided <= level)
+		if (SCREEN(SCREEN_1)->progress.forks_decided <= level)
 			part = 0;    /* (the fork not passed: the branch unknown) */
 	}
 	part = part > STEP ? STEP : part;
@@ -207,9 +207,9 @@ static void map_set_up(void)
 	clear_objects();
 	reset_tile_layers();
 	clear_sprite_group_count();
-	screen->route_branches[0] = (uint8_t)side.first_branch;    /* (the landmarks' set) */
+	screen->progress.route_branches[0] = (uint8_t)side.first_branch;    /* (the landmarks' set) */
 	screen->route_map_signals = 0u;
-	set_up_background(0x4868u + (index * 10u + (uint32_t)side.first_branch * 5u) * 4u);
+	set_up_background(rom_pointer(0x4868u + (index * 10u + (uint32_t)side.first_branch * 5u) * 4u));
 	queue_palette(route_map_background_palette);
 	io_write16(route_map_sea_colour_addresses[index], SEA_COLOUR);
 	console_page_select(registers->pages_address, route_map_close_up_pages[index]);
@@ -228,7 +228,7 @@ static void map_set_up(void)
 	for (uint32_t landmark = 0u; landmark < LANDMARKS; landmark++)
 	{
 		object = address_of(start_object());
-		OBJECT(object)->handler = route_map_landmark_update_ADDRESS;
+		OBJECT(object)->handler = FUNCTION_route_map_landmark_update;
 		OBJECT(object)->route_map_landmark.index_then_half_rate = (uint8_t)landmark;
 		OBJECT(object)->route_map_landmark.route_map = side.map;
 	}
@@ -250,7 +250,7 @@ static void map_show(void)
 		VIDEO_REGISTER_WORDS(registers->register_scroll_x_address)[0] = (uint16_t)side.at.scroll_x;
 		VIDEO_REGISTER_WORDS(registers->scroll_y_address)[0] = (uint16_t)side.at.scroll_y;
 		VIDEO_REGISTER_WORDS(registers->register_scroll_y_address)[0] = (uint16_t)side.at.scroll_y;
-		game->send_video_registers = 0xFFu;
+		world->send_video_registers = game->send_video_registers = 0xFFu;
 	}
 	OBJECT(side.map)->x = (uint16_t)side.at.map_x;
 	OBJECT(side.map)->y = (uint16_t)side.at.map_y;
@@ -328,7 +328,7 @@ void console_side_map_car(int *x, int *y)
 
 int console_side_map_frame(bool due)
 {
-	const int first_branch = SCREEN(SCREEN_1)->forks_decided > 0u ? SCREEN(SCREEN_1)->route_branches[0] != 0u : 0;
+	const int first_branch = SCREEN(SCREEN_1)->progress.forks_decided > 0u ? SCREEN(SCREEN_1)->progress.route_branches[0] != 0u : 0;
 
 	if (!due)
 	{

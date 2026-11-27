@@ -3,7 +3,7 @@
  *    Description: the objects: the object loop, starting and freeing objects and their lists, the random numbers
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -55,7 +55,7 @@ void run_objects(void)
 			break;
 		if ((current_object->flags & 1u) != 0u)
 		{
-			call_code(current_object->handler);
+			call_function(current_object->handler);
 			next_list = OBJECT_AREA(address_of(screen) - 0x8000u)->next_list;
 			OBJECT_LIST(next_list)->count++;
 			OBJECT_LIST(OBJECT_AREA(address_of(screen) - 0x8000u)->next_list)->objects[(int32_t)(OBJECT_LIST(OBJECT_AREA(address_of(screen) - 0x8000u)->next_list)->count - 1u)] = address_of(current_object);
@@ -155,23 +155,23 @@ void free_object_slot(uint16_t object)
    object_handlers_* tables), each with its place in the list at 9, and returns the last one. Used by the
    game modes (game_mode_car_presentation, game_mode_ranking, game_mode_play, initialise_board...),
    name_entry and ranking. */
-struct object *start_object_list(uint32_t handler_list)
+struct object *start_object_list(const uint32_t *handler_list)
 {
 	uint8_t list_index = 0;
 	uint32_t objects_left = 0;
 	struct object *object = NULL;
 
-	objects_left = OBJECT_START_LIST(handler_list)->count;
+	objects_left = handler_list[0];
 	list_index = 0u;
-	handler_list += 4u;
+	handler_list++;
 	do
 	{
 		object = start_object();
-		object->handler = OBJECT_HANDLERS(handler_list)[0];
+		object->handler = handler_list[0];
 		object->number = list_index;
 		list_index++;
 		objects_left--;
-		handler_list += 4u;
+		handler_list++;
 	} while (objects_left != 0u);
 	return object;
 }

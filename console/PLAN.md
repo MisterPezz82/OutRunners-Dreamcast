@@ -577,19 +577,300 @@ merged here; this repository adds console/, the ports and their documents.
   LT, RB, LB and Y, and with R2, L2, R1, L1 and a triangle; the devices' packer's names with and without
   --version. portable.txt and the log on Linux and macOS not tried (the CI builds them); a real DualSense
   not tried. The ROM set picked with a dialog waits for SDL3 (its branch).
+- The R36S on ArkOS (pull request 41, pauloedsfer's: ports/r36s, ORUNNERS_R36S with ORUNNERS_ANBERNIC): the
+  Anbernic build against glibc 2.30, PortMaster's launcher, SELECT + START leaving the game, and a frame past
+  its time not drawn (ORUNNERS_FRAMESKIP) so that the game and its sound keep their 60 a second on the RK3326.
+  Its package, outrunners-VERSION-r36s.zip, the release's seventh (Sebas: each device its own): the CI's
+  anbernic job builds both handhelds (a matrix), and OutRunners R36S, OutRunners Anbernic's sources with
+  ORUNNERS_R36S_MAKER, makes the folder ports for the card's EASYROMS of the folder r36s beside it (the same
+  files and assets pack as PORTS, the launcher PortMaster's); docs/package/README-r36s.txt. The release job
+  takes the computers' packages and the devices' zips alone (the Anbernic's and the R36S's games have files
+  of the same names). Checked on Windows: both builds compile with Zig (glibc 2.29 at most and 2.34), OutRunners
+  Anbernic's texts the same as before, OutRunners R36S's ports with the R36S's launcher and game and the same
+  assets pack as OutRunners Anbernic's, the packer's seven zips. Tried on an R36S by its author; the package on
+  one not tried.
+
+## Done (19-11-2026)
+
+- A racing wheel's spring gone a couple of bends into a race, the shake still there (issue 46, a Logitech
+  G920): the spring was run once, for a length that is not for ever on Windows nor on macOS (SDL gives it in
+  microseconds in 32 bits: SDL_HAPTIC_INFINITY * 1000, 71 minutes, of which a wheel's driver may keep less),
+  while the shake is run again each time the motor starts. The effects are run over and over
+  (SDL_HAPTIC_INFINITY times) and the spring is looked after (forces.c, keep_spring): run again within a
+  second where the device says it is not playing, every 10 seconds whatever it says, and on the first frame
+  after the game was held. Checked on Windows with a fake haptic (the spring's runs counted over the frames:
+  made once, run again at 600 and 1200 frames, within 60 of a status of not playing, on the frame after a
+  hold; a wheel with no status and an autocentre one). On a wheel not tried: the G920's cause is what SDL's
+  source says of the length, not seen on one.
+- OPTIONS > STEERING > SPEED's INSTANT, past 9 (issue 45): the keys' and the pads' wheel all the way at once
+  while one holds it and at the centre at once when let go (STEERING_SPEED_INSTANT, outrunners.ini's
+  steering_speed=10; 9 takes 11 frames to the end). Checked: the page shows < INSTANT > after 9 and 1 after
+  it (the headless's frames); the wheel's jump in a race not tried.
+- 2 PLAYERS with WIDE on: each screen's place in the window was as wide as WIDE's (398 or 496) and its 320
+  sat between black bars, both smaller than the screen had room for (issue 44: a small box each on a 21:9
+  monitor). The places are the board's 320 in 2 PLAYERS (screen_width). Checked on Windows, WIDE 16:9: the
+  window 796 x 448 at the title, 1280 x 448 in 2 PLAYERS, both screens edge to edge (keys posted to the
+  window, PrintWindow). The touch layouts and the devices not tried.
+- WIDE 21:9 (issue 44: 20:9 left a bar of 4% at each side of a 3440 x 1440 monitor): 108 columns more at
+  each side, frames of 536 (S32_VIDEO_WIDE_SIDE_21_9, S32_VIDEO_MAX_WIDTH; the video's WIDE is the port's, the
+  decompilation's runtime has none), shown whole (3440 x 1440 is 535 columns, 2560 x 1080 is 531). WIDE_21_9
+  after AUTO (outrunners.ini's wide=5; wide_width_kind where the kinds were tested as under AUTO); VIDEO's
+  WIDE goes AUTO, OFF, 16:10, 16:9, 20:9, 21:9; a computer's AUTO takes it where the screen is 2.3 times as
+  wide as high or more (a 32:9 one has it between bars), Android's stays at 20:9; the headless's --wide-21-9;
+  recomplauncher.json's choice. A layer is 512 columns a page: where the game's scenery is one page with
+  nothing beside it, its end is in sight sooner than at 20:9 (FULL's frame 3500: the mesa's left edge 14
+  columns in, 6 outside 20:9's view), as 20:9 shows it when the view turns.
+  Checked on Windows: the 31 courses of tests/console/full.txt at 21:9 and at 20:9, a frame every 2000 (64):
+  the middle 496 columns of each the same as 20:9's, the sides looked at one by one; the title, OPTIONS and its
+  pages, the car's choice and ARCADE's start at 21:9; the window 1072 x 448 with wide=5; 4000 frames of ARCADE
+  at 4:3, 16:10, 16:9 and 20:9 with the same hashes as a build of 496; the arcade's 16 scenarios identical. Not
+  tried: an ultrawide monitor (AUTO's choice is by the numbers: 3440 x 1440 and 2560 x 1080 21:9, 2400 x 1080
+  20:9), the route's map and the ending at 21:9, Linux and macOS.
+- 32:9, tried in the headless with the widest frame at 796 (not kept): the road and the ground go on, the
+  roadside's sprites end where the game stops placing them and the layers' scenery is cut and comes round
+  again. See To do.
+
+## Done (24-11-2026)
+
+- CONTROLS' key or button takes the control's place (issue 56: << given another button, the pad's down still
+  went back a song): controls_bind_key and controls_bind_button leave the control that key alone, or that
+  button alone (a key the keys, a button, trigger or stick's way the buttons); before, it went in front and
+  the others stayed. The page shows all the control's buttons, three at most (CONSOLE_CONTROLS_BUTTON_STEP;
+  it showed the first, and the pedals' A and B worked unseen). More than one is controls.ini's, by hand.
+- The sticks' ways as buttons (issue 42: the right stick's up and down as the pedals on the Switch):
+  CONTROL_LEFT_STICK_UP to CONTROL_RIGHT_STICK_RIGHT past the triggers, the axes' buttons (controls.c's
+  axis_buttons: each its axis and way), "leftstickup", "leftstickdown", "rightstickup", "rightstickdown",
+  "rightstickleft", "rightstickright" in controls.ini (the left stick's left and right are the wheel's). On
+  the pedals they press as far as they go, as a trigger does, past STICK_REST (4000 of 32767); on any other
+  control they hold it past its wobble (AXIS_PRESSED). CONTROLS takes one pushed halfway
+  (controls_axis_button); its pictures are Kenney's sheet's (rows 12 and 14). The Switch has no CONTROLS
+  page: its controls.ini, by hand (ports/switch/README.md).
+- CONTROLS' pictures with WIDE on (since WIDE came, 30f8aff; every computer's since 1.3.2's AUTO): drawn the
+  side's columns to the left of their names; console_controls_place counts the side.
+  Checked on Windows: controls.c against an SDL virtual controller (40 checks: the bindings replaced and
+  saved, the other controls letting go, the stick's travel to the pedals past its rest, the names read and
+  written, which axis CONTROLS takes); the page in the window with WIDE 16:9 and OFF (keys posted to the
+  window, PrintWindow) with the sticks' pictures and three buttons; every Windows target, the Switch's and the
+  Anbernic's with no warnings. Not tried: a pad's stick on the page, a Switch.
+- REVERSE's finish's kangaroos (issue 29): not wrong. The ones that cross in front of the crowd are
+  AUSTRALIA's goal parade (goal_parade_leftward_update, goal_parade_rightward_update: back and forth for
+  ever, from the view 96 segments before them); the comparison took REVERSE and ARCADE at the same frame,
+  but REVERSE's race (tests/console/reverse.txt) comes to its goal 146 frames later. ARCADE through
+  0-1-3-7-D-15 (route_branches and route_stages put after race_progress_update, a build of its own): every
+  object of the finish the same (record, place from the view, side, x_offset), the parade starting and
+  moving the same frame by frame, and at the same time after the goal (REVERSE's 22000-22500 against
+  ARCADE's 146 before) every sprite's pixel the same; the background, the road's colours and the HUD the
+  pre-stage's. The pair 02E1A6 is the one at 256 either side, the same in both.
+- The decompilation merged up to 3dc97bf (the game's variables in the host's memory, its state as typed
+  structures, the objects' handlers as functions' numbers, the tables and lists of code out of the ROM; the
+  core console-original 2f6dba3 on arcade-decomp 3dc3c5a). What the console follows: the race record's fields
+  in its state (race->state; the car's model and choice one halfword, RACE_MODEL and RACE_SET_MODEL), the
+  settings in eeprom.settings, the route's progress in screen->progress, FUNCTION_ for the functions'
+  addresses. The six variables struct world keeps that the console sets (player_count, link_off, link_failed,
+  car_numbers, send_video_registers, wheel_motor) are set in both world and the work RAM's copy: the copy
+  alone compiles and does nothing (the race crashed at its eighth frame, no players). The ghost's and the
+  start line's own handlers are called by number; the start line's objects of the console's streams get the
+  console's handler after the game's stream reads them (it now takes CONSOLE_CODE_START_LINE, no function's
+  address, as NO_FUNCTION); call_function (runtime/src/game.c) hands a number past the table to
+  call_code_elsewhere, the console's objects. Checked on Windows: every target with no warnings, the arcade's
+  16 scenarios identical, tests/console's eight identical to the build before in state, picture and sound
+  (TIME ATTACK with an empty ghost folder each: a ghost left by one run changes the next). A start line
+  object whose record START_LINE_KINDS (16) leaves out does nothing in REVERSE, as before.
+- WIDE's sides and the game's edges (as The Simpsons' and TMNT's ports had in players' reports): the game takes
+  objects away, stops drawing them, turns them back or puts them in a little past the board's 320, which WIDE
+  showed inside the picture (Niagara's spray and the landmarks cut at the sides in every WIDE, the title's palm
+  trees short of the right edge at 20:9 and 21:9, the road's crossers taken away in sight at 20:9 and 21:9). The
+  decompilation names those places (278e004: PAST_LEFT, PAST_RIGHT, FROM_MIDDLE, support.h) and the console
+  moves them by WIDE's side: console_set_sides, each frame where the ports set the video's side, sets
+  screen_more_left and screen_more_right too (0 with WIDE off and in 2 PLAYERS). backdrop_off_screen, whose A0
+  the decompilation keeps (the middle and the edges' distance at once), is the console's (replaced.txt): off past
+  the wider screen's side, but the game's own while the sprite waits to come in (state 0), or a backdrop born
+  in a side would stay away from the middle. The headless's --middle-hashes (each screen's 320 columns) and
+  --board-edges (WIDE's frames with the board's edges) check it. Checked on Windows: every target with no
+  warnings; tests/console's eight at 4:3 identical to the build before the merges (state, picture, sound);
+  ARCADE, FULL, REVERSE and the menus at 16:9, 20:9 and 21:9 against --board-edges: the player's screen's middle
+  the same but the title (its palm trees put in past the wider side, its logo's cars taken out past it, so the
+  logo shines a few frames later), the goal parade (turned back 16 columns past the wider side, as the board's
+  past its own) and the landmarks (their height, which the game keeps only while it draws them, a pixel apart);
+  Niagara's spray now at the sides, the middle the same. The right screen is the title all along. Not tried:
+  the devices' builds, a monitor, the network.
+
+## Done (25-11-2026)
+
+- SDL 3 and the Raspberry Pi (issue 47; Sebas, 19-11-2026: "primero pasarlo a sdl3 o el mas reciente que sirva con
+  todo, y agrega una version de raspberi 3 en adelante. y va como regla para todos los ports"; on 25-11-2026, what
+  issue 47 is: "sdl3, ios, pi"). TMNT's port did it first (its 1.1.0); this follows it.
+- The window port is written for SDL 3 now (ports/sdl, which was ports/sdl2), port_sdl.h what its files include.
+  SDL 3.4.20 (03-11-2026), CMakeLists.txt's ORUNNERS_SDL_VERSION, its release's archive by its SHA-256 (the one in
+  build/downloads/sdl3-source where it is there); ORUNNERS_STATIC_SDL was ORUNNERS_STATIC_SDL2.
+- Each platform: Windows, Linux, macOS and the Raspberry Pi, SDL 3.4.20 from its source inside the games (the
+  packages); Android, the same from its source, libSDL3.so beside libmain.so, its Java from its android-project; the
+  Switch, devkitPro's own branch of SDL 3 (github.com/devkitPro/SDL, switch-sdl-3.4 at c329016: SDL 3.4.0, not
+  released; devkitPro has no switch-sdl3 package yet) built into the game by switch.cmake, by its archive's SHA-256;
+  Anbernic's H700 handhelds and the R36S keep their system's SDL 2 (the firmware's 2.0.12, ArkOS's) under the same
+  source: ORUNNERS_SDL2_LAYER, ports/sdl/sdl2_layer.h (TMNT's, with what OutRunners adds: the haptic part forces.c
+  uses, the right stick's axes, a texture turned, the display's mode, the joysticks' list, the processors' count),
+  the stand-in library with SDL_malloc and SDL_RenderFillRect more, and the build's last step
+  ports/anbernic/check_sdl.py (no SDL function newer than 2.0.12 asked for).
+- The move: SDL's own rename scripts over the sources, then by hand what changed underneath: bool results; float
+  rectangles (float_rect in main.c, whole pixels as before); the window and the renderer made with no place and no
+  flags (Direct3D 11 is SDL 3's first on Windows); full screen as a bool (SDL 3's is the desktop's mode); the events'
+  fields; joysticks, gamepads and haptics by their ids (SDL_GetJoysticks, SDL_GetHaptics); the sound as a stream on
+  the default device (SDL_OpenAudioDeviceStream, 1024 sample frames asked of the device as before, the queue's bytes
+  by SDL_GetAudioStreamQueued); SDL's base path SDL's own (base_copy); the tools' window handle from its
+  properties; SDL_main.h included by main.c (the tools, with a main of their own, SDL_MAIN_HANDLED); Android's
+  tablet by the display's content scale (SDL_GetDisplayDPI is gone); an iPad by SDL_IsTablet.
+- What the compiler did not say, found and set right: SDL 3 gives an ARGB texture blending by its alpha, and the
+  game's frames have none (the picture would be black): texture and scaled SDL_BLENDMODE_NONE. SDL 3's joystick id
+  is unsigned and 0 is none: forces.c's -1 and id < 0, and wheel_setup.c's -1 (SET UP WHEEL's "nothing set up"),
+  are 0. SDL_GetTouchDevices gives an empty list, not NULL, with no touch screen. The touch controls' shapes kept at
+  whole pixels. SDL's rename script had made __APPLE__ SDL_PLATFORM_APPLE in two files that include no SDL
+  (ports/android/apk/key.c, ports/switch/nsp/folder_dialog.c): put back.
+- The Switch (TMNT's issue 27 on SDL 3): devkitPro's SDL 3 loads EGL only for a window made with SDL_WINDOW_OPENGL,
+  and its Switch window is an EGL surface: without it the game stops at its start. And F11 or Alt+Enter on a USB
+  keyboard leaves the Switch's window as it is (never full screen: the 1920 x 1080 desktop mode, the picture's top
+  left alone; the checklist's point for OutRunners).
+- The computers' log says SDL's version, the renderer and the drivers: "SDL 3.4.20, renderer direct3d11, video
+  windows, audio wasapi".
+- What a player sees changed, as TMNT's port measured it on the same SDL (not measured here): on Windows the
+  window is DPI-aware (with the desktop at 125% WINDOW 3 is its real pixels, sharper and smaller); a Nintendo
+  controller's buttons by their place (SDL 3's SOUTH, EAST...).
+- Checked on Windows (MSVC, every target with no warnings): OutRunners Arcade's and OutRunners' windows run with
+  control scripts (attract; ARCADE's race to Niagara in both games; 2 PLAYERS), SDL's dummy video and sound, --fast:
+  the same frame by frame on SDL 2 (the same commit built beside it) and on SDL 3, state, picture and sound, 53,604
+  frames. The package's build (ORUNNERS_STATIC_SDL=ON): no SDL3.dll and no C runtime asked for, Windows' own
+  libraries alone. rom_in_executables: the build's games 0; the package's 4 stretches of "program", 1 of "sound" and
+  4 of "pcm", which are SDL 3's own tables inside them (steps 0a 0a ... 0b 0b ... 0c; 00 ... 01 02 03 ... 14; the
+  same games with SDL beside them: 0); tools/rom_in_executables.py's trivial() does not know those shapes (the
+  decompilation's tool).
+- Every port source compiled by Zig against SDL 3.4.20's headers with every warning an error, for Windows, Linux,
+  macOS and Android's branches (the NDK's clang).
+- The Switch: devkitPro's build, OutRunners.nro and the .nsp's pieces, "SDL-3.4.0" and its Switch video in it.
+- Android (NDK 28.2, SDK 35): outrunners-base.apk and this computer's signed one, apksigner v2 and v3; aapt:
+  io.github.cheviman.outrunners, SDK 24 to 35, arm64-v8a with libmain.so and libSDL3.so.
+- Anbernic and R36S (Zig, the layer over SDL 2.0.12): 86 SDL functions each, the newest of SDL 2.0.12.
+- The layer run: the Anbernic's game built natively on Linux (WSL's GCC, the same configuration; it links the
+  stand-in library and loads the system's SDL 2.30 as it starts), with SDL's dummy video and sound and ARCADE's race
+  to Niagara: 16,001 frames the same as on Windows with SDL 2, state, picture and sound; its log by the layer
+  ("SDL 2.30.0, video dummy, audio dummy", the screen's mode, the joysticks).
+- Not played by hand yet: the sound heard, game controllers and racing wheels (the haptic part), the pause, VSYNC.
+  Not tried on a device: a Switch, a phone, a handheld, a Mac, a Raspberry Pi.
+- The Raspberry Pi (3 and later, the 64-bit Raspberry Pi OS): ports/raspberrypi (TMNT's, with OutRunners' names):
+  build.sh builds and packs outrunners-VERSION-raspberrypi-arm64.tar.gz (the two games, font.bmp, input_prompts.bmp,
+  outrunners.png, recomplauncher.json, README.txt, LICENSE.txt and licenses/), on Debian 12 "Bookworm" for arm64
+  (Raspberry Pi OS Legacy's base, glibc 2.36: the games run on it and on Trixie's), SDL 3 inside with Wayland, X11,
+  KMS/DRM, ALSA, PulseAudio and PipeWire; the CI's raspberrypi job runs it in debian:bookworm on an arm64 runner;
+  wsl.sh makes that system in a folder of WSL's and runs it under QEMU. 64-bit only: every Pi from the 3 on runs the
+  64-bit OS.
+- Checked under QEMU in that system (wsl.sh): the games ask for libc and libm alone (glibc 2.34 at most) and for no
+  SDL function of a library; the package's OutRunners Arcade takes the assets out of orunners.zip (--prepare, the
+  first run on arm64); with SDL's dummy video ("SDL 3.4.20, renderer software"), attract (18,001 frames) and
+  2 PLAYERS (3,301) the same frame by frame as on Windows with SDL 2, state, picture and sound. Not tried on a
+  Raspberry Pi: the screen (Wayland, X11, KMS/DRM), the sound, game controllers, the speed on a Pi 3.
+- iOS and iPadOS (issue 47; TMNT's port's, on SDL 3, and outrunners-port's pull request 14, yoshisuga's, the first
+  iOS version of the game, on SDL 2, played on an iPhone on iOS 27.2): OutRunners, the console game alone, as on
+  Android, for an iPhone or an iPad (arm64, iOS 13 on), an unsigned .ipa in outrunners-VERSION-ios.zip
+  (ports/pack_devices.py --ios, docs/package/README-ios.txt), sideloaded (AltStore, SideStore, Sideloadly), never
+  the App Store. ports/ios: ios.cmake (CMake's Xcode generator, SDL 3.4.20 static with no HIDAPI, the target
+  orunners_ios_games), Info.plist.in, LaunchScreen.storyboard (black), Assets.xcassets (the project's car,
+  tools/make_icon.py, which writes it now), README.md. The app takes its assets out of the player's orunners.zip
+  in its Documents (main.c's ios_assets, the extractor linked: ORUNNERS_IOS), which the Files app shows; with none,
+  its message on the screen and in outrunners.log there. main.c's SDL_PLATFORM_IOS: the log, the settings and the
+  records in Documents, the whole screen at its pixels, landscape, the home indicator dimmed, the sound as
+  AVAudioSession's playback, the screen kept on, WIDE and the picture between the sides the notch or the Dynamic
+  Island takes (ios_side_inset), nothing drawn in the background (an event watch) and a race paused there, an
+  iPad as a tablet (SDL_IsTablet).
+- iOS's scenes: iOS 27's SDK asks every app for UIKit's scene life cycle, and one without it does not start (pull
+  request 14 found it; SDL 2 has none, and it brought its own ios.m). SDL 3.4 has it itself (its app delegate gives
+  the scene SDLUIKitSceneDelegate): the Info.plist declares UIApplicationSceneManifest, with
+  UIApplicationSupportsMultipleScenes false and no configuration of the port's own. TMNT's port's iOS has no such
+  key yet.
+- iOS's tasks: runtime/src/tasks.c (the port's own; the decompilation's has fibers and ucontext alone) switches the
+  game's two tasks by their stacks on iOS as on the Switch and Android, Apple's ucontext being "No longer
+  supported" (pull request 14's way), with Mach-O's names (_host_switch_stacks, no symbol types nor sizes); macOS
+  keeps ucontext.
+- NETWORK on iOS: arcade-lan at ad5dfe7 (was bd84786; its protocol still 2, so the devices of 1.3.2 play with it),
+  built with ARCADE_LAN_NO_BROADCAST on iOS (the rooms found by datagrams to each address of the local network:
+  iOS gives an app no broadcasts without Apple's entitlement); its two tests pass.
+- The CI's jobs ios (macos-15: the app and its .ipa, read back: the Info.plist's keys, arm64 for iOS, the launch
+  screen and the icon in the bundle, no assets in the .ipa) and ios-simulator (the app started with no ROM set: its
+  log must say where orunners.zip goes, a screenshot of it); the devices' job packs outrunners-VERSION-ios.zip; the
+  release's packages are nine.
+- Checked here, with no Mac: ports/sdl's main.c, letters.c, touch.c, forces.c and controls.c compiled by Zig for
+  aarch64-ios and aarch64-ios-simulator with its Darwin headers and SDL 3.4.20's, every warning an error, iOS's
+  branches in them (the message, the hints, SDL_main); the whole game for both (runtime/src, src/, console/,
+  arcade-lan: 81 sources, no warning; runtime/src/byte_order.c is the byte order check's, GCC's alone, not iOS's);
+  tasks.c: _host_switch_stacks on iOS and its Simulator, ucontext on macOS, host_switch_stacks on Android; the
+  workflow's YAML parsed (ten jobs); pack_devices.py --ios with stand-in folders. Not built, not run: Xcode's build
+  (the storyboard, the asset catalog, the link), the Simulator, an iPhone or an iPad: the CI's ios jobs, at the
+  next push.
+- The windows seen (PrintWindow, a DPI-aware capture: the desktop at 125%): the first run's window 640 x 448 in
+  real pixels, its letters whole and sharp; OutRunners' title in WIDE 16:9 (796 x 448) and OutRunners Arcade's two
+  screens (1280 x 448), the pictures right (the blend mode above).
+
+- The northern lights of stage 26 and the close-up route map's half-rate picture see-through (issue 32): the game
+  draws them every other frame, two of the screen's frames on and two off, which blinks as Niagara's spray did.
+  aurora_update and route_map_landmark_update in console/replaced.txt (src/ written again: their four lines; a
+  line of src/race/race_cars.c the decompiler wrote otherwise on this tree, perspective_scales[depth] read as the
+  crash text's fields, kept as the decompilation has it: to look at there), the console's in console.c: their
+  counts left as they are, as they also time the animations (animation_advance counts its frame down each call),
+  the frames the game leaves out draw the same picture again (draw_object), and every frame's sprites are a
+  ghost's (sprites_see_through, which backdrop_translucent_update takes too). Checked on the console's headless
+  game, FULL's race (116,000 frames): the sound the same, the picture different from frame 92,073 to 108,324
+  alone (stage 26), the state from 92,069 on (the sprite list's words); frames 95,001 and 95,002, two of the
+  game's frames off: the lights there now, faint. The arcade build blinks as the cabinet does. Not seen: the
+  route map's picture (in ARCADE's close-up route map), a screen.
+- OPTIONS > SOUND (issue 57, a player's: the DJ over the radio's songs, the engine and the tyres): VOLUME's line is
+  SOUND's page, VOLUME (the whole sound), MUSIC (the YM3438 and the songs' samples, the drums and the
+  instruments), EFFECTS (the engines, the tyres, the crashes, the scenery) and VOICE (the DJ and the other
+  voices), 0 to 10 each, 5 the game's own, kept in outrunners.ini (music_volume, effects_volume, voice_volume).
+  The MultiPCM's samples by what they are: console/pcm_categories.c, made by tools/pcm_categories.py from
+  pcm_samples.txt (241 samples: 142 MUSIC, 51 EFFECTS, 48 VOICE, by the folder of their names); a voice takes its
+  sample's category as its key goes on (multipcm's category_of, through the banks' pages as they are then:
+  s32_pcm_region_address; console_sample_category), each category its gain (multipcm's category_gain, 256 as it
+  is) and the YM3438 its own in the mix (sound_chips_set_gains, console_sound_gains: the setting over 5). The
+  console headless's --sound-mix MUSIC,EFFECTS,VOICE. Checked: ARCADE's race to Niagara (16,001 frames) at
+  5,5,5 the same as before, state and sound; with VOICE 0 the sound different in 1,220 frames alone, the
+  voices' (SEGA's at 2 s, the menus' and the car select's, Go! at 61 s, the checkpoint at 181 s), the state the
+  same; with MUSIC 0 in 15,306; the windows' runs at 5 each the same as before, state, picture and sound. Not
+  heard yet: the mix by ear.
+- REVERSE's start at AUSTRALIA without the people over the water (Sebas's: the start line's stands and people at
+  both sides, and its left is the harbour): the pre-stage's start line the console puts in where REVERSE starts has
+  its rows drawn in pairs (scenery_pair, animated_scenery_pair: one item each side of the road, the second
+  mirrored); at AUSTRALIA (WATER_LEFT_GOAL) presentation_start_line_update runs their one side's handlers instead
+  (scenery, animated_scenery: the same record and steps, the pair's first item, at the right). The ten goals'
+  starts looked at: only AUSTRALIA's has water at a side (the ATLANTIC OCEAN's is under the sea all round). Checked:
+  REVERSE from AUSTRALIA (6,000 frames) different from frame 1,969 on, the sound the same, the left there the gate,
+  its sign, the balloon, the flagman and the stage's planters before the harbour; REVERSE from JAPAN and CLASSIC
+  the same as before, state, picture and sound. Looked at too, and the game's: the kangaroos of Uluru start small in
+  the middle (where they stand, at the side of a road narrow in the distance, then jump across as the car comes
+  near), the same at 4:3 and in WIDE's middle (20:9, --board-edges: 128 frames the same to the pixel).
+- The radio's MUSIC goes round it all (Sebas's: the space bar, MUSIC, went from the car's song to the station and
+  back, two of them; the songs were << and >> alone, [ and ]): console_radio_buttons takes MUSIC too, and a press
+  of it on a song but the last is >> while it is held (decided as it is pressed: a song that turns the last one
+  meanwhile does not make it the game's MUSIC halfway), on Last Wave the game's own (the station, its DJ), and on
+  the station the game's own with the car's song set to the first, Magical Sound Shower (any of the station's
+  buttons goes back to the car's song). The seat's radio is the object car_radio_read_buttons runs (seat_radio),
+  on its songs in its states 0 and 1. The arcade build's MUSIC is the cabinet's. Checked on the console's
+  headless game, CLASSIC with MUSIC pressed every 300 frames: the songs 7, 8, 9, the station (states 2 and 3),
+  0, 1 and on to 9; the console's menu, CONTROLS, CLASSIC, 2 PLAYERS and ARCADE's race to Niagara the same as
+  before, state, picture and sound (none presses the radio).
+- The devices' frames' pace goes to the log only where it is asked for (Sebas's, from the main checkout's
+  ports/sdl2/main.c, brought to ports/sdl/main.c): with --pace, or an empty pace.txt beside the log (the Switch's
+  folder, Android's external storage, the game's folder elsewhere); a line every 300 frames is a write to the card
+  while the game runs, which can hold a frame. The Anbernic's and the Switch's READMEs say so. Compiled for
+  Windows, Android and iOS.
+- 1.4.0: the version (CMakeLists.txt; the examples of the packages' names), docs/releases/v1.4.0.md.
+
 ## To do
 
-- REVERSE's finish (AUSTRALIA's at the pre-stage): the pair of kangaroos under the riders at each side of
-  the road (scenery_pair 02E1A6) is drawn nearer the middle than at AUSTRALIA, behind the crowd (its
-  pixels at x 79-237 where the game's are at 50-75 and 245-270), its record, place and the road's width
-  code (5) the same as there; the riders (020DCF) where the game has them.
+- 32:9 (issue 44): for one player it would need each stage's scenery drawn further out than the game places
+  it; for 2 PLAYERS side by side it is 16:9 a screen, which needs WIDE in 2 PLAYERS (today both screens are the
+  board's 320).
+
 - Issue 25's last report, a split second of something wrong from the results to the title: not seen
   pressing START on the route map or the ranking after ARCADE's race (the fades smooth, frame by frame);
   the player to say which screen.
-
-- The northern lights of stage 26 are drawn every other frame too (aurora_update, by the count that also
-  times their animations), and one of the route map's landmarks: see-through as the spray, if they blink as
-  much.
 
 - FULL's and REVERSE's background changes where the view turns the other way than the background's pages
   were drawn for (the fork's branch road the player takes): the turn's set keeps the swaps out of sight

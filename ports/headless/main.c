@@ -3,15 +3,15 @@
  *    Description: runs the game with no screen or sound, with the controls a script drives, and writes a
  *                 hash of the board state (and of the frames the video draws) after every frame, in the
  *                 format tools/core/system32/reference/s32ref uses
- *    Version:     0.1.1
+ *    Version:     0.1.2
  *    Created:     11-10-2026
- *    Modified:    07-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
  *    Usage: orunners_headless [--frames N] [--hashes FILE] [--script FILE] [--dump-frame N --dump-dir DIR]
- *                             [--video-hashes FILE] [--video-dump N ... --video-dir DIR] [--sound-hashes FILE]
- *                             [--sprite-census FILE] [--tile-census FILE] [--memory-census FILE]
+ *                             [--video-hashes FILE] [--middle-hashes FILE] [--video-dump N ... --video-dir DIR]
+ *                             [--sound-hashes FILE] [--sprite-census FILE] [--tile-census FILE] [--memory-census FILE]
  *                             [--assets FOLDER]
  *    The game's data is its assets (game/assets.h), the files extract_assets.py writes: --assets, or the
  *    folder 'assets' beside the executable, or the one in the current folder (a run from the repository).
@@ -20,9 +20,13 @@
  *    The board runs with frame timing, as s32ref does by default, and the hashes are the ones s32ref
  *    writes, so the two compare byte by byte. --video-hashes and --video-dump draw every frame of both
  *    screens with the board's video (runtime/src/video.c): the hash of each frame, and frames as BMP, the
- *    left screen beside the right. --sound-hashes runs the sound board too (the decompiled sound program
+ *    left screen beside the right. --middle-hashes writes the hash of the board's 320 columns of each screen,
+ *    the left one's then the right one's, WIDE's sides left out; with --board-edges the game's edges stay the
+ *    board's in WIDE's frames, so that what moving them changes in the middle shows. --sound-hashes runs the sound board too (the decompiled sound program
  *    and the chips, runtime/src/sound_cpu.c and sound_chips.c), and writes for each frame the hash of its
- *    samples and of the sound board's memory. --sprite-census and --tile-census write what the sprites and
+ *    samples and of the sound board's memory. The state's hashes and --dump-frame's dumps of the work RAM and
+ *    the sound board's RAM are of them as the V70 holds them, which on a big-endian processor takes a build
+ *    with ORUNNERS_BYTE_ORDER_CHECK (s32/byte_order.h). --sprite-census and --tile-census write what the sprites and
  *    the tilemaps draw, with the colors each pen shows, for the asset extractor (tools/palette_census.py).
  *    --screens 1 draws the left screen alone, as the console's window does in one player games
  *    (s32_video_show_screens): the right one keeps its first frame.
@@ -30,12 +34,14 @@
  *    (runtime/src/memory_census.c), in a build with ORUNNERS_MEMORY_CENSUS (tools/memory_census.py).
  */
 #include "s32/bus.h"
+#include "s32/byte_order.h"
 #include "s32/machine.h"
 #include "s32/program.h"
 #include "s32/script.h"
 #include "s32/workers.h"
 #include "s32/video.h"
 #include "sound/chips.h"
+#include "s32/multipcm.h"    /* (MULTIPCM_CATEGORIES: SOUND's gains) */
 #ifdef ORUNNERS_CONSOLE
 #include "console.h"
 #endif
@@ -61,12 +67,12 @@
 #endif
 
 #define USAGE "Usage: orunners_headless [--frames N] [--hashes FILE] [--script FILE] [--dump-frame N --dump-dir DIR]" \
-	" [--video-hashes FILE] [--video-dump N ... --video-dir DIR] [--sound-hashes FILE]" \
+	" [--video-hashes FILE] [--middle-hashes FILE] [--video-dump N ... --video-dir DIR] [--sound-hashes FILE]" \
 	" [--sprite-census FILE] [--tile-census FILE] [--memory-census FILE] [--assets FOLDER|PACK.assets]" \
 	" [--write-pack PACK.assets] [--workers N] [--screens 1|2] [--sound-wav FILE]" \
-	" (orunners_console_headless: [--actions FILE] [--wide | --wide-20-9 | --wide-16-10] [--autopilot]" \
+	" (orunners_console_headless: [--actions FILE] [--wide | --wide-20-9 | --wide-21-9 | --wide-16-10] [--board-edges] [--autopilot]" \
 	" [--ghost-folder DIR] [--pause-dump N] [--side-map] [--real-time] [--name NAME] [--network-log FRAMES]" \
-	" [--restart N])\n"
+	" [--restart N] [--quit N] [--sound-mix MUSIC,EFFECTS,VOICE])\n"
 #define MAX_VIDEO_DUMPS 64
 #define CENSUS_SLOTS (1u << 22)     /* open addressing for the censuses' hashes */
 #define TILE_CENSUS_EVERY 30        /* the tilemaps are looked at every this many frames */
@@ -78,6 +84,7 @@ static s32_script *script;
 static uint64_t dump_frame = UINT64_MAX;
 static const char *dump_dir;
 static FILE *video_hashes;
+static FILE *middle_hashes;    /* --middle-hashes: each frame's board's 320 columns of each screen, WIDE's sides left out */
 static uint64_t video_dumps[MAX_VIDEO_DUMPS];
 static int video_dump_count;
 static const char *video_dir;
@@ -178,14 +185,41 @@ static void write_file(const char *name, const void *data, size_t size)
 
 static void dump_state(void)
 {
-	write_file("work_ram.bin", s32_board.work_ram, S32_WORK_RAM_SIZE);
-	write_file("video_ram.bin", s32_board.video_ram, sizeof(s32_board.video_ram));
-	write_file("sprite_ram.bin", s32_board.sprite_ram, sizeof(s32_board.sprite_ram));
+	uint8_t eeprom[S32_EEPROM_WORDS * 2];
+
+	write_file("work_ram.bin", s32_order_v70(s32_board.work_ram), S32_WORK_RAM_SIZE);
+	write_file("video_ram.bin", s32_order_words(s32_board.video_ram), sizeof(s32_board.video_ram));
+	write_file("sprite_ram.bin", s32_order_words(s32_board.sprite_ram), sizeof(s32_board.sprite_ram));
 	write_file("palette.bin", s32_board.palette, sizeof(s32_board.palette));
 	write_file("mixer.bin", s32_board.mixer, sizeof(s32_board.mixer));
-	write_file("shared_ram.bin", s32_board.shared_ram, sizeof(s32_board.shared_ram));
+	write_file("shared_ram.bin", s32_order_v70(s32_board.shared_ram), sizeof(s32_board.shared_ram));
 	write_file("comm_ram.bin", s32_board.comm_ram, sizeof(s32_board.comm_ram));
-	write_file("eeprom.bin", s32_board.eeprom.data, sizeof(s32_board.eeprom.data));
+	for (int word = 0; word < S32_EEPROM_WORDS; word++)    /* (each word low byte first, on any processor) */
+	{
+		eeprom[word * 2] = (uint8_t)s32_board.eeprom.data[word];
+		eeprom[word * 2 + 1] = (uint8_t)(s32_board.eeprom.data[word] >> 8);
+	}
+	write_file("eeprom.bin", eeprom, sizeof(eeprom));
+}
+
+/* The hash of a screen's board's 320 columns (FNV-1a over their pixels), the middle of a WIDE frame: what a change
+   to WIDE's sides must leave as it was */
+static uint64_t middle_hash(int screen)
+{
+	uint64_t hash = 0xcbf29ce484222325ull;
+	int width;
+	const uint32_t *pixels = s32_video_frame(screen, &width);
+	const int side = (width - 320) / 2;
+
+	for (int y = 0; y < S32_VIDEO_HEIGHT; y++)
+		for (int x = side; x < side + 320; x++)
+		{
+			const uint32_t pixel = pixels[y * S32_VIDEO_MAX_WIDTH + x];
+
+			for (int byte = 0; byte < 4; byte++)
+				hash = (hash ^ ((pixel >> (8 * byte)) & 0xffu)) * 0x100000001b3ull;
+		}
+	return hash;
 }
 
 /* The last frames the video drew, as a 24-bit BMP: the left screen, then the right one */
@@ -334,6 +368,9 @@ static void on_frame_done(void)
 			s32_video_census_write(census, program_frames() - 1);
 	}
 #endif
+	if (middle_hashes)
+		fprintf(middle_hashes, "%" PRIu64 " %016" PRIx64 " %016" PRIx64 "\n", program_frames() - 1, middle_hash(0),
+			middle_hash(1));
 	if (sound_hashes || sound_wav)
 	{
 		/* the sound board up to the frame's end, then the samples that start before it */
@@ -391,7 +428,11 @@ static struct
 } actions[MAX_ACTIONS];
 static size_t action_count;
 static bool autopilot;    /* --autopilot: player 1's wheel keeps the car on the road (console_test_autopilot) */
+static bool board_edges;  /* --board-edges: WIDE's frames with the game's edges the board's (screen_more_left and
+                             screen_more_right 0), for --middle-hashes against the edges WIDE moves */
+extern int screen_more_left, screen_more_right;
 static uint64_t restart_frame;    /* --restart: the pause's RESTART picked at that frame (console_restart_game) */
+static uint64_t quit_frame;       /* --quit: the pause's QUIT GAME picked at that frame (console_quit_game) */
 
 static const char *load_actions(const char *path)
 {
@@ -432,11 +473,34 @@ static void on_controls_update(void)
 	for (size_t index = 0; index < action_count; index++)
 		if (actions[index].frame == s32_board.frame)
 			console_actions(actions[index].action);
-	s32_video_set_wide_side(console_wide_side());
+	for (int player = 0; player < 2; player++)
+	{
+		/* the radio's MUSIC, << and >> as the window port has them (console_radio_buttons); a button it pressed is
+		   let go again the next frame, and one it let go stays so (the script presses and lets go by its own events
+		   alone) */
+		static uint8_t added[2];
+		uint8_t *port = &s32_board.input.port_b[player];
+		bool music, previous, next;
+
+		*port |= added[player];
+		music = (*port & 0x01u) == 0u;
+		previous = (*port & 0x02u) == 0u;
+		next = (*port & 0x04u) == 0u;
+		console_radio_buttons(player, &music, &previous, &next);
+		added[player] = (uint8_t)(((*port & 0x02u) != 0u && previous ? 0x02u : 0u) | ((*port & 0x04u) != 0u && next ? 0x04u : 0u));
+		*port &= (uint8_t)~added[player];
+		if (!music)
+			*port |= 0x01u;    /* (MUSIC taken as >>) */
+	}
+	console_set_sides();
+	if (board_edges)
+		screen_more_left = screen_more_right = 0;
 	if (autopilot)
 		s32_board.input.analog[0] = (uint8_t)console_test_autopilot();    /* (player 1's wheel) */
 	if (restart_frame != 0u && s32_board.frame == restart_frame)
 		console_restart_game();
+	if (quit_frame != 0u && s32_board.frame == quit_frame)
+		console_quit_game();
 #endif
 }
 
@@ -475,6 +539,7 @@ int main(int argc, char **argv)
 	const char *hashes_path = NULL;
 	const char *script_path = NULL;
 	const char *video_hashes_path = NULL;
+	const char *middle_hashes_path = NULL;
 	const char *sound_hashes_path = NULL;
 	const char *sprite_census_path = NULL;
 	const char *tile_census_path = NULL;
@@ -500,6 +565,8 @@ int main(int argc, char **argv)
 			dump_dir = argv[++index];
 		else if (strcmp(argv[index], "--video-hashes") == 0 && index + 1 < argc)
 			video_hashes_path = argv[++index];
+		else if (strcmp(argv[index], "--middle-hashes") == 0 && index + 1 < argc)
+			middle_hashes_path = argv[++index];
 		else if (strcmp(argv[index], "--video-dump") == 0 && index + 1 < argc && video_dump_count < MAX_VIDEO_DUMPS)
 			video_dumps[video_dump_count++] = strtoull(argv[++index], NULL, 10);
 		else if (strcmp(argv[index], "--video-dir") == 0 && index + 1 < argc)
@@ -535,12 +602,30 @@ int main(int argc, char **argv)
 			console_window_settings.wide = WIDE_16_9;    /* (OPTIONS > VIDEO > WIDE) */
 		else if (strcmp(argv[index], "--wide-20-9") == 0)
 			console_window_settings.wide = WIDE_20_9;
+		else if (strcmp(argv[index], "--wide-21-9") == 0)
+			console_window_settings.wide = WIDE_21_9;
 		else if (strcmp(argv[index], "--wide-16-10") == 0)
 			console_window_settings.wide = WIDE_16_10;
 		else if (strcmp(argv[index], "--autopilot") == 0)
 			autopilot = true;
+		else if (strcmp(argv[index], "--board-edges") == 0)
+			board_edges = true;
+		else if (strcmp(argv[index], "--both-radios") == 0)
+			console_window_settings.both_radios = true;    /* (OPTIONS > 2P MUSIC: ARCADE) */
+		else if (strcmp(argv[index], "--sound-mix") == 0 && index + 1 < argc)
+		{
+			/* (OPTIONS > SOUND's MUSIC, EFFECTS and VOICE: three numbers, 0-10, 5 the game's own) */
+			if (sscanf(argv[++index], "%d,%d,%d", &console_window_settings.music_volume,
+				&console_window_settings.effects_volume, &console_window_settings.voice_volume) != 3)
+			{
+				fprintf(stderr, USAGE);
+				return 1;
+			}
+		}
 		else if (strcmp(argv[index], "--restart") == 0 && index + 1 < argc)
 			restart_frame = strtoull(argv[++index], NULL, 10);
+		else if (strcmp(argv[index], "--quit") == 0 && index + 1 < argc)
+			quit_frame = strtoull(argv[++index], NULL, 10);
 		else if (strcmp(argv[index], "--side-map") == 0)
 			console_side_map_wanted(true);    /* (a tall screen's room: the route map beside the race) */
 		else if (strcmp(argv[index], "--pause-dump") == 0 && index + 1 < argc)
@@ -626,6 +711,8 @@ int main(int argc, char **argv)
 		hashes = fopen(hashes_path, "w");
 	if (video_hashes_path)
 		video_hashes = fopen(video_hashes_path, "w");
+	if (middle_hashes_path)
+		middle_hashes = fopen(middle_hashes_path, "w");
 	if (sprite_census_path || tile_census_path)
 	{
 		census_seen = calloc(CENSUS_SLOTS, sizeof(census_seen[0]));
@@ -655,7 +742,7 @@ int main(int argc, char **argv)
 #else
 	s32_init(NULL);
 #endif
-	if (video_hashes || video_dump_count || sprite_census || tile_census)
+	if (video_hashes || middle_hashes || video_dump_count || sprite_census || tile_census)
 #ifdef ORUNNERS_SCAFFOLD
 		s32_video_init(game_tiles, sizeof(game_tiles), game_sprites, sizeof(game_sprites));
 #else
@@ -688,8 +775,22 @@ int main(int argc, char **argv)
 	}
 #ifdef ORUNNERS_CONSOLE
 	sound_chips_join_sides(true);
+	sound_chips_set_categories(console_sample_category);    /* (OPTIONS > SOUND's MUSIC, EFFECTS and VOICE) */
+	{
+		double fm;
+		int32_t pcm[MULTIPCM_CATEGORIES];
+
+		console_sound_gains(&fm, pcm);
+		sound_chips_set_gains(fm, pcm);
+	}
 	console_attach();
 #endif
+	{
+		/* (a check of the Dreamcast port's setting: ORUNNERS_NO_FRAME_PROJECTION, no projection at a frame's end) */
+		extern bool world_project_at_frame_end;
+		if (getenv("ORUNNERS_NO_FRAME_PROJECTION"))
+			world_project_at_frame_end = false;
+	}
 	program_reset();
 	program_frame_done = on_frame_done;
 
@@ -699,6 +800,8 @@ int main(int argc, char **argv)
 		fclose(hashes);
 	if (video_hashes)
 		fclose(video_hashes);
+	if (middle_hashes)
+		fclose(middle_hashes);
 	if (sound_hashes)
 		fclose(sound_hashes);
 	if (sound_wav)

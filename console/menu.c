@@ -2,9 +2,9 @@
  *    Name:        menu.c
  *    Description: the console's menus on the left seat's screen: PRESS START in the attract mode, the title's
  *                 menu, DELUXE, NETWORK with its rooms, and OPTIONS with its pages
- *    Version:     0.1.4
+ *    Version:     0.1.6
  *    Created:     29-10-2026
- *    Modified:    15-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -68,12 +68,13 @@ enum
 	PAGE_NETWORK,
 	PAGE_NAME,
 	PAGE_ROOMS,         /* JOIN: the rooms found */
-	PAGE_ROOM           /* the room hosted or joined */
+	PAGE_ROOM,          /* the room hosted or joined */
+	PAGE_SOUND          /* OPTIONS' SOUND: VOLUME, MUSIC, EFFECTS and VOICE (issue 57) */
 };
 
 static const char *const menu_items[] = { "ARCADE", "2 PLAYERS", "NETWORK", "& KNUCKLES", "OPTIONS", "EXIT" };
 static const char *const deluxe_items[] = { "CLASSIC", "TIME ATTACK", "FULL", "REVERSE", "BACK" };
-static const char *const options_items[] = { "CONTROLS", "DIFFICULTY", "TIME", "VIDEO", "VOLUME", "SOUND TEST", "STEERING", "FPS",
+static const char *const options_items[] = { "CONTROLS", "DIFFICULTY", "TIME", "VIDEO", "SOUND", "SOUND TEST", "STEERING", "FPS",
 	"2P MUSIC", "BACK" };
 static const char *const network_items[] = { "HOST", "JOIN", "NAME", "PLAYERS", "BACK" };
 /* the letters NAME goes through: the font's (a space shown as _ while it is written) */
@@ -81,9 +82,9 @@ static const char name_letters[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-";
 static const char *const time_stages[TIME_STAGES] = { "PRE-STAGE", "STAGE 1", "STAGE 2", "STAGE 3", "STAGE 4",
 	"FINAL STAGE" };
 static const char *const pixel_kinds[PIXELS_KINDS] = { "SHARP", "SMOOTH", "BILINEAR", "CRT" };
-static const char *const wide_kinds[WIDE_KINDS] = { "OFF", "16:9", "20:9", "16:10", "AUTO" };
+static const char *const wide_kinds[WIDE_KINDS] = { "OFF", "16:9", "20:9", "16:10", "AUTO", "21:9" };
 /* WIDE's values as VIDEO goes through them: AUTO, then the narrowest first */
-static const int wide_order[WIDE_KINDS] = { WIDE_AUTO, WIDE_OFF, WIDE_16_10, WIDE_16_9, WIDE_20_9 };
+static const int wide_order[WIDE_KINDS] = { WIDE_AUTO, WIDE_OFF, WIDE_16_10, WIDE_16_9, WIDE_20_9, WIDE_21_9 };
 static const char *const control_names[CONTROLS] = { "STEER LEFT", "STEER RIGHT", "GAS", "BRAKE", "SHIFT UP",
 	"SHIFT DOWN", "MUSIC", "SONG <<", "SONG >>", "START" };
 /* the test mode's GAME DIFFICULTY, from EASY to HARD on its bar of 8 (the fourth, the game's own) */
@@ -94,12 +95,12 @@ static const char *const difficulties[DIFFICULTIES] = { "VERY EASY", "EASIER", "
 
 enum { MENU_ARCADE, MENU_TWO_PLAYERS, MENU_NETWORK, MENU_DELUXE, MENU_OPTIONS, MENU_EXIT };
 enum { DELUXE_CLASSIC, DELUXE_TIME_ATTACK, DELUXE_FULL, DELUXE_REVERSE, DELUXE_BACK };
-enum { OPTIONS_CONTROLS, OPTIONS_DIFFICULTY, OPTIONS_TIME, OPTIONS_VIDEO, OPTIONS_VOLUME, OPTIONS_SOUND_TEST,
+enum { OPTIONS_CONTROLS, OPTIONS_DIFFICULTY, OPTIONS_TIME, OPTIONS_VIDEO, OPTIONS_SOUND, OPTIONS_SOUND_TEST,
 	OPTIONS_STEERING, OPTIONS_FPS, OPTIONS_MUSIC, OPTIONS_BACK };
 enum { NETWORK_HOST, NETWORK_JOIN, NETWORK_NAME, NETWORK_PLAYERS, NETWORK_BACK };
 
 /* The lines a build shows of the title's menu and of OPTIONS: a computer's, all of them. A game device's
-   (ORUNNERS_HANDHELD) has no VIDEO, its picture fixed (ports/sdl2/main.c); nor CONTROLS where its controls are
+   (ORUNNERS_HANDHELD) has no VIDEO, its picture fixed (ports/sdl/main.c); nor CONTROLS where its controls are
    fixed (the Switch's), but where they may need putting right (ORUNNERS_CONTROLS_PAGE: a handheld's own
    buttons); nor 2 PLAYERS but where a second player has a controller of their own (ORUNNERS_TWO_PLAYERS: the
    Switch's, side by side) or the port offers it (console_offer_two_players: a tablet's screen, the two facing
@@ -136,7 +137,7 @@ static const int options_lines[] = {
 #ifndef ORUNNERS_HANDHELD
 	OPTIONS_VIDEO,
 #endif
-	OPTIONS_VOLUME, OPTIONS_SOUND_TEST, OPTIONS_STEERING, OPTIONS_FPS,
+	OPTIONS_SOUND, OPTIONS_SOUND_TEST, OPTIONS_STEERING, OPTIONS_FPS,
 #if !defined(ORUNNERS_HANDHELD) || defined(ORUNNERS_TWO_PLAYERS)
 	OPTIONS_MUSIC,    /* (where the build has 2 PLAYERS: the right seat's radio) */
 #endif
@@ -161,6 +162,11 @@ static void set_network_lines(void)
 }
 enum { VIDEO_WINDOW, VIDEO_FULL_SCREEN, VIDEO_PIXELS, VIDEO_WIDE, VIDEO_VSYNC, VIDEO_TWO_PLAYERS, VIDEO_BACK,
 	VIDEO_ITEMS };
+/* SOUND's lines (issue 57: a player's, to hear the radio over the DJ): VOLUME, the whole sound, then MUSIC (the
+   songs: the FM chips and the drums' and instruments' samples), EFFECTS (the engines, the tyres, the crashes, the
+   scenery) and VOICE (the DJ and the other voices), each 0 to 10, 5 the game's own (ports/sdl's sound mix) */
+enum { SOUND_VOLUME, SOUND_MUSIC, SOUND_EFFECTS, SOUND_VOICE, SOUND_BACK, SOUND_ITEMS };
+static const char *const sound_items[SOUND_ITEMS] = { "VOLUME", "MUSIC", "EFFECTS", "VOICE", "BACK" };
 /* STEERING's lines: CENTRING and SET UP WHEEL a computer's (a racing wheel's; a device's controls are its
    own), PHONE VIBRATION Android's (its touch controls') */
 enum { STEERING_DEAD_ZONE, STEERING_SENSITIVITY, STEERING_ROTATION,
@@ -197,7 +203,8 @@ static struct
 	int name_at;            /* NAME: the letter being changed */
 } menu = { .controls_waiting = -1 };
 
-console_window console_window_settings = { .window_scale = 2, .pixels = PIXELS_SHARP, .volume = 5, .name = "PLAYER",
+console_window console_window_settings = { .window_scale = 2, .pixels = PIXELS_SHARP, .volume = 5, .music_volume = 5,
+	.effects_volume = 5, .voice_volume = 5, .name = "PLAYER",
 	.dead_zone = DEAD_ZONE_NORMAL, .sensitivity = STEERING_NORMAL, .wheel_rotation = WHEEL_ROTATION_GAME,
 	.steering_speed = STEERING_NORMAL, .centring = CENTRING_NORMAL, .vibration = VIBRATION_NORMAL, .vsync = true,
 	.phone_vibration = true, .wide = WIDE_AUTO };
@@ -278,7 +285,7 @@ static void hold_title(bool opening)
 		screen->mode_timer = TITLE_TIME;
 	if (opening)
 	{
-		const uint32_t title = console_find_object(title_screen_update_ADDRESS, 0u);
+		const uint32_t title = console_find_object(FUNCTION_title_screen_update, 0u);
 
 		if (title && OBJECT(title)->state == 1u)
 			OBJECT(title)->title_screen.frames = (uint16_t)((OBJECT(title)->title_screen.frames & 0xFF00u) | TITLE_HELD);
@@ -288,7 +295,7 @@ static void hold_title(bool opening)
 /* True while the title shows its opening (the title object before its logo) */
 static bool title_opening(void)
 {
-	const uint32_t title = console_find_object(title_screen_update_ADDRESS, 0u);
+	const uint32_t title = console_find_object(FUNCTION_title_screen_update, 0u);
 
 	return title && OBJECT(title)->state <= 1u;
 }
@@ -304,6 +311,7 @@ static int lines_of(int page)
 		case PAGE_OPTIONS: return COUNT(options_lines);
 		case PAGE_TIME: return TIME_STAGES + 1;
 		case PAGE_SOUND_TEST: return 2;
+		case PAGE_SOUND: return SOUND_ITEMS;
 		case PAGE_VIDEO: return VIDEO_ITEMS;
 		case PAGE_STEERING: return STEERING_ITEMS;
 		case PAGE_INPUT_TEST: return 1;  /* (BACK alone: the wheel turns past the arrows there) */
@@ -384,13 +392,8 @@ static void options_frame(uint32_t pressed)
 
 	if (by && item == OPTIONS_DIFFICULTY)
 	{
-		game->game_difficulty = (uint8_t)step(game->game_difficulty, by, 0, DIFFICULTIES - 1);
+		game->eeprom.settings.game_difficulty = (uint8_t)step(game->eeprom.settings.game_difficulty, by, 0, DIFFICULTIES - 1);
 		menu.settings_changed = true;
-	}
-	if (by && item == OPTIONS_VOLUME)
-	{
-		console_window_settings.volume = step(console_window_settings.volume, by, 0, 10);
-		console_window_settings.changed = true;
 	}
 	if (item == OPTIONS_FPS && (by || (pressed & ACTION_BIT(ACTION_ACCEPT))))
 	{
@@ -417,6 +420,10 @@ static void options_frame(uint32_t pressed)
 				menu.options_choice = menu.choice;
 				open_page(PAGE_SOUND_TEST, 0);
 				return;
+			case OPTIONS_SOUND:
+				menu.options_choice = menu.choice;
+				open_page(PAGE_SOUND, 0);
+				return;
 			case OPTIONS_VIDEO:
 				menu.options_choice = menu.choice;
 				open_page(PAGE_VIDEO, 0);
@@ -439,12 +446,7 @@ static void options_frame(uint32_t pressed)
 
 		if (options_lines[index] == OPTIONS_DIFFICULTY)
 		{
-			snprintf(value, sizeof(value), "< %s >", difficulties[game->game_difficulty & (DIFFICULTIES - 1)]);
-			shown = value;
-		}
-		else if (options_lines[index] == OPTIONS_VOLUME)
-		{
-			snprintf(value, sizeof(value), "< %d >", console_window_settings.volume);
+			snprintf(value, sizeof(value), "< %s >", difficulties[game->eeprom.settings.game_difficulty & (DIFFICULTIES - 1)]);
 			shown = value;
 		}
 		else if (options_lines[index] == OPTIONS_FPS)
@@ -466,7 +468,7 @@ static void time_frame(uint32_t pressed)
 
 	if (by && menu.choice < TIME_STAGES)
 	{
-		game->time_difficulty[menu.choice] = (int8_t)step(game->time_difficulty[menu.choice], by, -TIME_RANGE, TIME_RANGE);
+		game->eeprom.settings.time_difficulty[menu.choice] = (int8_t)step(game->eeprom.settings.time_difficulty[menu.choice], by, -TIME_RANGE, TIME_RANGE);
 		menu.settings_changed = true;
 	}
 	if ((pressed & ACTION_BIT(ACTION_ACCEPT)) && menu.choice == TIME_STAGES)
@@ -477,10 +479,39 @@ static void time_frame(uint32_t pressed)
 	page_heading("TIME");
 	for (int index = 0; index < TIME_STAGES; index++)
 	{
-		snprintf(value, sizeof(value), "< %+d >", game->time_difficulty[index]);
+		snprintf(value, sizeof(value), "< %+d >", game->eeprom.settings.time_difficulty[index]);
 		line(index, time_stages[index], value);
 	}
 	line(TIME_STAGES, "BACK", NULL);
+	darken_page();
+}
+
+/* SOUND: LEFT and RIGHT change VOLUME, MUSIC, EFFECTS and VOICE, 0 to 10 (5 the game's own), kept in
+   outrunners.ini */
+static void sound_frame(uint32_t pressed)
+{
+	int *const values[SOUND_BACK] = { &console_window_settings.volume, &console_window_settings.music_volume,
+		&console_window_settings.effects_volume, &console_window_settings.voice_volume };
+	const int by = change(pressed);
+	char value[16];
+
+	if (by && menu.choice < SOUND_BACK)
+	{
+		*values[menu.choice] = step(*values[menu.choice], by, 0, 10);
+		console_window_settings.changed = true;
+	}
+	if ((pressed & ACTION_BIT(ACTION_ACCEPT)) && menu.choice == SOUND_BACK)
+	{
+		open_page(PAGE_OPTIONS, menu.options_choice);
+		return;
+	}
+	page_heading("SOUND");
+	for (int index = 0; index < SOUND_ITEMS; index++)
+	{
+		if (index < SOUND_BACK)
+			snprintf(value, sizeof(value), "< %d >", *values[index]);
+		line(index, sound_items[index], index < SOUND_BACK ? value : NULL);
+	}
 	darken_page();
 }
 
@@ -583,7 +614,7 @@ static void force_value(char *value, size_t size, int percent)
 }
 
 /* STEERING: the sticks' dead zone and sensitivity, a racing wheel's rotation and centring, the keys' and pads'
-   speed, the wheel motor's vibration (ports/sdl2/main.c, forces.c) */
+   speed, the wheel motor's vibration (ports/sdl/main.c, forces.c) */
 static void steering_frame(uint32_t pressed)
 {
 	console_window *window = &console_window_settings;
@@ -608,7 +639,7 @@ static void steering_frame(uint32_t pressed)
 			window->changed = true;
 			break;
 		case STEERING_SPEED:
-			window->steering_speed = step(window->steering_speed, by, 1, STEERING_LEVELS);
+			window->steering_speed = step(window->steering_speed, by, 1, STEERING_SPEED_INSTANT);
 			window->changed = true;
 			break;
 #ifndef ORUNNERS_HANDHELD
@@ -659,7 +690,10 @@ static void steering_frame(uint32_t pressed)
 	force_value(value, sizeof(value), window->centring);
 	line(STEERING_CENTRING, "CENTRING", value);
 #endif
-	snprintf(value, sizeof(value), "< %d >", window->steering_speed);
+	if (window->steering_speed == STEERING_SPEED_INSTANT)
+		snprintf(value, sizeof(value), "< INSTANT >");
+	else
+		snprintf(value, sizeof(value), "< %d >", window->steering_speed);
 	line(STEERING_SPEED, "SPEED", value);
 	force_value(value, sizeof(value), window->vibration);
 	line(STEERING_VIBRATION, "VIBRATION", value);
@@ -869,6 +903,7 @@ bool console_controls_place(int control, int *x, int *y)
 	if (menu.page != PAGE_CONTROLS || menu.controls_waiting >= 0 || control < 0 || control >= CONTROLS)
 		return false;
 	control_place(control, x, y);
+	*x += console_wide_side();    /* (the frame's pixels: WIDE's side before the board's 320) */
 	*y += CONTROLS_PICTURES_Y;
 	return true;
 }
@@ -1108,7 +1143,7 @@ static void list_frame(const char *const *items, const int *lines, int count)
 /* OPTIONS and the pages it opens */
 static bool options_page(int page)
 {
-	return page == PAGE_OPTIONS || page == PAGE_TIME || page == PAGE_SOUND_TEST || page == PAGE_VIDEO
+	return page == PAGE_OPTIONS || page == PAGE_TIME || page == PAGE_SOUND_TEST || page == PAGE_SOUND || page == PAGE_VIDEO
 		|| page == PAGE_STEERING || page == PAGE_INPUT_TEST || page == PAGE_WHEEL_SETUP || page == PAGE_CONTROLS;
 }
 
@@ -1116,8 +1151,8 @@ static bool options_page(int page)
    which the version's corner is: Sebas) */
 static void draw_signature(void)
 {
-	for (uint32_t picture = console_find_object(title_picture_draw_ADDRESS, 0u); picture;
-		picture = console_find_object(title_picture_draw_ADDRESS, picture))
+	for (uint32_t picture = console_find_object(FUNCTION_title_picture_draw, 0u); picture;
+		picture = console_find_object(FUNCTION_title_picture_draw, picture))
 		if (OBJECT(picture)->title_picture.index == COPYRIGHT_PICTURE && OBJECT(picture)->state != 0u)
 		{
 			console_text((int16_t)OBJECT(picture)->x - console_text_width(SIGNATURE, 1) / 2,
@@ -1328,6 +1363,7 @@ int console_menu_frame(uint32_t mode)
 		case PAGE_OPTIONS: options_frame(pressed); break;
 		case PAGE_TIME: time_frame(pressed); break;
 		case PAGE_SOUND_TEST: sound_test_frame(pressed); break;
+		case PAGE_SOUND: sound_frame(pressed); break;
 		case PAGE_VIDEO: video_frame(pressed); break;
 		case PAGE_STEERING: steering_frame(pressed); break;
 		case PAGE_INPUT_TEST: input_test_frame(pressed); break;

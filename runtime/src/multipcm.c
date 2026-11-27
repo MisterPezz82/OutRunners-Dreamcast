@@ -349,6 +349,7 @@ static void init_sample(multipcm *chip, multipcm_voice *voice, uint32_t index)
 	voice->start = (uint32_t)header[0] << 16 | (uint32_t)header[1] << 8 | header[2];
 	voice->format = (uint8_t)((voice->start >> 20) & 0xfe);
 	voice->start &= 0x3fffff;
+	voice->category = chip->category_of ? (uint8_t)(chip->category_of(voice->start) % MULTIPCM_CATEGORIES) : 0;
 	voice->loop = (uint32_t)header[3] << 8 | header[4];
 	voice->end = 0x10000 - ((uint32_t)header[5] << 8 | header[6]);
 	voice->attack_reg = (header[8] >> 4) & 0xf;
@@ -438,6 +439,8 @@ void multipcm_init(multipcm *chip, uint32_t clock, uint8_t (*read)(uint32_t addr
 {
 	memset(chip, 0, sizeof(*chip));
 	chip->read = read;
+	for (int category = 0; category < MULTIPCM_CATEGORIES; category++)
+		chip->category_gain[category] = 256;
 	chip->rate = (float)clock / CLOCK_DIVIDER;
 	make_tables(chip->rate);
 }
@@ -538,6 +541,8 @@ void multipcm_generate(multipcm *chip, int32_t *left, int32_t *right, int count)
 				sample >>= TL_SHIFT;
 			}
 			sample = (sample * envelope_update(voice)) >> 10;
+			if (chip->category_gain[voice->category] != 256)    /* (a port's mix: its category's gain) */
+				sample = (sample * chip->category_gain[voice->category]) >> 8;
 			smpl += (tables.left_pan[vol] * sample) >> TL_SHIFT;
 			smpr += (tables.right_pan[vol] * sample) >> TL_SHIFT;
 		}

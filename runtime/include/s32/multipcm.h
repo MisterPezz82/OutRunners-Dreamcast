@@ -53,6 +53,7 @@ typedef struct multipcm_voice
 	uint8_t lfo_vibrato_reg;
 	uint8_t lfo_amplitude_reg;
 	uint8_t format;
+	uint8_t category;           /* its sample's in a port's mix (multipcm.category_of), 0 without one */
 	/* playing it */
 	uint32_t offset;            /* in the sample, 20.12 */
 	uint8_t octave;
@@ -82,9 +83,16 @@ typedef struct multipcm_voice
 	uint8_t tremolo;
 } multipcm_voice;
 
+/* A port's mix by what is sampled (OutRunners' SOUND: its music, effects and voices apart) */
+#define MULTIPCM_CATEGORIES 4
+
 typedef struct multipcm
 {
 	uint8_t (*read)(uint32_t address);    /* a byte of the sample ROM, 22 bits of address */
+	/* a port's mix by what is sampled: a voice's sample's category as its key goes on (category_of, of the
+	   sample's address; none: 0), and each category's gain, 256 the sample as it is (multipcm_init's) */
+	uint8_t (*category_of)(uint32_t address);
+	int32_t category_gain[MULTIPCM_CATEGORIES];
 	float rate;                           /* samples a second */
 	multipcm_voice voices[MULTIPCM_VOICES];
 	int current_voice;

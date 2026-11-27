@@ -3,7 +3,7 @@
  *    Description: what the console build's files share among themselves
  *    Version:     0.1.1
  *    Created:     29-10-2026
- *    Modified:    07-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  */
 #ifndef ORUNNERS_CONSOLE_INTERNAL_H
@@ -12,6 +12,18 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+/* The MultiPCM's samples by what they are (console/pcm_categories.c, made by tools/pcm_categories.py from
+   pcm_samples.txt), for SOUND's MUSIC, EFFECTS and VOICE (issue 57) */
+enum { PCM_MUSIC, PCM_EFFECTS, PCM_VOICE };
+typedef struct
+{
+	uint32_t offset;     /* in the pcm region */
+	uint32_t length;
+	uint8_t category;    /* PCM_* */
+} console_pcm_sample;
+extern const console_pcm_sample console_pcm_samples[];
+extern const size_t console_pcm_sample_count;
 
 #define LEFT_SEAT                   0u    /* screen index: the left seat's screen (screen 1); the right one's is 1 */
 
@@ -53,6 +65,20 @@ typedef struct
 } console_state;
 
 extern console_state console;
+
+/* The game's variables the decompilation keeps in the host's memory (struct world: player_count, link_off,
+   link_failed, car_numbers, send_video_registers, wheel_motor) the console sets in both places, world->X =
+   game->X = value: world is what the game's C reads, and the work RAM's copy (game) is what a frame's end
+   projects for the state's hash and, after the port's frame code, takes back into world */
+
+/* A race record's car model and car choice, which the program keeps in one halfword (race state
+   car_choice_and_model: the choice its low byte, the model its high one) */
+#define RACE_MODEL(race) ((uint8_t)((race)->state.car_choice_and_model >> 8u))
+#define RACE_CAR_CHOICE(race) ((uint8_t)(race)->state.car_choice_and_model)
+#define RACE_SET_MODEL(race, model) ((race)->state.car_choice_and_model = \
+	(uint16_t)(((race)->state.car_choice_and_model & 0x00FFu) | ((uint32_t)(uint8_t)(model) << 8u)))
+#define RACE_SET_CAR_CHOICE(race, choice) ((race)->state.car_choice_and_model = \
+	(uint16_t)(((race)->state.car_choice_and_model & 0xFF00u) | (uint8_t)(choice)))
 
 /* The console's own objects' code, at addresses the program has none at (console_code) */
 #define CONSOLE_CODE_PRESENTATION_LOGO  0xFE0000u

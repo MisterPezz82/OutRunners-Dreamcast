@@ -2,9 +2,9 @@
  *    Name:        video.h
  *    Description: Sega System Multi 32 video: draws each frame of the board's two screens from its memories,
  *                 as the hardware does
- *    Version:     0.1.1
+ *    Version:     0.1.2
  *    Created:     13-10-2026
- *    Modified:    07-11-2026
+ *    Modified:    19-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-#define S32_VIDEO_MAX_WIDTH  496    /* (320 and WIDE's most at each side: S32_VIDEO_WIDE_SIDE_MOST) */
+#define S32_VIDEO_MAX_WIDTH  536    /* (320 and WIDE's most at each side: S32_VIDEO_WIDE_SIDE_MOST) */
 #define S32_VIDEO_HEIGHT     224
 
 /* The board's graphics as the video draws them: every tile's pens by its number (16 rows of 16, a byte a pen)
@@ -70,14 +70,15 @@ uint64_t s32_video_frame_hash(void);
 
 /* WIDE (a port's console build): frames wider than the 320 pixels the board shows, the game's picture in the
    middle and 'side' more of it at each side (S32_VIDEO_WIDE_SIDE_16_9 for 16:9's 416, at most
-   S32_VIDEO_WIDE_SIDE_MOST for 20:9's 496): the tilemaps and the bitmap go on, the sprites are drawn where
+   S32_VIDEO_WIDE_SIDE_MOST for 21:9's 536): the tilemaps and the bitmap go on, the sprites are drawn where
    they are (the game places them well past its edges), the text layer stays where it is (and is clear at
    the sides), the clip windows that cover the screen cover the wider one. 0, the default, the frames are
    the board's */
 #define S32_VIDEO_WIDE_SIDE_16_10 32   /* (384 columns: a Steam Deck's 1280 x 800) */
 #define S32_VIDEO_WIDE_SIDE_16_9 48
 #define S32_VIDEO_WIDE_SIDE_20_9 88
-#define S32_VIDEO_WIDE_SIDE_MOST S32_VIDEO_WIDE_SIDE_20_9
+#define S32_VIDEO_WIDE_SIDE_21_9 108  /* (536 columns: an ultrawide monitor's 3440 x 1440) */
+#define S32_VIDEO_WIDE_SIDE_MOST S32_VIDEO_WIDE_SIDE_21_9
 void s32_video_set_wide_side(int side);
 
 /* This frame's: WIDE's side, else 0 */

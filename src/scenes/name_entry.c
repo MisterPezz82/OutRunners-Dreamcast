@@ -3,7 +3,7 @@
  *    Description: the name entry after a record: the certificate, the letters' drum, the LCD, the car, the drivers and the course's name
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -20,13 +20,13 @@ uint32_t CONSOLE_ORIGINAL(course_record_beaten)(void)
 	uint32_t zero = 0;
 	uint32_t course_number = 0, player = 0;
 
-	if (RACE(screen->race_copy)->finished != 0u)
+	if (RACE(screen->race_copy)->state.finished != 0u)
 	{
 		course_number = screen->built_stage;
 		course_number = (uint8_t)(course_number - 0x15u);
 		screen->record_course = course_number;
 		player = screen->player;
-		if (screen->places[(int32_t)player] == 0u && screen->checkpoint_times_by_player[(int32_t)(player + 0x28u)] < game->course_record_times[course_number * 3u])
+		if (screen->places[(int32_t)player] == 0u && screen->progress.checkpoint_times_by_player[(int32_t)(player + 0x28u)] < game->course_record_times[course_number * 3u])
 		{
 			zero = 1u == 0u;
 			return zero;
@@ -54,8 +54,9 @@ void name_entry_update(void)
 {
 	uint8_t letter_index = 0, steps = 0;
 	uint16_t new_angle = 0;
-	uint32_t background_setup = 0, handler_list = 0, palette_fades = 0, player_time = 0, text_field = 0, text_record = 0;
+	uint32_t background_setup = 0, palette_fades = 0, player_time = 0, text_field = 0, text_record = 0;
 	struct object *object = NULL;
+	const uint32_t *handler_list = NULL;
 	uint8_t letters_left = 0;
 	uint16_t spin_frames = 0;
 
@@ -63,23 +64,23 @@ void name_entry_update(void)
 	{
 	case 0:
 		screen->button_lamps = 0xFFFFu;
-		game->lcd_restart_frames = 0u;
+		world->lcd_restart_frames = 0u;
 		object = start_object();
-		object->handler = name_entry_lcd_update_ADDRESS;
+		object->handler = FUNCTION_name_entry_lcd_update;
 		object->name_entry_lcd.name_entry = address_of(current_object);
 		background_setup = name_entry_backgrounds_ADDRESS + screen->index * 5u * 4u;
-		set_up_background(background_setup);
+		set_up_background(rom_pointer(background_setup));
 		palette_fades = name_entry_palette_fades_ADDRESS;
 		start_palette_fades(palette_fades);
 		time_digits_start();
-		handler_list = name_entry_objects_ADDRESS;
+		handler_list = name_entry_objects;
 		start_object_list(handler_list);
 		letter_index = 0x20u;
 		do
 		{
 			object = start_object();
 			object->name_entry_letter.name_entry = address_of(current_object);
-			object->handler = name_entry_letter_update_ADDRESS;
+			object->handler = FUNCTION_name_entry_letter_update;
 			letters_left = letter_index;
 			letter_index = (uint8_t)(letters_left - 1u);
 			object->name_entry_letter.index = letter_index;
@@ -89,7 +90,7 @@ void name_entry_update(void)
 		current_object->name_entry.spin_frames = 0x28u;
 		current_object->name_entry.wheel_angle = 0xA80u;
 		current_object->name_entry.letter = 0xFFu;
-		player_time = screen->checkpoint_times_by_player[screen->player + 0x28u];
+		player_time = screen->progress.checkpoint_times_by_player[screen->player + 0x28u];
 		text_field = address_of(current_object) + 0x9Au;
 		OBJECT(text_field - 0x9Au)->name_entry.name_x = 0xF8u;
 		text_field += 2u;
@@ -288,7 +289,7 @@ void name_entry_choose(void)
 				current_object->name_entry.gas_step--;
 				name_place = current_object->name_entry.place;
 				letter_character = name_entry_letters[current_object->name_entry.letter];
-				if ((game->game_frame_count & 4u) == 0u)
+				if ((world->game_frame_count & 4u) == 0u)
 					letter_character = 0u;
 				current_object->name_entry.name[(int32_t)name_place] = letter_character;
 				timer = current_object->name_entry.timer;
@@ -362,7 +363,7 @@ void name_entry_choose(void)
 	}
 	name_place = current_object->name_entry.place;
 	letter_character = name_entry_letters[current_object->name_entry.letter];
-	if ((game->game_frame_count & 4u) == 0u)
+	if ((world->game_frame_count & 4u) == 0u)
 		letter_character = 0u;
 	current_object->name_entry.name[(int32_t)name_place] = letter_character;
 	timer = current_object->name_entry.timer;
@@ -443,7 +444,7 @@ void name_entry_store_record(void)
 		screen->game_step = 0x15u;
 		race = pointer_to(screen->race);
 		race->record_serial++;
-		race->finish_time = screen->checkpoint_times_by_player[screen->player + 0x28u];
+		race->finish_time = screen->progress.checkpoint_times_by_player[screen->player + 0x28u];
 		race->record_model = player_car->model;
 		race->record_name = current_object->name_entry.name[0];
 		race->record_name_rest = (current_object->name_entry.name[1] | ((uint32_t)current_object->name_entry.name[2] << 8u));
@@ -537,7 +538,7 @@ void name_entry_letter_update(void)
 	letter_palette = 0x34u;
 	if (object->name_entry.letter == current_object->name_entry_letter.index)
 	{
-		if ((game->game_frame_count & 4u) == 0u)
+		if ((world->game_frame_count & 4u) == 0u)
 		{
 			current_object->flags &= 0xDFu;
 			return;

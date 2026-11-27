@@ -3,7 +3,7 @@
  *    Description: the palettes: the boot's, the stages', the upload queue, the screen fades and the palette fades
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -262,7 +262,7 @@ void step_screen_fade(void)
 	level = (uint8_t)(screen->fade_level + screen->fade_step) & 0x3Fu;
 	screen->fade_level = (uint8_t)level;
 	mixer_register = address_of(screen) + 0x19Fu;
-	SCREEN(mixer_register - 0x19Fu)->colour_offset_select = (SCREEN(mixer_register - 0x19Fu)->colour_offset_select & 0xFFu) | 0xC000u;
+	SCREEN(mixer_register - 0x19Fu)->mixer_values.colour_offset_select = (SCREEN(mixer_register - 0x19Fu)->mixer_values.colour_offset_select & 0xFFu) | 0xC000u;
 	channels = screen->fade_channels;
 	channels_left = 3u;
 	mixer_register++;
@@ -365,7 +365,7 @@ void race_background_fade_palettes(uint32_t fade_list)
 		return;
 	}
 	object = start_object();
-	object->handler = race_background_fade_watch_update_ADDRESS;
+	object->handler = FUNCTION_race_background_fade_watch_update;
 	object->race_background_fade_watch.background = address_of(current_object);
 	object->race_background_fade_watch.count = fades_left;
 	fade_slot = &object->race_background_fade_watch.fades;
@@ -430,7 +430,7 @@ struct object *start_palette_fade(uint8_t blocks, uint8_t period, uint32_t from,
 	struct object *object = NULL;
 
 	object = start_object();
-	object->handler = palette_fade_prepare_ADDRESS;
+	object->handler = FUNCTION_palette_fade_prepare;
 	object->palette_fade.upload_length = 8u;
 	object->palette_fade.upload_colours = address_of(object) + 0x34u;
 	object->palette_fade.palette_offset = palette_offset;
@@ -479,7 +479,7 @@ void palette_fade_prepare(void)
 	to++;
 	if (colours_left == 1u)
 	{
-		current_object->handler = palette_fade_step_ADDRESS;
+		current_object->handler = FUNCTION_palette_fade_step;
 		palette_fade_step();
 		return;
 	}

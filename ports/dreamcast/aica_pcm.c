@@ -256,9 +256,14 @@ static int volume_steps;
 static bool volume_mute, paused_mute;
 static bool pan_silent[VOICES];
 
+static int category_steps[MULTIPCM_CATEGORIES];    /* (SOUND's mix: steps of level added; 0xff none) */
+static uint8_t voice_category[VOICES];
+
 static void send_level(int v)
 {
-	int level = tl_now[v] + volume_steps;
+	const int cat_steps = category_steps[voice_category[v] % MULTIPCM_CATEGORIES];
+	int level = tl_now[v] + volume_steps + (cat_steps == 0xff ? 0 : cat_steps);
+	if (cat_steps == 0xff) level = 0xff;
 	level = level < 0 ? 0 : (level > 0xff ? 0xff : level);
 	if (pan_silent[v] || volume_mute || paused_mute) level = 0xff;
 	reg_write(chan[v], 0x28, (uint32_t)level << 8 | 0x24);    /* TL, filter off (as KOS's driver sets it) */
@@ -267,6 +272,7 @@ static void send_level(int v)
 static void write_level(int v, int tl, const multipcm_voice *voice)
 {
 	tl_now[v] = tl;
+	voice_category[v] = voice->category;
 	pan_silent[v] = (voice->pan & 0xf) == 8;    /* (pan 8 silences both sides) */
 	send_level(v);
 }
@@ -278,6 +284,19 @@ void dc_aica_set_volume(int volume)
 	volume_steps = steps[volume];
 	volume_mute = volume == 0;
 	if (ready) for (int v = 0; v < VOICES; v++) send_level(v);
+}
+
+void dc_aica_set_category_gains(const int32_t gains[MULTIPCM_CATEGORIES])
+{
+	bool changed = false;
+	for (int c = 0; c < MULTIPCM_CATEGORIES; c++)
+	{
+		/* (the gain as attenuation in the level's 0.375 dB steps: 512, twice, -16; 128, half, +16; 0 silent) */
+		const int steps = gains[c] <= 0 ? 0xff : (int)lroundf(-20.0f * log10f((float)gains[c] / 256.0f) / 0.375f);
+		changed |= steps != category_steps[c];
+		category_steps[c] = steps;
+	}
+	if (ready && changed) for (int v = 0; v < VOICES; v++) send_level(v);
 }
 
 void dc_aica_pause(bool paused)

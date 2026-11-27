@@ -3,7 +3,7 @@
  *    Description: the route map after the race: the car, the signs, the landmarks, the legs of the route, the stage results and the GAME OVER banner
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    25-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -88,10 +88,10 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			current_object->route_map.second_register_scroll_y_address = ROUTE_MAP_REGISTERS(route_map_registers - 0x38u)->second_register_scroll_y_address;
 			current_object->route_map.second_tile_bank_address = ROUTE_MAP_REGISTERS(route_map_registers - 0x38u)->second_tile_bank_address;
 			setup_base = screen->index * 5u * 2u;
-			route_branches = screen->route_branches[0];
+			route_branches = screen->progress.route_branches[0];
 			current_object->route_map.first_branch = route_branches;
 			background_setup = route_map_backgrounds_ADDRESS + (setup_base + route_branches * 5u) * 4u;
-			set_up_background(background_setup);
+			set_up_background(rom_pointer(background_setup));
 			colour_block = route_map_background_palette;
 			queue_palette(colour_block);
 			current_object->state++;
@@ -111,7 +111,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			VIDEO_REGISTER_WORDS(current_object->route_map.second_scroll_y_address)[0] = 0u;
 			VIDEO_REGISTER_WORDS(current_object->route_map.second_register_scroll_x_address)[0] = 0xF8u;
 			VIDEO_REGISTER_WORDS(current_object->route_map.second_register_scroll_y_address)[0] = 0u;
-			game->send_video_registers = 0xFFu;
+			world->send_video_registers = 0xFFu;
 			current_object->route_map.timer = 0x1Eu;
 			current_object->state++;
 			return;
@@ -132,7 +132,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			VIDEO_REGISTER_WORDS(zoom_x_address)[0] += 0x20u;
 			zoom_y_address = current_object->route_map.zoom_y_address;
 			VIDEO_REGISTER_WORDS(zoom_y_address)[0] += 0x20u;
-			game->send_video_registers = 0xFFu;
+			world->send_video_registers = 0xFFu;
 			timer_2 = current_object->route_map.timer;
 			current_object->route_map.timer = timer_2 - 1u;
 			if (timer_2 != 1u)
@@ -148,10 +148,10 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			VIDEO_REGISTER_WORDS(current_object->route_map.scroll_y_address)[0] = 0x8Cu;
 			VIDEO_REGISTER_WORDS(current_object->route_map.register_scroll_x_address)[0] = VIDEO_REGISTER_WORDS(current_object->route_map.scroll_x_address)[0];
 			VIDEO_REGISTER_WORDS(current_object->route_map.register_scroll_y_address)[0] = VIDEO_REGISTER_WORDS(current_object->route_map.scroll_y_address)[0];
-			game->send_video_registers = 0xFFu;
+			world->send_video_registers = 0xFFu;
 			screen->skip_scroll_update = 0xFFu;
 			object = start_object();
-			object->handler = route_map_car_update_ADDRESS;
+			object->handler = FUNCTION_route_map_car_update;
 			object->route_map_car.model = player_car->model;
 			object->route_map_car.route_map = address_of(current_object);
 			screen->route_map_signals |= 0x80u;
@@ -162,7 +162,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			do
 			{
 				object = start_object();
-				object->handler = route_map_landmark_update_ADDRESS;
+				object->handler = FUNCTION_route_map_landmark_update;
 				object->route_map_landmark.index_then_half_rate = landmark_index;
 				object->route_map_landmark.route_map = address_of(current_object);
 				landmark_index++;
@@ -179,7 +179,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 		case 5:
 			screen->route_map_signals &= ~0x80u;
 			object = start_object();
-			object->handler = stage_result_line_draw_ADDRESS;
+			object->handler = FUNCTION_stage_result_line_draw;
 			object->stage_result_line.stage = current_object->route_map.stage;
 			if (current_object->route_map.checkpoint_legs_left != 0u)
 			{
@@ -189,7 +189,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			else
 			{
 				object->stage_result_line.last = 1u;
-				leg_distance = game->race_copies[screen->player].segment;
+				leg_distance = game->race_copies[screen->player].state.segment;
 				stage_lengths = screen->stage_lengths[0];
 				current_object->route_map.last_leg_progress = divide_s32(leg_distance << 3, stage_lengths);
 				current_object->route_map.leg_frames = divide_s32(((leg_distance * 5u) << 2) + leg_distance * 2u, stage_lengths);
@@ -207,7 +207,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			if ((screen->route_map_signals & 0x40u) == 0u)
 			{
 				object = start_object();
-				object->handler = route_map_sign_update_ADDRESS;
+				object->handler = FUNCTION_route_map_sign_update;
 				object->route_map_sign.route_map = address_of(current_object);
 				object->route_map_sign.kind = 0u;
 				screen->route_map_signals &= ~2u;
@@ -217,10 +217,10 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 				return;
 			}
 			screen->route_map_signals |= 0x80u;
-			if (RACE(screen->race_copy)->finished != 0u)
+			if (RACE(screen->race_copy)->state.finished != 0u)
 			{
 				object = start_object();
-				object->handler = route_map_sign_update_ADDRESS;
+				object->handler = FUNCTION_route_map_sign_update;
 				object->route_map_sign.route_map = address_of(current_object);
 				object->route_map_sign.kind = 1u;
 			}
@@ -231,10 +231,10 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			if ((screen->route_map_signals & 0x40u) != 0u)
 			{
 				screen->route_map_signals |= 0x80u;
-				if (RACE(screen->race_copy)->finished != 0u)
+				if (RACE(screen->race_copy)->state.finished != 0u)
 				{
 					object = start_object();
-					object->handler = route_map_sign_update_ADDRESS;
+					object->handler = FUNCTION_route_map_sign_update;
 					object->route_map_sign.route_map = address_of(current_object);
 					object->route_map_sign.kind = 1u;
 				}
@@ -243,7 +243,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 				continue;
 			}
 			object = start_object();
-			object->handler = stage_result_line_draw_ADDRESS;
+			object->handler = FUNCTION_stage_result_line_draw;
 			object->stage_result_line.stage = current_object->route_map.stage;
 			if (current_object->route_map.checkpoint_legs_left == 0u)
 				object->stage_result_line.last = 1u;
@@ -255,7 +255,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			else
 			{
 				lengths_place = address_of(screen) + 0x700u;
-				leg_distance = (uint32_t)game->race_copies[screen->player].segment - player_car->reached_stage_start - SCREEN(lengths_place - 0x700u)->stage_lengths[screen->current_stage];
+				leg_distance = (uint32_t)game->race_copies[screen->player].state.segment - player_car->reached_stage_start - SCREEN(lengths_place - 0x700u)->stage_lengths[screen->current_stage];
 				branch_road_length = SCREEN(lengths_place - 0x700u)->branch_road_length;
 				current_object->route_map.last_leg_progress = divide_s32(leg_distance << 2, branch_road_length);
 				current_object->route_map.leg_frames = divide_s32(leg_distance * 3u * 2u, branch_road_length);
@@ -284,10 +284,10 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			if ((screen->route_map_signals & 0x40u) != 0u)
 			{
 				screen->route_map_signals |= 0x80u;
-				if (RACE(screen->race_copy)->finished != 0u)
+				if (RACE(screen->race_copy)->state.finished != 0u)
 				{
 					object = start_object();
-					object->handler = route_map_sign_update_ADDRESS;
+					object->handler = FUNCTION_route_map_sign_update;
 					object->route_map_sign.route_map = address_of(current_object);
 					object->route_map_sign.kind = 1u;
 				}
@@ -306,7 +306,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			}
 			else
 			{
-				leg_distance = (uint32_t)game->race_copies[screen->player].segment - player_car->reached_stage_start;
+				leg_distance = (uint32_t)game->race_copies[screen->player].state.segment - player_car->reached_stage_start;
 				stage_length = screen->stage_lengths[screen->current_stage];
 				current_object->route_map.last_leg_progress = divide_s32(leg_distance << 2, stage_length);
 				current_object->route_map.last_leg_progress += 4u;
@@ -336,10 +336,10 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			if ((screen->route_map_signals & 0x40u) != 0u)
 			{
 				screen->route_map_signals |= 0x80u;
-				if (RACE(screen->race_copy)->finished != 0u)
+				if (RACE(screen->race_copy)->state.finished != 0u)
 				{
 					object = start_object();
-					object->handler = route_map_sign_update_ADDRESS;
+					object->handler = FUNCTION_route_map_sign_update;
 					object->route_map_sign.route_map = address_of(current_object);
 					object->route_map_sign.kind = 1u;
 				}
@@ -348,7 +348,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 				continue;
 			}
 			object = start_object();
-			object->handler = route_map_sign_update_ADDRESS;
+			object->handler = FUNCTION_route_map_sign_update;
 			object->route_map_sign.route_map = address_of(current_object);
 			object->route_map_sign.kind = 0u;
 			screen->route_map_signals &= 0xFFFFFFF3u;
@@ -360,10 +360,10 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			if ((screen->route_map_signals & 0x40u) != 0u)
 			{
 				screen->route_map_signals |= 0x80u;
-				if (RACE(screen->race_copy)->finished != 0u)
+				if (RACE(screen->race_copy)->state.finished != 0u)
 				{
 					object = start_object();
-					object->handler = route_map_sign_update_ADDRESS;
+					object->handler = FUNCTION_route_map_sign_update;
 					object->route_map_sign.route_map = address_of(current_object);
 					object->route_map_sign.kind = 1u;
 				}
@@ -372,7 +372,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 				continue;
 			}
 			object = start_object();
-			object->handler = stage_result_line_draw_ADDRESS;
+			object->handler = FUNCTION_stage_result_line_draw;
 			object->stage_result_line.stage = current_object->route_map.stage;
 			if (current_object->route_map.checkpoint_legs_left == 0u)
 				object->stage_result_line.last = 1u;
@@ -384,7 +384,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			else
 			{
 				lengths_place = address_of(screen) + 0x700u;
-				leg_distance = (uint32_t)game->race_copies[screen->player].segment - player_car->reached_stage_start - SCREEN(lengths_place - 0x700u)->stage_lengths[screen->current_stage];
+				leg_distance = (uint32_t)game->race_copies[screen->player].state.segment - player_car->reached_stage_start - SCREEN(lengths_place - 0x700u)->stage_lengths[screen->current_stage];
 				branch_road_length = SCREEN(lengths_place - 0x700u)->branch_road_length;
 				current_object->route_map.last_leg_progress = divide_s32(leg_distance << 2, branch_road_length);
 				current_object->route_map.leg_frames = divide_s32(leg_distance * 5u * 2u, branch_road_length);
@@ -396,7 +396,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			current_object->route_map.leg_frames = branch_leg_frames;
 			if ((int8_t)branch_leg_frames >= 0)
 			{
-				if (screen->route_branches[(int32_t)(current_object->route_map.stage - 1u)] != 0u)
+				if (screen->progress.route_branches[(int32_t)(current_object->route_map.stage - 1u)] != 0u)
 				{
 					if (current_object->route_map.first_branch != 0u)
 					{
@@ -441,10 +441,10 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			if ((screen->route_map_signals & 0x40u) != 0u)
 			{
 				screen->route_map_signals |= 0x80u;
-				if (RACE(screen->race_copy)->finished != 0u)
+				if (RACE(screen->race_copy)->state.finished != 0u)
 				{
 					object = start_object();
-					object->handler = route_map_sign_update_ADDRESS;
+					object->handler = FUNCTION_route_map_sign_update;
 					object->route_map_sign.route_map = address_of(current_object);
 					object->route_map_sign.kind = 1u;
 				}
@@ -463,7 +463,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			}
 			else
 			{
-				leg_distance = (uint32_t)game->race_copies[screen->player].segment - player_car->reached_stage_start;
+				leg_distance = (uint32_t)game->race_copies[screen->player].state.segment - player_car->reached_stage_start;
 				stage_length = screen->stage_lengths[screen->current_stage];
 				current_object->route_map.last_leg_progress = divide_s32(leg_distance << 3, stage_length);
 				current_object->route_map.last_leg_progress += 4u;
@@ -503,10 +503,10 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			if ((screen->route_map_signals & 0x40u) != 0u)
 			{
 				screen->route_map_signals |= 0x80u;
-				if (RACE(screen->race_copy)->finished != 0u)
+				if (RACE(screen->race_copy)->state.finished != 0u)
 				{
 					object = start_object();
-					object->handler = route_map_sign_update_ADDRESS;
+					object->handler = FUNCTION_route_map_sign_update;
 					object->route_map_sign.route_map = address_of(current_object);
 					object->route_map_sign.kind = 1u;
 				}
@@ -520,17 +520,17 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			if (current_object->route_map.stage != 6u)
 			{
 				object = start_object();
-				object->handler = route_map_sign_update_ADDRESS;
+				object->handler = FUNCTION_route_map_sign_update;
 				object->route_map_sign.route_map = address_of(current_object);
 				object->route_map_sign.kind = 0u;
 				current_object->state = 0xBu;
 				return;
 			}
 			screen->route_map_signals |= 0x80u;
-			if (RACE(screen->race_copy)->finished != 0u)
+			if (RACE(screen->race_copy)->state.finished != 0u)
 			{
 				object = start_object();
-				object->handler = route_map_sign_update_ADDRESS;
+				object->handler = FUNCTION_route_map_sign_update;
 				object->route_map_sign.route_map = address_of(current_object);
 				object->route_map_sign.kind = 1u;
 			}
@@ -571,7 +571,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 				current_object->y -= VIDEO_REGISTER_WORDS(current_object->route_map.scroll_y_address)[0];
 				current_object->x = (int16_t)current_object->x >> 3;
 				current_object->y = (int16_t)current_object->y >> 3;
-				game->send_video_registers = 0xFFu;
+				world->send_video_registers = 0xFFu;
 				screen->skip_scroll_update = 0xFFu;
 				screen->route_map_signals |= 0x10u;
 				current_object->route_map.timer = 9u;
@@ -587,7 +587,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			VIDEO_REGISTER_WORDS(scroll_x_address_13)[0] += current_object->x;
 			scroll_y_address_6 = current_object->route_map.scroll_y_address;
 			VIDEO_REGISTER_WORDS(scroll_y_address_6)[0] += current_object->y;
-			game->send_video_registers = 0xFFu;
+			world->send_video_registers = 0xFFu;
 			timer_4 = current_object->route_map.timer;
 			current_object->route_map.timer = timer_4 - 1u;
 			if (timer_4 == 1u)
@@ -609,14 +609,14 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 				VIDEO_REGISTER_WORDS(second_scroll_y_address)[0] -= 0x70u;
 				VIDEO_REGISTER_WORDS(current_object->route_map.second_register_scroll_x_address)[0] = VIDEO_REGISTER_WORDS(current_object->route_map.second_scroll_x_address)[0];
 				VIDEO_REGISTER_WORDS(current_object->route_map.second_register_scroll_y_address)[0] = VIDEO_REGISTER_WORDS(current_object->route_map.second_scroll_y_address)[0];
-				game->send_video_registers = 0xFFu;
+				world->send_video_registers = 0xFFu;
 				current_object->state++;
 			}
 			return;
 		case 17:
 			io_write16(current_object->route_map.sea_colour_address, 0u);
 			object = start_object();
-			object->handler = route_map_direction_sign_show_ADDRESS;
+			object->handler = FUNCTION_route_map_direction_sign_show;
 			legs_left = current_object->route_map.stage;
 			if (legs_left != 6u)
 				legs_left++;
@@ -624,7 +624,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 			do
 			{
 				object = start_object();
-				object->handler = route_map_leg_show_ADDRESS;
+				object->handler = FUNCTION_route_map_leg_show;
 				object->route_map_leg.leg = leg_number;
 				object->route_map_leg.progress = current_object->route_map.last_leg_progress;
 				object->route_map_leg.map = address_of(current_object);
@@ -645,7 +645,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 				return;
 			screen->game_step = 0x10u;
 			object = start_object();
-			object->handler = route_map_wait_banner_show_ADDRESS;
+			object->handler = FUNCTION_route_map_wait_banner_show;
 			current_object->state++;
 			return;
 		case 20:
@@ -665,7 +665,7 @@ void CONSOLE_ORIGINAL(route_map_update)(void)
 		return;
 	screen->game_step = 0x10u;
 	object = start_object();
-	object->handler = route_map_wait_banner_show_ADDRESS;
+	object->handler = FUNCTION_route_map_wait_banner_show;
 	current_object->state++;
 }
 
@@ -860,7 +860,7 @@ void route_map_sign_update(void)
    follows the map (its x and y plus the offsets), animation_advance and draw_object, with field 9 set
    only when toggle comes round; ends when the map zooms out (screen route_map_signals bit 4). Its depth
    layer follows its y (map_depth_from_y). */
-void route_map_landmark_update(void)
+void CONSOLE_ORIGINAL(route_map_landmark_update)(void)
 {
 	uint32_t animation = 0;
 	const struct route_map_landmark_record *landmark = NULL;
@@ -870,7 +870,7 @@ void route_map_landmark_update(void)
 	{
 	case 0:
 		current_object->draw_mode = 0xAu;
-		landmark = rom_pointer(route_map_landmarks_ADDRESS + (((uint32_t)current_object->route_map_landmark.index_then_half_rate << 4) + ((uint32_t)screen->route_branches[0] << 9)));
+		landmark = rom_pointer(route_map_landmarks_ADDRESS + (((uint32_t)current_object->route_map_landmark.index_then_half_rate << 4) + ((uint32_t)screen->progress.route_branches[0] << 9)));
 		animation = landmark->animation;
 		animation_start(animation);
 		current_object->palette = landmark->palette;
@@ -963,7 +963,7 @@ void stage_result_line_draw(void)
 	draw_text_at(text_place, attribute, address_of(stage_result_text));
 	text_place = (saved_position & ~0xFFFFu) | (uint16_t)(saved_position + 0x40u);
 	player = screen->player;
-	place_index = screen->checkpoint_orders[(int32_t)(player + (current_object->stage_result_line.stage << 3))] * 3u;
+	place_index = screen->progress.checkpoint_orders[(int32_t)(player + (current_object->stage_result_line.stage << 3))] * 3u;
 	if (current_object->stage_result_line.last == 0u)
 	{
 		place_text = rom_pointer(stage_result_places_ADDRESS + place_index * 2u);
@@ -1038,7 +1038,7 @@ void route_map_leg_show(void)
 		{
 			current_object->frame = current_object->route_map_leg.progress;
 			object = start_object();
-			object->handler = route_map_leg_car_show_ADDRESS;
+			object->handler = FUNCTION_route_map_leg_car_show;
 			object->route_map_leg_car.leg = address_of(current_object);
 			current_object->frame--;
 			if ((int8_t)current_object->frame < 0)
@@ -1051,7 +1051,7 @@ void route_map_leg_show(void)
 		current_object->x = 0u;
 		current_object->y = 0u;
 		object = start_object();
-		object->handler = route_map_checkpoint_show_ADDRESS;
+		object->handler = FUNCTION_route_map_checkpoint_show;
 		object->route_map_checkpoint.leg = address_of(current_object);
 		if (current_object->route_map_leg.leg != (uint8_t)OBJECT(current_object->route_map_leg.map)->route_map.stage)
 		{
@@ -1063,7 +1063,7 @@ void route_map_leg_show(void)
 		}
 		current_object->frame = current_object->route_map_leg.progress;
 		object = start_object();
-		object->handler = route_map_leg_car_show_ADDRESS;
+		object->handler = FUNCTION_route_map_leg_car_show;
 		object->route_map_leg_car.leg = address_of(current_object);
 		current_object->frame--;
 		if ((int8_t)current_object->frame < 0)
@@ -1080,13 +1080,13 @@ void route_map_leg_show(void)
 	case 4:
 	case 5:
 		fork_index = current_object->route_map_leg.leg - 1u;
-		animation = route_map_fork_leg_animations[OBJECT(current_object->route_map_leg.map)->route_map.first_branch * 2u + screen->route_branches[(int32_t)fork_index]];
+		animation = route_map_fork_leg_animations[OBJECT(current_object->route_map_leg.map)->route_map.first_branch * 2u + screen->progress.route_branches[(int32_t)fork_index]];
 		animation_start(animation);
-		leg_stage = screen->route_stages[(int32_t)(fork_index - 1u)];
+		leg_stage = screen->progress.route_stages[(int32_t)(fork_index - 1u)];
 		current_object->x = route_map_stage_xs[leg_stage];
 		current_object->y = route_map_stage_ys[leg_stage];
 		object = start_object();
-		object->handler = route_map_checkpoint_show_ADDRESS;
+		object->handler = FUNCTION_route_map_checkpoint_show;
 		object->route_map_checkpoint.leg = address_of(current_object);
 		current_object->depth_layer += current_object->route_map_leg.leg;
 		if (current_object->route_map_leg.leg != 5u)
@@ -1101,7 +1101,7 @@ void route_map_leg_show(void)
 			}
 			current_object->frame = current_object->route_map_leg.progress;
 			object = start_object();
-			object->handler = route_map_leg_car_show_ADDRESS;
+			object->handler = FUNCTION_route_map_leg_car_show;
 			object->route_map_leg_car.leg = address_of(current_object);
 			current_object->frame--;
 			if ((int8_t)current_object->frame < 0)
@@ -1111,11 +1111,11 @@ void route_map_leg_show(void)
 			current_object->state++;
 			return;
 		}
-		if (RACE(screen->race_copy)->finished == 0u)
+		if (RACE(screen->race_copy)->state.finished == 0u)
 		{
 			current_object->frame = current_object->route_map_leg.progress;
 			object = start_object();
-			object->handler = route_map_leg_car_show_ADDRESS;
+			object->handler = FUNCTION_route_map_leg_car_show;
 			object->route_map_leg_car.leg = address_of(current_object);
 			current_object->frame--;
 			if ((int8_t)current_object->frame < 0)
@@ -1130,12 +1130,12 @@ void route_map_leg_show(void)
 		else
 		{
 			object = start_object();
-			object->handler = route_map_checkpoint_show_ADDRESS;
+			object->handler = FUNCTION_route_map_checkpoint_show;
 			object->route_map_checkpoint.leg = address_of(current_object);
 			object->route_map_checkpoint.kind = 1u;
 			current_object->route_map_leg.progress = 0xBu;
 			object = start_object();
-			object->handler = route_map_leg_car_show_ADDRESS;
+			object->handler = FUNCTION_route_map_leg_car_show;
 			object->route_map_leg_car.leg = address_of(current_object);
 			current_object->frame = 0xBu;
 		}
@@ -1179,16 +1179,16 @@ void route_map_leg_car_show(void)
 		place = rom_pointer(route_map_start_leg_car_places_ADDRESS + ((uint32_t)OBJECT(current_object->route_map_leg_car.leg)->route_map_leg.progress << 3));
 		current_object->x = place->x;
 		current_object->y = place->y;
-		current_object->x += route_map_direction_x_shifts[screen->route_branches[0]];
+		current_object->x += route_map_direction_x_shifts[screen->progress.route_branches[0]];
 		current_object->y += 0x6Bu;
 		current_object->frame = (uint8_t)place->frame;
 		current_object->state++;
 		return;
 	case 1:
-		place = rom_pointer(route_map_first_fork_leg_car_places_ADDRESS + (((uint32_t)screen->route_branches[0] << 6) + ((uint32_t)OBJECT(current_object->route_map_leg_car.leg)->route_map_leg.progress << 3)));
+		place = rom_pointer(route_map_first_fork_leg_car_places_ADDRESS + (((uint32_t)screen->progress.route_branches[0] << 6) + ((uint32_t)OBJECT(current_object->route_map_leg_car.leg)->route_map_leg.progress << 3)));
 		current_object->x = place->x;
 		current_object->y = place->y;
-		current_object->x += route_map_direction_x_shifts[screen->route_branches[0]];
+		current_object->x += route_map_direction_x_shifts[screen->progress.route_branches[0]];
 		current_object->y += 0x6Bu;
 		current_object->frame = (uint8_t)place->frame;
 		current_object->state++;
@@ -1198,13 +1198,13 @@ void route_map_leg_car_show(void)
 	case 4:
 	case 5:
 		fork_index = OBJECT(current_object->route_map_leg_car.leg)->route_map_leg.leg - 1u;
-		place = rom_pointer(route_map_fork_leg_car_places_ADDRESS + (((screen->route_branches[0] * 3u) << 6) + ((screen->route_branches[(int32_t)fork_index] * 3u) << 5) + ((uint32_t)OBJECT(current_object->route_map_leg_car.leg)->route_map_leg.progress << 3)));
-		leg_stage = screen->route_stages[(int32_t)(fork_index - 1u)];
+		place = rom_pointer(route_map_fork_leg_car_places_ADDRESS + (((screen->progress.route_branches[0] * 3u) << 6) + ((screen->progress.route_branches[(int32_t)fork_index] * 3u) << 5) + ((uint32_t)OBJECT(current_object->route_map_leg_car.leg)->route_map_leg.progress << 3)));
+		leg_stage = screen->progress.route_stages[(int32_t)(fork_index - 1u)];
 		current_object->x = route_map_stage_xs[leg_stage];
 		current_object->y = route_map_stage_ys[leg_stage];
 		current_object->x += place->x;
 		current_object->y += place->y;
-		current_object->x += route_map_direction_x_shifts[screen->route_branches[0]];
+		current_object->x += route_map_direction_x_shifts[screen->progress.route_branches[0]];
 		current_object->y += 0x6Bu;
 		current_object->frame = (uint8_t)place->frame;
 		current_object->state++;
@@ -1244,7 +1244,7 @@ void route_map_checkpoint_show(void)
 		current_object->depth_layer = 0x194u;
 		if (current_object->route_map_checkpoint.kind == 1u)
 		{
-			finish_index = screen->route_branches[0] * 2u + screen->route_branches[(int32_t)(OBJECT(current_object->route_map_checkpoint.leg)->route_map_leg.leg - 1u)];
+			finish_index = screen->progress.route_branches[0] * 2u + screen->progress.route_branches[(int32_t)(OBJECT(current_object->route_map_checkpoint.leg)->route_map_leg.leg - 1u)];
 			current_object->x += route_map_finish_x_offsets[finish_index];
 			current_object->y += route_map_finish_y_offsets[finish_index];
 			current_object->state++;
@@ -1278,7 +1278,7 @@ void route_map_direction_sign_show(void)
 		current_object->state++;
 		current_object->draw_mode = 0xAu;
 		current_object->depth_layer = 0x19Du;
-		current_object->x = route_map_direction_x_shifts[screen->route_branches[0]];
+		current_object->x = route_map_direction_x_shifts[screen->progress.route_branches[0]];
 		current_object->y = 0x118u;
 		animation = WEST_EAST_PANEL;
 		current_object->route_map_direction_sign.palette_base = 0x67u;

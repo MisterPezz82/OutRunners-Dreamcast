@@ -3,7 +3,7 @@
  *    Description: the road's surface drawn line by line, and its tiles' changes
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -121,7 +121,7 @@ void road_surface_update(void)
 		object->road_tiles_change.road = address_of(current_object);
 		object->road_tiles_change.flag = address_of(current_object) + 0xBu;
 		object->road_tiles_change.data = road_tiles_change_second_data_ADDRESS;
-		object->handler = road_tiles_change_update_ADDRESS;
+		object->handler = FUNCTION_road_tiles_change_update;
 		return;
 	case 2:
 		second_tiles_flag = ~current_object->road_surface.second_tiles_flag;
@@ -133,7 +133,7 @@ void road_surface_update(void)
 		object->road_tiles_change.road = address_of(current_object);
 		object->road_tiles_change.flag = address_of(current_object) + 0xBu;
 		object->road_tiles_change.data = road_tiles_change_second_data_ADDRESS;
-		object->handler = road_tiles_change_update_ADDRESS;
+		object->handler = FUNCTION_road_tiles_change_update;
 		return;
 	}
 }
@@ -158,7 +158,7 @@ void road_surface_start(void)
 	game->video_registers[2] = video_bits | road_surface_layer_setup->video_bits;
 	VIDEO_REGISTER_WORDS(road_surface_layer_setup->scroll_x_address)[0] = 0x160u;
 	VIDEO_REGISTER_WORDS(road_surface_layer_setup->scroll_y_address)[0] = 0u;
-	game->send_video_registers = 0xFFu;
+	world->send_video_registers = 0xFFu;
 	TILE_BANK_VALUES(road_surface_layer_setup->tile_bank_address)[0] = 0u;
 	current_object->road_surface.page_register = road_surface_layer_setup->page_register;
 	mixer_address = pointer_to(road_surface_layer_setup->mixer_address);
@@ -217,7 +217,7 @@ void road_surface_lines(uint32_t *p_previous_line, uint32_t *p_previous_x, uint3
 	scroll_place = current_object->road_surface.line_scroll_table + table_offset * 4u;
 	scroll_bottom = scroll_place;
 	select_place = current_object->road_surface.line_select_table + table_offset * 4u;
-	segment = RACE(screen->race_copy)->window_segment;
+	segment = RACE(screen->race_copy)->state.window_segment;
 	stripe &= ~0xFFFFu;
 	fraction_shift = 0xF4u;
 	rounding = 0x800u;
@@ -822,7 +822,7 @@ void road_surface_start_tiles_change(void)
 	object->road_tiles_change.road = address_of(current_object);
 	object->road_tiles_change.flag = address_of(current_object) + 0xAu;
 	object->road_tiles_change.data = road_tiles_change_first_data_ADDRESS;
-	object->handler = road_tiles_change_update_ADDRESS;
+	object->handler = FUNCTION_road_tiles_change_update;
 }
 
 /* Changes the road's tiles for a stretch of road (road_surface starts it when an event turns one of its

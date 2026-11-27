@@ -3,7 +3,7 @@
  *    Description: the road's objects: the streams that start them along the course, the scenery, the signs, the start gate and flagmen, the goal parades, the fork's branch
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    25-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -87,7 +87,7 @@ uint32_t road_object_stream_start_object(uint16_t position, uint32_t entry)
 
 	object = start_object();
 	object->position = position + current_object->road_object_stream.stage_start;
-	object->handler = ROAD_OBJECT_STREAM_ENTRY(entry - 0x4u)->handler;
+	object->handler = function_number(ROAD_OBJECT_STREAM_ENTRY(entry - 0x4u)->handler);
 	entry += 4u;
 	object->parameter = ROAD_OBJECT_STREAM_ENTRY(entry - 0x8u)->parameter;
 	entry += 4u;
@@ -347,7 +347,7 @@ void overhead_scenery_update(void)
    6, car model), then stays; it steps through its list of animations (aurora_next_animation, each shown
    animation_frames frames, aurora_count_down) and is drawn only every other frame (when countdown is
    odd), so it looks faint. It never ends. */
-void aurora_update(void)
+void CONSOLE_ORIGINAL(aurora_update)(void)
 {
 	const struct aurora_record *record = NULL;
 
@@ -572,7 +572,7 @@ void road_crosser_update(void)
 		current_object->road_crosser.draw_distance = draw_distance;
 		return;
 	case 1:
-		if ((int16_t)RACE(screen->race_copy)->window_segment <= current_object->road_crosser.appear_position)
+		if ((int16_t)RACE(screen->race_copy)->state.window_segment <= current_object->road_crosser.appear_position)
 			return;
 		current_object->state++;
 		if ((int16_t)player_car->segment < current_object->road_crosser.trigger_position)
@@ -591,7 +591,7 @@ void road_crosser_update(void)
 			{
 				animation_advance(0u);
 				draw_object(0u);
-				if (current_object->road_crosser.screen_x >= -0xF0 && current_object->road_crosser.screen_x <= 0x130)
+				if (current_object->road_crosser.screen_x >= FROM_MIDDLE(PAST_LEFT(0x50)) && current_object->road_crosser.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x90)))
 					return;
 			}
 		}
@@ -615,7 +615,7 @@ void road_crosser_update(void)
 			{
 				animation_advance(0u);
 				draw_object(0u);
-				if (current_object->road_crosser.screen_x >= -0xF0 && current_object->road_crosser.screen_x <= 0x130)
+				if (current_object->road_crosser.screen_x >= FROM_MIDDLE(PAST_LEFT(0x50)) && current_object->road_crosser.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x90)))
 					return;
 			}
 		}
@@ -631,7 +631,7 @@ void road_crosser_update(void)
 			{
 				animation_advance(0u);
 				draw_object(0u);
-				if (current_object->road_crosser.screen_x >= -0xF0 && current_object->road_crosser.screen_x <= 0x130)
+				if (current_object->road_crosser.screen_x >= FROM_MIDDLE(PAST_LEFT(0x50)) && current_object->road_crosser.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x90)))
 					return;
 			}
 		}
@@ -679,7 +679,7 @@ void kangaroo_update(void)
 		current_object->kangaroo.draw_distance = draw_distance;
 		return;
 	case 1:
-		if ((int16_t)RACE(screen->race_copy)->window_segment <= current_object->kangaroo.appear_position)
+		if ((int16_t)RACE(screen->race_copy)->state.window_segment <= current_object->kangaroo.appear_position)
 			return;
 		current_object->state++;
 		if ((int16_t)player_car->segment < current_object->kangaroo.trigger_position)
@@ -707,7 +707,7 @@ void kangaroo_update(void)
 				current_object->position_fraction = position_fraction;
 				animation_advance(0u);
 				draw_object(position_fraction);
-				if (current_object->kangaroo.screen_x >= -0xF0 && current_object->kangaroo.screen_x <= 0x130)
+				if (current_object->kangaroo.screen_x >= FROM_MIDDLE(PAST_LEFT(0x50)) && current_object->kangaroo.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x90)))
 					return;
 			}
 			current_object->flags = 0u;
@@ -717,7 +717,7 @@ void kangaroo_update(void)
 		current_object->position_fraction = position_fraction;
 		animation_advance(0u);
 		draw_object(position_fraction);
-		if (current_object->kangaroo.screen_x < -0xF0 || current_object->kangaroo.screen_x > 0x130)
+		if (current_object->kangaroo.screen_x < FROM_MIDDLE(PAST_LEFT(0x50)) || current_object->kangaroo.screen_x > FROM_MIDDLE(PAST_RIGHT(0x90)))
 		{
 			current_object->flags = 0u;
 			current_object->flags_high = 0u;
@@ -750,7 +750,7 @@ void kangaroo_update(void)
 				current_object->position_fraction = position_fraction;
 				animation_advance(0u);
 				draw_object(position_fraction);
-				if (current_object->kangaroo.screen_x >= -0xF0 && current_object->kangaroo.screen_x <= 0x130)
+				if (current_object->kangaroo.screen_x >= FROM_MIDDLE(PAST_LEFT(0x50)) && current_object->kangaroo.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x90)))
 					return;
 			}
 			current_object->flags = 0u;
@@ -760,7 +760,7 @@ void kangaroo_update(void)
 		current_object->position_fraction = position_fraction;
 		animation_advance(0u);
 		draw_object(position_fraction);
-		if (current_object->kangaroo.screen_x < -0xF0 || current_object->kangaroo.screen_x > 0x130)
+		if (current_object->kangaroo.screen_x < FROM_MIDDLE(PAST_LEFT(0x50)) || current_object->kangaroo.screen_x > FROM_MIDDLE(PAST_RIGHT(0x90)))
 		{
 			current_object->flags = 0u;
 			current_object->flags_high = 0u;
@@ -785,7 +785,7 @@ void kangaroo_update(void)
 				current_object->position_fraction = position_fraction;
 				animation_advance(0u);
 				draw_object(position_fraction);
-				if (current_object->kangaroo.screen_x >= -0xF0 && current_object->kangaroo.screen_x <= 0x130)
+				if (current_object->kangaroo.screen_x >= FROM_MIDDLE(PAST_LEFT(0x50)) && current_object->kangaroo.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x90)))
 					return;
 			}
 			current_object->flags = 0u;
@@ -795,7 +795,7 @@ void kangaroo_update(void)
 		current_object->position_fraction = position_fraction;
 		animation_advance(0u);
 		draw_object(position_fraction);
-		if (current_object->kangaroo.screen_x < -0xF0 || current_object->kangaroo.screen_x > 0x130)
+		if (current_object->kangaroo.screen_x < FROM_MIDDLE(PAST_LEFT(0x50)) || current_object->kangaroo.screen_x > FROM_MIDDLE(PAST_RIGHT(0x90)))
 		{
 			current_object->flags = 0u;
 			current_object->flags_high = 0u;
@@ -845,7 +845,7 @@ void moving_scenery_update(void)
 		current_object->moving_scenery.draw_distance = draw_distance;
 		return;
 	case 1:
-		if ((int16_t)RACE(screen->race_copy)->window_segment <= current_object->moving_scenery.trigger_position)
+		if ((int16_t)RACE(screen->race_copy)->state.window_segment <= current_object->moving_scenery.trigger_position)
 			return;
 		current_object->state++;
 		if ((int16_t)player_car->window_segment < current_object->position)
@@ -857,7 +857,7 @@ void moving_scenery_update(void)
 			{
 				animation_advance(0u);
 				draw_object(0u);
-				if (current_object->moving_scenery.screen_x >= -0xF0 && current_object->moving_scenery.screen_x <= 0x130)
+				if (current_object->moving_scenery.screen_x >= FROM_MIDDLE(PAST_LEFT(0x50)) && current_object->moving_scenery.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x90)))
 					return;
 			}
 		}
@@ -874,7 +874,7 @@ void moving_scenery_update(void)
 			{
 				animation_advance(0u);
 				draw_object(0u);
-				if (current_object->moving_scenery.screen_x >= -0xF0 && current_object->moving_scenery.screen_x <= 0x130)
+				if (current_object->moving_scenery.screen_x >= FROM_MIDDLE(PAST_LEFT(0x50)) && current_object->moving_scenery.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x90)))
 					return;
 			}
 		}
@@ -928,7 +928,7 @@ void swooping_helicopter_update(void)
 		current_object->swooping_helicopter.draw_distance = draw_distance;
 		return;
 	case 1:
-		if (current_object->swooping_helicopter.trigger_position < (int16_t)RACE(screen->race_copy)->window_segment)
+		if (current_object->swooping_helicopter.trigger_position < (int16_t)RACE(screen->race_copy)->state.window_segment)
 		{
 			current_object->state++;
 			current_object->swooping_helicopter.dive_countdown = current_object->swooping_helicopter.dive_frames;
@@ -947,7 +947,7 @@ void swooping_helicopter_update(void)
 			{
 				animation_advance(0u);
 				draw_object(0u);
-				if (current_object->swooping_helicopter.screen_x >= -0xF0 && current_object->swooping_helicopter.screen_x <= 0x130)
+				if (current_object->swooping_helicopter.screen_x >= FROM_MIDDLE(PAST_LEFT(0x50)) && current_object->swooping_helicopter.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x90)))
 					return;
 			}
 			current_object->flags = 0u;
@@ -968,7 +968,7 @@ void swooping_helicopter_update(void)
 		{
 			animation_advance(0u);
 			draw_object(0u);
-			if (current_object->swooping_helicopter.screen_x >= -0xF0 && current_object->swooping_helicopter.screen_x <= 0x130)
+			if (current_object->swooping_helicopter.screen_x >= FROM_MIDDLE(PAST_LEFT(0x50)) && current_object->swooping_helicopter.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x90)))
 				return;
 		}
 		current_object->flags = 0u;
@@ -988,7 +988,7 @@ void swooping_helicopter_update(void)
 		{
 			animation_advance(0u);
 			draw_object(0u);
-			if (current_object->swooping_helicopter.screen_x >= -0xF0 && current_object->swooping_helicopter.screen_x <= 0x130)
+			if (current_object->swooping_helicopter.screen_x >= FROM_MIDDLE(PAST_LEFT(0x50)) && current_object->swooping_helicopter.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x90)))
 				return;
 		}
 		current_object->flags = 0u;
@@ -1142,7 +1142,7 @@ void flagman_update(void)
 		current_object->flagman.draw_distance = draw_distance;
 		return;
 	case 1:
-		if ((int16_t)RACE(screen->race_copy)->window_segment <= current_object->flagman.appear_position)
+		if ((int16_t)RACE(screen->race_copy)->state.window_segment <= current_object->flagman.appear_position)
 			return;
 		current_object->state++;
 		in_view_animation = current_object->flagman.in_view_animation;
@@ -1301,7 +1301,7 @@ void west_east_panel_update(void)
 		current_object->y -= 2u;
 		if (current_object->y == 0xDCu)
 			current_object->state++;
-		if (RACE(screen->host_record)->time_left != 0u && player_car->segment <= 0x250u)
+		if (RACE(screen->host_record)->state.time_left != 0u && player_car->segment <= 0x250u)
 		{
 			palette = current_object->west_east_panel.colour_count;
 			palette = (palette & ~0xFFu) | (uint8_t)(palette + 1u);
@@ -1325,7 +1325,7 @@ void west_east_panel_update(void)
 		current_object->flags_high = 0u;
 		return;
 	case 2:
-		if (RACE(screen->host_record)->time_left != 0u && player_car->segment <= 0x250u)
+		if (RACE(screen->host_record)->state.time_left != 0u && player_car->segment <= 0x250u)
 		{
 			palette = current_object->west_east_panel.colour_count;
 			palette = (palette & ~0xFFu) | (uint8_t)(palette + 1u);
@@ -1406,7 +1406,7 @@ void santa_sleigh_update(void)
 		current_object->santa_sleigh.draw_distance = draw_distance;
 		return;
 	case 1:
-		if ((int16_t)RACE(screen->race_copy)->window_segment <= current_object->santa_sleigh.appear_position)
+		if ((int16_t)RACE(screen->race_copy)->state.window_segment <= current_object->santa_sleigh.appear_position)
 			return;
 		current_object->state++;
 	case 2:
@@ -1420,7 +1420,7 @@ void santa_sleigh_update(void)
 		}
 		current_object->x_offset += current_object->santa_sleigh.x_speed;
 		animation_advance(0u);
-		if (current_object->santa_sleigh.screen_x >= -0xB0)
+		if (current_object->santa_sleigh.screen_x >= FROM_MIDDLE(PAST_LEFT(0x10)))
 		{
 			draw_object(sound);
 			return;
@@ -1437,7 +1437,7 @@ void santa_sleigh_update(void)
 		}
 		current_object->x_offset -= current_object->santa_sleigh.x_speed;
 		animation_advance(ignored);
-		if (current_object->santa_sleigh.screen_x > 0xF0)
+		if (current_object->santa_sleigh.screen_x > FROM_MIDDLE(PAST_RIGHT(0x50)))
 		{
 			current_object->state = 2u;
 			current_object->flags &= 0xBFu;
@@ -1455,7 +1455,7 @@ void santa_sleigh_update(void)
 		}
 		current_object->x_offset -= current_object->santa_sleigh.x_speed;
 		animation_advance(ignored);
-		if (current_object->santa_sleigh.screen_x > 0xF0)
+		if (current_object->santa_sleigh.screen_x > FROM_MIDDLE(PAST_RIGHT(0x50)))
 		{
 			current_object->state = 2u;
 			current_object->flags &= 0xBFu;
@@ -1501,12 +1501,12 @@ void goal_parade_rightward_update(void)
 		current_object->goal_parade.draw_distance = draw_distance;
 		return;
 	case 1:
-		if ((int16_t)RACE(screen->race_copy)->window_segment <= current_object->goal_parade.appear_position)
+		if ((int16_t)RACE(screen->race_copy)->state.window_segment <= current_object->goal_parade.appear_position)
 			return;
 		current_object->state++;
 		current_object->x_offset += current_object->goal_parade.x_speed;
 		animation_advance(0u);
-		if (current_object->goal_parade.screen_x <= 0xB0)
+		if (current_object->goal_parade.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x10)))
 		{
 			draw_object(0u);
 			return;
@@ -1515,7 +1515,7 @@ void goal_parade_rightward_update(void)
 		current_object->flags &= 0xBFu;
 		current_object->x_offset -= current_object->goal_parade.x_speed;
 		animation_advance(ignored);
-		if (current_object->goal_parade.screen_x < -0xF0)
+		if (current_object->goal_parade.screen_x < FROM_MIDDLE(PAST_LEFT(0x50)))
 		{
 			current_object->state--;
 			current_object->flags |= 0x40u;
@@ -1525,7 +1525,7 @@ void goal_parade_rightward_update(void)
 	case 2:
 		current_object->x_offset += current_object->goal_parade.x_speed;
 		animation_advance(0u);
-		if (current_object->goal_parade.screen_x <= 0xB0)
+		if (current_object->goal_parade.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x10)))
 		{
 			draw_object(0u);
 			return;
@@ -1534,7 +1534,7 @@ void goal_parade_rightward_update(void)
 		current_object->flags &= 0xBFu;
 		current_object->x_offset -= current_object->goal_parade.x_speed;
 		animation_advance(ignored);
-		if (current_object->goal_parade.screen_x < -0xF0)
+		if (current_object->goal_parade.screen_x < FROM_MIDDLE(PAST_LEFT(0x50)))
 		{
 			current_object->state--;
 			current_object->flags |= 0x40u;
@@ -1544,7 +1544,7 @@ void goal_parade_rightward_update(void)
 	case 3:
 		current_object->x_offset -= current_object->goal_parade.x_speed;
 		animation_advance(ignored);
-		if (current_object->goal_parade.screen_x < -0xF0)
+		if (current_object->goal_parade.screen_x < FROM_MIDDLE(PAST_LEFT(0x50)))
 		{
 			current_object->state--;
 			current_object->flags |= 0x40u;
@@ -1645,12 +1645,12 @@ void goal_parade_leftward_update(void)
 		current_object->goal_parade.draw_distance = draw_distance;
 		return;
 	case 1:
-		if ((int16_t)RACE(screen->race_copy)->window_segment <= current_object->goal_parade.appear_position)
+		if ((int16_t)RACE(screen->race_copy)->state.window_segment <= current_object->goal_parade.appear_position)
 			return;
 		current_object->state++;
 		current_object->x_offset += current_object->goal_parade.x_speed;
 		animation_advance(0u);
-		if (current_object->goal_parade.screen_x >= -0xB0)
+		if (current_object->goal_parade.screen_x >= FROM_MIDDLE(PAST_LEFT(0x10)))
 		{
 			draw_object(0u);
 			return;
@@ -1659,7 +1659,7 @@ void goal_parade_leftward_update(void)
 		current_object->flags |= 0x40u;
 		current_object->x_offset -= current_object->goal_parade.x_speed;
 		animation_advance(ignored);
-		if (current_object->goal_parade.screen_x > 0xF0)
+		if (current_object->goal_parade.screen_x > FROM_MIDDLE(PAST_RIGHT(0x50)))
 		{
 			current_object->state--;
 			current_object->flags &= 0xBFu;
@@ -1669,7 +1669,7 @@ void goal_parade_leftward_update(void)
 	case 2:
 		current_object->x_offset += current_object->goal_parade.x_speed;
 		animation_advance(0u);
-		if (current_object->goal_parade.screen_x >= -0xB0)
+		if (current_object->goal_parade.screen_x >= FROM_MIDDLE(PAST_LEFT(0x10)))
 		{
 			draw_object(0u);
 			return;
@@ -1678,7 +1678,7 @@ void goal_parade_leftward_update(void)
 		current_object->flags |= 0x40u;
 		current_object->x_offset -= current_object->goal_parade.x_speed;
 		animation_advance(ignored);
-		if (current_object->goal_parade.screen_x > 0xF0)
+		if (current_object->goal_parade.screen_x > FROM_MIDDLE(PAST_RIGHT(0x50)))
 		{
 			current_object->state--;
 			current_object->flags &= 0xBFu;
@@ -1688,7 +1688,7 @@ void goal_parade_leftward_update(void)
 	case 3:
 		current_object->x_offset -= current_object->goal_parade.x_speed;
 		animation_advance(ignored);
-		if (current_object->goal_parade.screen_x > 0xF0)
+		if (current_object->goal_parade.screen_x > FROM_MIDDLE(PAST_RIGHT(0x50)))
 		{
 			current_object->state--;
 			current_object->flags &= 0xBFu;
@@ -1728,11 +1728,11 @@ void goal_parade_dragon_update(void)
 		current_object->goal_parade.draw_distance = draw_distance;
 		return;
 	case 1:
-		if ((int16_t)RACE(screen->race_copy)->window_segment <= current_object->goal_parade.appear_position)
+		if ((int16_t)RACE(screen->race_copy)->state.window_segment <= current_object->goal_parade.appear_position)
 			return;
 		current_object->state++;
 		current_object->x_offset += current_object->goal_parade.x_speed;
-		if (current_object->goal_parade.screen_x >= -0xB0)
+		if (current_object->goal_parade.screen_x >= FROM_MIDDLE(PAST_LEFT(0x10)))
 		{
 			random_bits = random_number();
 			if ((random_bits & 3u) == 0u)
@@ -1747,7 +1747,7 @@ void goal_parade_dragon_update(void)
 		current_object->state++;
 		current_object->flags |= 0x40u;
 		current_object->x_offset -= current_object->goal_parade.x_speed;
-		if (current_object->goal_parade.screen_x <= 0xF0)
+		if (current_object->goal_parade.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x50)))
 		{
 			random_bits = random_number();
 			if ((random_bits & 3u) == 0u)
@@ -1772,7 +1772,7 @@ void goal_parade_dragon_update(void)
 		return;
 	case 2:
 		current_object->x_offset += current_object->goal_parade.x_speed;
-		if (current_object->goal_parade.screen_x >= -0xB0)
+		if (current_object->goal_parade.screen_x >= FROM_MIDDLE(PAST_LEFT(0x10)))
 		{
 			random_bits = random_number();
 			if ((random_bits & 3u) == 0u)
@@ -1787,7 +1787,7 @@ void goal_parade_dragon_update(void)
 		current_object->state++;
 		current_object->flags |= 0x40u;
 		current_object->x_offset -= current_object->goal_parade.x_speed;
-		if (current_object->goal_parade.screen_x <= 0xF0)
+		if (current_object->goal_parade.screen_x <= FROM_MIDDLE(PAST_RIGHT(0x50)))
 		{
 			random_bits = random_number();
 			if ((random_bits & 3u) == 0u)
@@ -1812,7 +1812,7 @@ void goal_parade_dragon_update(void)
 		return;
 	case 3:
 		current_object->x_offset -= current_object->goal_parade.x_speed;
-		if (current_object->goal_parade.screen_x > 0xF0)
+		if (current_object->goal_parade.screen_x > FROM_MIDDLE(PAST_RIGHT(0x50)))
 		{
 			current_object->state--;
 			current_object->flags &= 0xBFu;
@@ -1833,7 +1833,7 @@ void goal_parade_dragon_update(void)
    the left way): direction -1, then fork_branch_draw. */
 void fork_branch_start_right(void)
 {
-	current_object->handler = fork_branch_draw_ADDRESS;
+	current_object->handler = FUNCTION_fork_branch_draw;
 	current_object->fork_branch.direction = -1;
 	fork_branch_draw();
 }
@@ -1842,7 +1842,7 @@ void fork_branch_start_right(void)
    fork_branch_draw. */
 void fork_branch_start_left(void)
 {
-	current_object->handler = fork_branch_draw_ADDRESS;
+	current_object->handler = FUNCTION_fork_branch_draw;
 	current_object->fork_branch.direction = 1;
 	fork_branch_draw();
 }
@@ -1873,7 +1873,7 @@ void fork_branch_draw(void)
 	case 1:
 		break;
 	}
-	window_segment = RACE(screen->race_copy)->window_segment;
+	window_segment = RACE(screen->race_copy)->state.window_segment;
 	start_position = (uint16_t)current_object->fork_branch.start_position;
 	end_position = (uint16_t)current_object->fork_branch.end_position;
 	if (end_position <= window_segment)
@@ -1934,7 +1934,7 @@ void fork_branch_draw(void)
 		segment = (uint16_t)(segment - start_position);
 		segment = (uint16_t)(segment << 3);
 		piece_x += (uint32_t)((int32_t)(((int32_t)((cosine_table[(uint16_t)(segment + 0x800u)] + 0x4000u) * 0x5186u) >> 14) * piece_scale) >> 12) * current_object->fork_branch.direction;
-		if ((int32_t)piece_x > 0x280 || (int32_t)piece_x < -0x280)
+		if ((int32_t)piece_x > FROM_MIDDLE(PAST_RIGHT(0x1E0)) || (int32_t)piece_x < FROM_MIDDLE(PAST_LEFT(0x1E0)))
 			break;
 		sprite = screen->sprite_list_last + 0x10u;
 		rows_left = last_y - piece_y;

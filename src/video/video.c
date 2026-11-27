@@ -3,7 +3,7 @@
  *    Description: the video chips set up and cleared: the screens, the tile layers, the sprite chip and its lists, the mixer, the I/O chips
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -114,12 +114,12 @@ uint16_t init_video(void)
 	load_text_font();
 	VIDEO_CONTROL = video_control_default;
 	game->video_registers[0] = video_control_default;
-	if (game->flip_screen != 0u)
+	if (game->eeprom.settings.flip_screen != 0u)
 	{
 		VIDEO_CONTROL |= 0x200u;
 		game->video_registers[0] |= 0x200u;
 	}
-	move_halfwords(scroll_targets_ADDRESS, zero_block_ADDRESS, 0x10u);
+	memset(game->scroll_targets, 0, sizeof game->scroll_targets);
 	move_halfwords(VIDEO_RAM + 0x1FF02u, video_register_defaults_ADDRESS, 0x47u);
 	move_halfwords(video_registers_ADDRESS + 0x2u, video_register_defaults_ADDRESS, 0x47u);
 	return reset_tile_layers();
@@ -221,7 +221,7 @@ void init_sprite_chip(void)
 	control_register = SPRITE_CONTROL + 0x4u;
 	control_flip = sprite_control_flip;
 	control_values = rom_pointer(sprite_control_rest_ADDRESS);
-	if (game->flip_screen != 0u)
+	if (game->eeprom.settings.flip_screen != 0u)
 		control_flip = control_flip ^ 3u;
 	io_write16(control_register, control_flip);
 	control_register += 2u;
@@ -257,8 +257,8 @@ void init_sprite_lists(void)
 	SPRITE_LIST_2_A_HALFWAY = 0xFFFFu;
 	SPRITE_LIST_2_B = 0xFFFFu;
 	SPRITE_LIST_2_B_HALFWAY = 0xFFFFu;
-	game->sprite_lists_set_up = 1u;
-	game->sprite_list_buffers = 0u;
+	world->sprite_lists_set_up = 1u;
+	world->sprite_list_buffers = 0u;
 	game->screen_1.sprite_groups &= 0xFF00u;
 	game->screen_2.sprite_groups &= 0xFF00u;
 }
@@ -289,10 +289,10 @@ void init_mixer(void)
 	second_layer = hidden_layer_pair->second_layer;
 	io_write16(mixer + first_layer * 2u, 0u);
 	io_write16(mixer + second_layer * 2u, 0u);
-	screen->mixer_values[(int32_t)first_layer] = 0u;
-	screen->mixer_values[(int32_t)second_layer] = 0u;
-	screen->mixer_defaults[(int32_t)first_layer] = 0u;
-	screen->mixer_defaults[(int32_t)second_layer] = 0u;
+	screen->mixer_values.registers[(int32_t)first_layer] = 0u;
+	screen->mixer_values.registers[(int32_t)second_layer] = 0u;
+	screen->mixer_defaults.registers[(int32_t)first_layer] = 0u;
+	screen->mixer_defaults.registers[(int32_t)second_layer] = 0u;
 }
 
 /* Sets up the two I/O chips at boot: ports D, G and H outputs and cleared (the coin meters, lamps, LCD,
@@ -329,6 +329,7 @@ void load_sprite_ram_tables(void)
    the data at 010AB5. */
 void unrolled_copy(uint16_t byte_count, uint32_t source, uint32_t destination)
 {
+	world_ram_begin();
 	uint32_t move_destination = 0, second_word = 0, second_word_64 = 0;
 
 	switch (0u - (((byte_count & 0x3F8u) >> 1) - 0x200u))
@@ -348,4 +349,5 @@ void unrolled_copy(uint16_t byte_count, uint32_t source, uint32_t destination)
 	second_word_64 = mem_read32(source + 4u);
 	mem_write32(destination, mem_read32(source));
 	mem_write32(destination + 4u, second_word_64);
+	world_ram_end();
 }

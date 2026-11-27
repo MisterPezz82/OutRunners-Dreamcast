@@ -14,8 +14,17 @@ Dreamcast port. Upstream's own README is kept at [docs/UPSTREAM_README.md](docs/
 
 ## Status
 
-**Version 0.4.** Download it from [Releases](https://github.com/MisterPezz82/OutRunners-Dreamcast/releases).
+**Version 0.5.** Download it from [Releases](https://github.com/MisterPezz82/OutRunners-Dreamcast/releases).
 Played on a Dreamcast with GDEMU during development.
+
+New in 0.5, brought up to the PC version 1.4.0 ([cheviman](https://github.com/cheviman/outrunners-port)):
+- **OPTIONS > SOUND:** MUSIC, EFFECTS and VOICE volumes set apart, so the DJ can be turned down under the
+  songs. On the Dreamcast this is done on its own sound chip, at no cost to the game.
+- **The radio's MUSIC button** goes round the songs and the station, as on the PC.
+- **REVERSE** starts at AUSTRALIA without the people over the water.
+- **The northern lights** are see-through.
+- **The decompiled game's latest code** (its variables, state and code tables reorganised). Its extra cost
+  on the Dreamcast was cut back to about a quarter of a millisecond a frame.
 
 New in 0.4, mostly speed:
 - **A reworked renderer.** Most background tile planes are drawn cell by cell from a store of the tiles'
@@ -56,7 +65,7 @@ You need:
   compiler and [mkdcdisc](https://gitlab.com/simulant/mkdcdisc) 0.0.4 or later.
 
 Using the release package
-([Releases](https://github.com/MisterPezz82/OutRunners-Dreamcast/releases), `OutRunners-DC-0.4.zip`):
+([Releases](https://github.com/MisterPezz82/OutRunners-Dreamcast/releases), `OutRunners-DC-0.5.zip`):
 - **Windows:** drag `orunners.zip` onto `make_disc.bat`, or run it and choose the zip.
 - **Linux/WSL:** `./make_disc.sh /path/to/orunners.zip`
 

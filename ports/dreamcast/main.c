@@ -4,6 +4,7 @@
 #include <dc/biosfont.h>
 #include <game/assets.h>
 #include <s32/machine.h>
+#include <s32/multipcm.h>
 #include <s32/program.h>
 #include <s32/video.h>
 #include <s32/workers.h>
@@ -114,6 +115,10 @@ static void options_to_save(void) {
     dc_options[4] = (uint8_t)s->steering_speed;
     dc_options[5] = (uint8_t)s->vibration;
     dc_options[6] = (uint8_t)s->fps;
+    /* (OPTIONS > SOUND's MUSIC, EFFECTS and VOICE, each + 1: 0 in a save from before them) */
+    dc_options[7] = (uint8_t)(s->music_volume + 1);
+    dc_options[8] = (uint8_t)(s->effects_volume + 1);
+    dc_options[9] = (uint8_t)(s->voice_volume + 1);
 }
 
 static void options_from_save(void) {
@@ -125,11 +130,22 @@ static void options_from_save(void) {
     if (dc_options[4] >= 1 && dc_options[4] <= STEERING_LEVELS) s->steering_speed = dc_options[4];
     if (dc_options[5] <= 100) s->vibration = dc_options[5] / FORCE_STEP * FORCE_STEP;
     s->fps = dc_options[6] != 0;
+    if (dc_options[7] >= 1 && dc_options[7] <= 11) s->music_volume = dc_options[7] - 1;
+    if (dc_options[8] >= 1 && dc_options[8] <= 11) s->effects_volume = dc_options[8] - 1;
+    if (dc_options[9] >= 1 && dc_options[9] <= 11) s->voice_volume = dc_options[9] - 1;
 }
 
 static void options_apply(void) {
     dc_aica_set_volume(console_window_settings.volume);
     dc_fps_on = console_window_settings.fps;
+    {
+        /* OPTIONS > SOUND's MUSIC, EFFECTS and VOICE: each MultiPCM sample's category gain, on the AICA's level
+           (the YM3438's gain is the PC's mix alone: OutRunners never sounds it) */
+        double fm;
+        int32_t pcm[MULTIPCM_CATEGORIES];
+        console_sound_gains(&fm, pcm);
+        dc_aica_set_category_gains(pcm);
+    }
 }
 
 /* The cabinet's wheel motor (output port D, bit 4: a crash, off the road) on a vibration pack, as hard as
@@ -350,6 +366,9 @@ static void log_callback(const char *msg) {
 
 static void frame_callback(void) {
     dc_frame_count++;
+#ifdef ORUNNERS_CONSOLE
+    console_set_sides();    /* (the game's screen edges: the board's, no WIDE here) */
+#endif
     dc_where = 'F';
 #ifdef DC_DIAG_TEST
     if (dc_frame_count == 600) exit(7);    /* (test: the stopped screen) */
@@ -538,6 +557,9 @@ int main(int argc, char **argv) {
     dc_boot_stage = 5;
     dc_status("5/8 - attaching sound chips");
     sound_chips_attach();
+#ifdef ORUNNERS_CONSOLE
+    sound_chips_set_categories(console_sample_category);    /* (each sample's category, for SOUND's mix) */
+#endif
     {
         /* the MultiPCM on the AICA (aica_pcm.c); without it the game runs silent */
         const int aica = dc_aica_pcm_start("/cd/assets");
@@ -549,6 +571,12 @@ int main(int argc, char **argv) {
     dc_boot_stage = 6;
     dc_status("6/8 - attaching sound CPU");
     sound_cpu_attach();
+    {
+        /* (no state hash or dump at a frame's end here: the game's variables are not copied into the work RAM's
+           image and back each frame, runtime/src/game.c) */
+        extern bool world_project_at_frame_end;
+        world_project_at_frame_end = false;
+    }
 #ifdef ORUNNERS_CONSOLE
     options_to_save();    /* (the defaults, for a VMU without them) */
 #endif

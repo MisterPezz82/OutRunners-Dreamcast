@@ -57,6 +57,13 @@ const multipcm *sound_chips_multipcm(void);
    for the two sides, a port's console build) */
 void sound_chips_join_sides(bool together);
 
+/* A port's mix by what is sampled (OutRunners' SOUND): each MultiPCM voice's sample's category as its key goes on,
+   by 'category_of' (of the sample's address as the chip has it; NULL: none), and the gains: the YM3438's in the mix
+   (1 as it is) and each of the MultiPCM's categories' (MULTIPCM_CATEGORIES of them, 256 as it is). Without them, or
+   with those, the sound is the board's to the bit */
+void sound_chips_set_categories(uint8_t (*category_of)(uint32_t address));
+void sound_chips_set_gains(double fm, const int32_t *pcm);
+
 /* FNV-1a hashes, as tools/core/system32/reference/s32ref writes them: the frame's samples of the two chips, and the
    sound board's memory (the shared RAM but the Z80's stack, FD00-FDFF) */
 uint64_t sound_chips_frame_hash(void);

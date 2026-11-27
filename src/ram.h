@@ -3,7 +3,7 @@
  *    Description: the game's variables, tables, board registers and structures
  *    Version:     0.1.0
  *    Created:     12-10-2026
- *    Modified:    13-11-2026
+ *    Modified:    24-11-2026
  *    Author:      Sebastian Toyos
  *
  *    OutRunners (arcade, Sega System Multi 32): the game's V70 program decompiled into C by
@@ -23,45 +23,17 @@
 #define RACE_COPY_2 0x20FC80u
 #define SCREEN_2 0x218000u
 #define waiting_task_frame_ADDRESS 0x20E000u
-#define waiting_task_stack_ADDRESS 0x20E004u
-#define vblanks_since_start_ADDRESS 0x20E00Au
-#define debug_timer_rounds_ADDRESS 0x20E00Eu
-#define sprite_list_buffers_ADDRESS 0x20E020u
-#define sprite_lists_set_up_ADDRESS 0x20E022u
 #define frame_ready_ADDRESS 0x20E023u
-#define single_task_ADDRESS 0x20E024u
-#define game_frame_count_ADDRESS 0x20E026u
-#define send_video_registers_ADDRESS 0x20E027u
-#define task_swapping_ADDRESS 0x20E028u
-#define second_task_waiting_ADDRESS 0x20E02Bu
-#define timer_interrupts_left_ADDRESS 0x20E02Cu
-#define vblank_counter_ADDRESS 0x20E02Du
-#define cleared_on_race_over_ADDRESS 0x20E02Eu
-#define car_numbers_ADDRESS 0x20E030u
-#define link_wait_frames_start_ADDRESS 0x20E038u
-#define total_time_count_ADDRESS 0x20E03Au
 #define machine_count_ADDRESS 0x20E040u
-#define player_count_ADDRESS 0x20E041u
-#define link_off_ADDRESS 0x20E042u
-#define link_failed_ADDRESS 0x20E043u
-#define link_wait_frames_ADDRESS 0x20E046u
-#define network_check_blink_counter_ADDRESS 0x20E048u
-#define isdn_players_this_side_ADDRESS 0x20E04Au
-#define isdn_players_other_side_ADDRESS 0x20E04Bu
-#define link_wait_count_ADDRESS 0x20E060u
-#define coin_meters_ADDRESS 0x20E080u
 #define seat1_coin_sounds_ADDRESS 0x20E08Cu
 #define seat2_coin_sounds_ADDRESS 0x20E08Du
 #define seat1_service_sounds_ADDRESS 0x20E08Eu
 #define seat2_service_sounds_ADDRESS 0x20E08Fu
-#define chute_entry_offset_ADDRESS 0x20E091u
 #define port_d_outputs_ADDRESS 0x20E092u
 #define port_g_outputs_ADDRESS 0x20E094u
 #define seat1_credits_ADDRESS 0x20E0A0u
-#define seat1_coin_units_ADDRESS 0x20E0A1u
 #define seat1_bookkeeping_byte_ADDRESS 0x20E0A4u
 #define seat2_credits_ADDRESS 0x20E0A8u
-#define seat2_coin_units_ADDRESS 0x20E0A9u
 #define seat2_bookkeeping_byte_ADDRESS 0x20E0ACu
 #define checkpoint_lamp_ADDRESS 0x20E0C0u
 #define checkpoint_lamp_blinks_ADDRESS 0x20E0C1u
@@ -79,16 +51,10 @@
 #define leader_lamp_2_blinks_ADDRESS 0x20E0CDu
 #define leader_lamp_2_period_ADDRESS 0x20E0CEu
 #define leader_lamp_2_timer_ADDRESS 0x20E0CFu
-#define wheel_motor_ADDRESS 0x20E0D0u
 #define screen_2_vblanks_ADDRESS 0x20E0FCu
 #define screen_2_vblanks_high_ADDRESS 0x20E0FDu
 #define screen_1_vblanks_ADDRESS 0x20E0FEu
 #define screen_1_vblanks_high_ADDRESS 0x20E0FFu
-#define switches_ADDRESS 0x20E100u
-#define previous_switches_ADDRESS 0x20E101u
-#define switches_pressed_ADDRESS 0x20E102u
-#define switches_released_ADDRESS 0x20E103u
-#define second_io_chip_port_f_ADDRESS 0x20E104u
 #define analog_raw_ADDRESS 0x20E110u
 #define analog_inputs_ADDRESS 0x20E116u
 #define analog_gas_1_ADDRESS 0x20E117u
@@ -96,68 +62,16 @@
 #define analog_wheel_2_ADDRESS 0x20E119u
 #define analog_gas_2_ADDRESS 0x20E11Au
 #define analog_brake_2_ADDRESS 0x20E11Bu
-#define seat_1_player_ADDRESS 0x20E120u
 #define seat_1_buttons_ADDRESS 0x20E121u
-#define seat_1_wheel_ADDRESS 0x20E122u
-#define seat_1_gas_ADDRESS 0x20E123u
-#define seat_1_brake_ADDRESS 0x20E124u
-#define seat_2_player_ADDRESS 0x20E125u
 #define seat_2_buttons_ADDRESS 0x20E126u
-#define seat_2_wheel_ADDRESS 0x20E127u
-#define seat_2_gas_ADDRESS 0x20E128u
-#define seat_2_brake_ADDRESS 0x20E129u
 #define video_registers_ADDRESS 0x20E200u
 #define scroll_targets_ADDRESS 0x20E290u
 #define tile_banks_ADDRESS 0x20E2B0u
 #define course_records_ADDRESS 0x20E300u
 #define course_record_times_ADDRESS 0x20E304u
-#define lcd_send_buffer_1_ADDRESS 0x20E3C0u
-#define lcd_send_buffer_2_ADDRESS 0x20E3D0u
-#define lcd_restart_frames_ADDRESS 0x20E3F0u
-#define lcd_send_step_ADDRESS 0x20E3F2u
-#define lcd_busy_ADDRESS 0x20E3F3u
-#define lcd_init_step_ADDRESS 0x20E3F4u
-#define settings_magic_ADDRESS 0x20E600u
-#define settings_signature_ADDRESS 0x20E604u
-#define settings_checksum_ADDRESS 0x20E608u
-#define eeprom_write_count_ADDRESS 0x20E60Au
-#define flip_screen_ADDRESS 0x20E60Cu
-#define advertise_sound_ADDRESS 0x20E60Du
-#define coins_per_credit_ADDRESS 0x20E610u
-#define first_chute_multiplier_ADDRESS 0x20E611u
-#define second_chute_multiplier_ADDRESS 0x20E612u
-#define bonus_adder_ADDRESS 0x20E613u
-#define coin_setting_ADDRESS 0x20E614u
-#define free_play_ADDRESS 0x20E615u
-#define stand_alone_ADDRESS 0x20E620u
-#define link_master_ADDRESS 0x20E621u
-#define cabinet_id_ADDRESS 0x20E622u
-#define isdn_mode_ADDRESS 0x20E623u
-#define steering_wheel_reaction_ADDRESS 0x20E624u
-#define game_difficulty_ADDRESS 0x20E630u
-#define time_difficulty_ADDRESS 0x20E632u
-#define volume_ranges_ADDRESS 0x20E638u
-#define backup_settings_checksum_ADDRESS 0x20E644u
-#define backup_eeprom_write_count_ADDRESS 0x20E646u
-#define test_mode_on_ADDRESS 0x20E700u
-#define test_mode_flags_ADDRESS 0x20E701u
-#define test_mode_cursor_ADDRESS 0x20E702u
-#define test_mode_page_cursor_ADDRESS 0x20E703u
-#define test_mode_routine_ADDRESS 0x20E704u
 #define test_mode_blink_address_ADDRESS 0x20E708u
-#define test_mode_buttons_ADDRESS 0x20E70Cu
-#define test_mode_buttons_previous_ADDRESS 0x20E70Du
-#define test_mode_buttons_pressed_ADDRESS 0x20E70Eu
-#define test_mode_buttons_released_ADDRESS 0x20E70Fu
 #define test_mode_analog_inputs_ADDRESS 0x20E710u
 #define memory_test_results_ADDRESS 0x20E716u
-#define test_mode_blink_timer_ADDRESS 0x20E72Fu
-#define sound_test_number_a_ADDRESS 0x20E730u
-#define sound_test_number_b_ADDRESS 0x20E731u
-#define test_mode_sound_queue_write_ADDRESS 0x20E732u
-#define test_mode_sound_queue_read_ADDRESS 0x20E733u
-#define test_mode_sound_queue_ADDRESS 0x20E734u
-#define test_mode_privilege_mode_ADDRESS 0x20E754u
 #define race_copy_window_segments_ADDRESS 0x20FC46u
 
 /* work RAM as one family of functions uses it (their scratch variables) */
@@ -671,12 +585,6 @@ extern const void *race_car_passenger_frame_counts_data;
 #define race_car_body_wheel_kinds_ADDRESS 0x009E4Cu
 extern const void *race_car_body_wheel_kinds_data;
 #define race_car_body_wheel_kinds ((const uint8_t *)race_car_body_wheel_kinds_data)
-#define race_car_driver_handlers_ADDRESS 0x009EBCu
-extern const void *race_car_driver_handlers_data;
-#define race_car_driver_handlers ((const uint32_t *)race_car_driver_handlers_data)
-#define race_car_passenger_handlers_ADDRESS 0x009EDCu
-extern const void *race_car_passenger_handlers_data;
-#define race_car_passenger_handlers ((const uint32_t *)race_car_passenger_handlers_data)
 #define unused_car_animations_ADDRESS 0x009EFCu
 extern const void *unused_car_animations_data;
 #define unused_car_animations (*(const uint16_t *)unused_car_animations_data)
@@ -704,9 +612,6 @@ extern const void *race_car_blink_starts_data;
 #define race_car_tag_blink_ADDRESS 0x009FA4u
 extern const void *race_car_tag_blink_data;
 #define race_car_tag_blink ((const uint8_t *)race_car_tag_blink_data)
-#define race_car_ending_handlers_ADDRESS 0x009FC4u
-extern const void *race_car_ending_handlers_data;
-#define race_car_ending_handlers ((const uint32_t *)race_car_ending_handlers_data)
 #define unused_numbers_009FE4_ADDRESS 0x009FE4u
 extern const void *unused_numbers_009FE4_data;
 #define unused_numbers_009FE4 (*(const uint32_t *)unused_numbers_009FE4_data)
@@ -1382,9 +1287,6 @@ extern const void *test_mode_lcd_text_8_to_11_data;
 #define test_mode_lcd_text_12_to_15_ADDRESS 0x01C384u
 extern const void *test_mode_lcd_text_12_to_15_data;
 #define test_mode_lcd_text_12_to_15 (*(const uint32_t *)test_mode_lcd_text_12_to_15_data)
-#define test_mode_page_jumps_ADDRESS 0x01C45Cu
-extern const void *test_mode_page_jumps_data;
-#define test_mode_page_jumps ((const uint32_t *)test_mode_page_jumps_data)
 #define test_mode_menu_headings_ADDRESS 0x01C560u
 extern const void *test_mode_menu_headings_data;
 #define test_mode_menu_headings ((const uint32_t *)test_mode_menu_headings_data)
@@ -1758,25 +1660,10 @@ extern const void *kanji_font_data;
 #define signature_text_ADDRESS 0x00010Cu
 #define default_settings_ADDRESS 0x0004C0u
 #define second_task_start_frame_ADDRESS 0x000C98u
-#define isdn_connection_objects_ADDRESS 0x000F70u
-#define isdn_connection_object_handlers_ADDRESS 0x000F74u
 #define isdn_texts_ADDRESS 0x000F94u
-#define car_presentation_objects_ADDRESS 0x001A78u
-#define car_presentation_object_handlers_ADDRESS 0x001A7Cu
 #define staff_credits_texts_ADDRESS 0x001AE8u
 #define attract_car_name_texts_ADDRESS 0x001D0Cu
 #define car_name_letter_palette_steps_ADDRESS 0x001D70u
-#define ranking_objects_ADDRESS 0x002CB8u
-#define name_entry_objects_ADDRESS 0x002D58u
-#define name_entry_object_handlers_ADDRESS 0x002D5Cu
-#define player_car_objects_ADDRESS 0x00346Cu
-#define player_car_object_handlers_ADDRESS 0x003470u
-#define race_objects_ADDRESS 0x003474u
-#define race_object_handlers_ADDRESS 0x003478u
-#define demo_race_objects_ADDRESS 0x0034C4u
-#define demo_race_object_handlers_ADDRESS 0x0034C8u
-#define route_map_objects_ADDRESS 0x0034ECu
-#define route_map_object_handlers_ADDRESS 0x0034F0u
 #define meaning_of_the_light_title_ADDRESS 0x003504u
 #define thank_you_lcd_text_ADDRESS 0x005014u
 #define welcome_letter_palette_steps_ADDRESS 0x006DCCu
@@ -1791,8 +1678,6 @@ extern const void *kanji_font_data;
 #define total_time_text_ADDRESS 0x00D08Eu
 #define branch_arrow_palette_steps_ADDRESS 0x00D0A0u
 #define dream_flying_song_title_ADDRESS 0x00D0AEu
-#define entry_invitation_objects_ADDRESS 0x00DF74u
-#define entry_invitation_object_handlers_ADDRESS 0x00DF78u
 #define network_check_text_ADDRESS 0x00DF84u
 #define communication_success_text_ADDRESS 0x00DF98u
 #define machine_id_text_ADDRESS 0x00DFB4u
@@ -3826,6 +3711,28 @@ struct car
 	uint8_t pad_183[0x7D];
 };
 
+struct race_progress
+{
+	uint8_t counted_stages[0x8];
+	uint8_t counted_passes[0x6];
+	uint8_t pad_0E[0x4];
+	uint8_t pass_seen;
+	uint8_t pad_13[0x1];
+	uint8_t route_stages[0x5];
+	uint8_t forks_decided;
+	uint8_t route_branches[0x6];
+	uint16_t leader_window_segment;
+	uint8_t leader_stage;
+	uint8_t pad_23[0x7];
+	uint8_t checkpoint_passes[0x6];
+	uint8_t checkpoint_orders[0x30];
+	uint8_t checkpoint_order[0x30];
+	uint16_t checkpoint_times_by_player[0x30];
+	uint16_t checkpoint_times[0x30];
+	uint8_t checkpoints_passed[0x8];
+	uint8_t pad_158[0x8];
+};
+
 struct car_hit_box
 {
 	uint16_t player;
@@ -3882,6 +3789,13 @@ struct depth_list
 {
 	uint16_t head;
 	uint16_t tail;
+};
+
+struct mixer_register_set
+{
+	uint16_t registers[0x1F];
+	uint16_t colour_offset_select;
+	uint8_t pad_40[0x10];
 };
 
 struct screen
@@ -3979,11 +3893,8 @@ struct screen
 	uint8_t fade_kind;
 	uint8_t fade_channels;
 	uint8_t pad_155[0xB];
-	uint16_t mixer_values[0x1F];
-	uint16_t colour_offset_select;
-	uint8_t pad_1A0[0x10];
-	uint16_t mixer_defaults[0x1F];
-	uint8_t pad_1EE[0x12];
+	struct mixer_register_set mixer_values;
+	struct mixer_register_set mixer_defaults;
 	uint16_t road_top_line;
 	uint8_t background_changing;
 	uint8_t stage_background_change;
@@ -4010,24 +3921,8 @@ struct screen
 	uint8_t places[0x8];
 	uint8_t name_entries_seen;
 	uint8_t pad_329[0x7];
-	uint8_t counted_stages[0x8];
-	uint8_t counted_passes[0x6];
-	uint8_t pad_33E[0x4];
-	uint8_t pass_seen;
-	uint8_t pad_343[0x1];
-	uint8_t route_stages[0x5];
-	uint8_t forks_decided;
-	uint8_t route_branches[0x6];
-	uint16_t leader_window_segment;
-	uint8_t leader_stage;
-	uint8_t pad_353[0x7];
-	uint8_t checkpoint_passes[0x6];
-	uint8_t checkpoint_orders[0x30];
-	uint8_t checkpoint_order[0x30];
-	uint16_t checkpoint_times_by_player[0x30];
-	uint16_t checkpoint_times[0x30];
-	uint8_t checkpoints_passed[0x8];
-	uint8_t pad_488[0x27];
+	struct race_progress progress;
+	uint8_t pad_490[0x1F];
 	uint8_t demo_player_count;
 	uint8_t demo_players;
 	uint8_t pad_4B1[0x41];
@@ -4156,6 +4051,49 @@ struct object_area
 	struct object objects[0x7C];
 };
 
+struct race_state
+{
+	int32_t world_x;
+	int32_t world_y;
+	int32_t world_z;
+	uint16_t animation;
+	uint16_t palette;
+	uint16_t segment_fraction;
+	uint16_t segment;
+	int16_t road_x;
+	uint16_t window_segment;
+	uint16_t car_choice_and_model;
+	uint8_t frame;
+	uint8_t view_slot;
+	uint16_t speed;
+	int16_t sideways_speed;
+	uint8_t wheel_effect_sides;
+	uint8_t wheel_effect_1;
+	uint8_t wheel_effect_2;
+	uint8_t hard_acceleration;
+	uint16_t segment_pitch;
+	int16_t bounce_height;
+	uint16_t car_flags;
+	uint8_t link_pad_5A;
+	uint8_t link_pad_5B;
+	uint8_t ready;
+	uint8_t started;
+	uint8_t finished;
+	uint8_t published;
+	uint8_t stage_count;
+	uint8_t pass_seen;
+	uint8_t stage;
+	uint8_t pass_count;
+	uint8_t pass_player;
+	uint8_t pass_checkpoint;
+	uint8_t pass_order;
+	uint8_t pass_branch;
+	uint16_t pass_time;
+	uint16_t time_left;
+	uint32_t race_time;
+	uint8_t pad_40[0x10];
+};
+
 struct race
 {
 	uint8_t machine;
@@ -4195,46 +4133,43 @@ struct race
 	uint8_t link_wheel;
 	uint8_t link_gas;
 	uint8_t link_brake;
-	int32_t world_x;
-	int32_t world_y;
-	int32_t world_z;
-	uint16_t animation;
-	uint16_t palette;
-	uint16_t segment_fraction;
-	uint16_t segment;
-	int16_t road_x;
-	uint16_t window_segment;
-	uint8_t car_choice;
-	uint8_t model;
-	uint8_t frame;
-	uint8_t view_slot;
-	uint16_t speed;
-	int16_t sideways_speed;
-	uint8_t wheel_effect_sides;
-	uint8_t wheel_effect_1;
-	uint8_t wheel_effect_2;
-	uint8_t hard_acceleration;
-	uint16_t segment_pitch;
-	int16_t bounce_height;
-	uint16_t car_flags;
-	uint8_t link_pad_5A;
-	uint8_t link_pad_5B;
-	uint8_t ready;
-	uint8_t started;
-	uint8_t finished;
-	uint8_t published;
-	uint8_t stage_count;
-	uint8_t pass_seen;
-	uint8_t stage;
-	uint8_t pass_count;
-	uint8_t pass_player;
-	uint8_t pass_checkpoint;
-	uint8_t pass_order;
-	uint8_t pass_branch;
-	uint16_t pass_time;
-	uint16_t time_left;
-	uint32_t race_time;
-	uint8_t pad_70[0x10];
+	struct race_state state;
+};
+
+struct settings
+{
+	uint16_t checksum;
+	uint16_t eeprom_write_count;
+	uint8_t flip_screen;
+	uint8_t advertise_sound;
+	uint8_t pad_06[0x2];
+	uint8_t coins_per_credit;
+	uint8_t first_chute_multiplier;
+	uint8_t second_chute_multiplier;
+	uint8_t bonus_adder;
+	uint8_t coin_setting;
+	uint8_t free_play;
+	uint8_t pad_0E[0xA];
+	uint8_t stand_alone;
+	uint8_t link_master;
+	uint8_t cabinet_id;
+	uint8_t isdn_mode;
+	uint8_t steering_wheel_reaction;
+	uint8_t pad_1D[0xB];
+	uint8_t game_difficulty;
+	uint8_t pad_29[0x1];
+	int8_t time_difficulty[0x6];
+	uint8_t volume_ranges;
+	uint8_t pad_31[0xB];
+};
+
+struct eeprom_contents
+{
+	uint32_t magic;
+	uint16_t signature;
+	uint8_t pad_06[0x2];
+	struct settings settings;
+	struct settings backup_settings;
 };
 
 struct object_list_block
@@ -4990,13 +4925,6 @@ struct coin_chute_variant
 	uint8_t pad_11[0x3];
 };
 
-struct settings_copy
-{
-	uint16_t checksum;
-	uint16_t write_count;
-	uint8_t pad_04[0x38];
-};
-
 struct seat_inputs
 {
 	uint8_t buttons;
@@ -5272,6 +5200,9 @@ struct course_record_copy
 _Static_assert(sizeof(struct object) == 0x100, "struct object has the size of the game's blocks");
 _Static_assert(sizeof(struct car) == 0x200, "struct car has the size of the game's blocks");
 _Static_assert(sizeof(struct screen) == 0x6000, "struct screen has the size of the game's blocks");
+_Static_assert(offsetof(struct screen, mixer_values) == 0x160, "mixer_values at its place in struct screen");
+_Static_assert(offsetof(struct screen, mixer_defaults) == 0x1B0, "mixer_defaults at its place in struct screen");
+_Static_assert(offsetof(struct screen, progress) == 0x330, "progress at its place in struct screen");
 _Static_assert(offsetof(struct screen, car_hit_boxes) == 0x514, "car_hit_boxes at its place in struct screen");
 _Static_assert(offsetof(struct screen, player_car_hit_box) == 0x5AE, "player_car_hit_box at its place in struct screen");
 _Static_assert(offsetof(struct screen, views) == 0x600, "views at its place in struct screen");
@@ -5283,7 +5214,14 @@ _Static_assert(sizeof(struct object_area) == 0x8000, "struct object_area has the
 _Static_assert(offsetof(struct object_area, spare_object) == 0x100, "spare_object at its place in struct object_area");
 _Static_assert(offsetof(struct object_area, object_lists) == 0x200, "object_lists at its place in struct object_area");
 _Static_assert(offsetof(struct object_area, objects) == 0x400, "objects at its place in struct object_area");
+_Static_assert(sizeof(struct race_progress) == 0x160, "struct race_progress has the size of the game's blocks");
 _Static_assert(sizeof(struct race) == 0x80, "struct race has the size of the game's blocks");
+_Static_assert(offsetof(struct race, state) == 0x30, "state at its place in struct race");
+_Static_assert(sizeof(struct race_state) == 0x50, "struct race_state has the size of the game's blocks");
+_Static_assert(sizeof(struct eeprom_contents) == 0x80, "struct eeprom_contents has the size of the game's blocks");
+_Static_assert(offsetof(struct eeprom_contents, settings) == 0x8, "settings at its place in struct eeprom_contents");
+_Static_assert(offsetof(struct eeprom_contents, backup_settings) == 0x44, "backup_settings at its place in struct eeprom_contents");
+_Static_assert(sizeof(struct settings) == 0x3C, "struct settings has the size of the game's blocks");
 _Static_assert(sizeof(struct object_list) == 0x100, "struct object_list has the size of the game's blocks");
 _Static_assert(sizeof(struct object_list_block) == 0x8, "struct object_list_block has the size of the game's blocks");
 _Static_assert(sizeof(struct road_row_record) == 0x18, "struct road_row_record has the size of the program ROM's records");
@@ -5353,6 +5291,7 @@ _Static_assert(sizeof(struct song_title_record) == 0x2, "struct song_title_recor
 _Static_assert(sizeof(struct title_screen_layer_setup) == 0x20, "struct title_screen_layer_setup has the size of the program ROM's records");
 _Static_assert(sizeof(struct title_car_record) == 0x10, "struct title_car_record has the size of the program ROM's records");
 _Static_assert(sizeof(struct lcd_text_line) == 0x10, "struct lcd_text_line has the size of the program ROM's records");
+_Static_assert(sizeof(struct mixer_register_set) == 0x50, "struct mixer_register_set has the size of the game's blocks");
 _Static_assert(sizeof(struct title_place) == 0x4, "struct title_place has the size of the program ROM's records");
 _Static_assert(sizeof(struct picture_record) == 0x10, "struct picture_record has the size of the program ROM's records");
 _Static_assert(sizeof(struct demo_caption_cue) == 0x8, "struct demo_caption_cue has the size of the program ROM's records");
@@ -5369,7 +5308,6 @@ _Static_assert(sizeof(struct seat_credits) == 0x8, "struct seat_credits has the 
 _Static_assert(sizeof(struct coin_meter) == 0x3, "struct coin_meter has the size of the game's blocks");
 _Static_assert(sizeof(struct coin_chute) == 0x30, "struct coin_chute has the size of the program ROM's records");
 _Static_assert(sizeof(struct coin_chute_variant) == 0x14, "struct coin_chute_variant has the size of the program ROM's records");
-_Static_assert(sizeof(struct settings_copy) == 0x3C, "struct settings_copy has the size of the game's blocks");
 _Static_assert(sizeof(struct seat_inputs) == 0x4, "struct seat_inputs has the size of the game's blocks");
 _Static_assert(sizeof(struct unpack_request) == 0x8, "struct unpack_request has the size of the game's blocks");
 _Static_assert(sizeof(struct packed_block_entry) == 0x8, "struct packed_block_entry has the size of the program ROM's records");
@@ -5411,7 +5349,11 @@ _Static_assert(sizeof(struct course_record_copy) == 0x6, "struct course_record_c
 #define CAR(address) ((struct car *)ram(address))
 #define SCREEN(address) ((struct screen *)ram(address))
 #define OBJECT_AREA(address) ((struct object_area *)ram(address))
+#define RACE_PROGRESS(address) ((struct race_progress *)ram(address))
 #define RACE(address) ((struct race *)ram(address))
+#define RACE_STATE(address) ((struct race_state *)ram(address))
+#define EEPROM_CONTENTS(address) ((struct eeprom_contents *)ram(address))
+#define SETTINGS(address) ((struct settings *)ram(address))
 #define OBJECT_LIST(address) ((struct object_list *)ram(address))
 #define OBJECT_LIST_BLOCK(address) ((struct object_list_block *)ram(address))
 #define ROAD_ROW_RECORD(address) ((const struct road_row_record *)data_at(address))
@@ -5521,6 +5463,7 @@ _Static_assert(sizeof(struct course_record_copy) == 0x6, "struct course_record_c
 #define LCD_TEXT_LINE(address) ((const struct lcd_text_line *)data_at(address))
 #define LCD_CHARACTER_ROWS(address) ((const uint8_t *)data_at(address))
 #define DJ_MOUTH_SHAPE_NUMBERS(address) ((const uint8_t *)data_at(address))
+#define MIXER_REGISTER_SET(address) ((struct mixer_register_set *)ram(address))
 #define TITLE_PLACE(address) ((const struct title_place *)data_at(address))
 #define PICTURE_RECORD(address) ((const struct picture_record *)data_at(address))
 #define TITLE_LOGO_PALETTES(address) ((const uint16_t *)data_at(address))
@@ -5544,7 +5487,6 @@ _Static_assert(sizeof(struct course_record_copy) == 0x6, "struct course_record_c
 #define COIN_METER(address) ((struct coin_meter *)ram(address))
 #define COIN_CHUTE(address) ((const struct coin_chute *)data_at(address))
 #define COIN_CHUTE_VARIANT(address) ((const struct coin_chute_variant *)data_at(address))
-#define SETTINGS_COPY(address) ((struct settings_copy *)ram(address))
 #define SEAT_INPUTS(address) ((struct seat_inputs *)ram(address))
 #define UNPACK_REQUEST(address) ((struct unpack_request *)ram(address))
 #define PACKED_BLOCK_ENTRY(address) ((const struct packed_block_entry *)data_at(address))
@@ -5904,8 +5846,7 @@ struct game
 	uint8_t pad_20E04C[0x14];
 	uint32_t link_wait_count;
 	uint8_t pad_20E064[0x1C];
-	uint8_t coin_meters;
-	uint8_t pad_20E081[0xB];
+	struct coin_meter coin_meters[4];
 	uint8_t seat1_coin_sounds;
 	uint8_t seat2_coin_sounds;
 	uint8_t seat1_service_sounds;
@@ -6009,35 +5950,8 @@ struct game
 	uint8_t lcd_busy;
 	uint8_t lcd_init_step;
 	uint8_t pad_20E3F5[0x20B];
-	uint32_t settings_magic;
-	uint16_t settings_signature;
-	uint8_t pad_20E606[0x2];
-	uint16_t settings_checksum;
-	uint16_t eeprom_write_count;
-	uint8_t flip_screen;
-	uint8_t advertise_sound;
-	uint8_t pad_20E60E[0x2];
-	uint8_t coins_per_credit;
-	uint8_t first_chute_multiplier;
-	uint8_t second_chute_multiplier;
-	uint8_t bonus_adder;
-	uint8_t coin_setting;
-	uint8_t free_play;
-	uint8_t pad_20E616[0xA];
-	uint8_t stand_alone;
-	uint8_t link_master;
-	uint8_t cabinet_id;
-	uint8_t isdn_mode;
-	uint8_t steering_wheel_reaction;
-	uint8_t pad_20E625[0xB];
-	uint8_t game_difficulty;
-	uint8_t pad_20E631[0x1];
-	int8_t time_difficulty[0x6];
-	uint8_t volume_ranges;
-	uint8_t pad_20E639[0xB];
-	uint16_t backup_settings_checksum;
-	uint16_t backup_eeprom_write_count;
-	uint8_t pad_20E648[0xB8];
+	struct eeprom_contents eeprom;
+	uint8_t pad_20E680[0x80];
 	uint8_t test_mode_on;
 	uint8_t test_mode_flags;
 	uint8_t test_mode_cursor;
@@ -6070,7 +5984,7 @@ struct game
 		struct
 		{
 			uint8_t pad_to_race_copy_window_segments[0x46];
-			uint16_t race_copy_window_segments[0x1DD];
+			uint16_t race_copy_window_segments;
 		};
 	};
 	struct object_area object_area_2;
@@ -6083,6 +5997,8 @@ struct game
 _Static_assert(sizeof(struct game) == 0x20000, "struct game is the work RAM");
 _Static_assert(offsetof(struct game, object_area_1) == 0x0, "object_area_1 at its place in the work RAM");
 _Static_assert(offsetof(struct game, screen_1) == 0x8000, "screen_1 at its place in the work RAM");
+_Static_assert(offsetof(struct game, coin_meters) == 0xE080, "coin_meters at its place in the work RAM");
+_Static_assert(offsetof(struct game, eeprom) == 0xE600, "eeprom at its place in the work RAM");
 _Static_assert(offsetof(struct game, races) == 0xFB00, "races at its place in the work RAM");
 _Static_assert(offsetof(struct game, race_copies) == 0xFC00, "race_copies at its place in the work RAM");
 _Static_assert(offsetof(struct game, object_area_2) == 0x10000, "object_area_2 at its place in the work RAM");
@@ -6090,5 +6006,78 @@ _Static_assert(offsetof(struct game, screen_2) == 0x18000, "screen_2 at its plac
 _Static_assert(offsetof(struct game, isdn_races) == 0x1E000, "isdn_races at its place in the work RAM");
 _Static_assert(offsetof(struct game, stacks) == 0x1F000, "stacks at its place in the work RAM");
 extern struct game *game;
+
+/* the game's variables the code reaches only by name, in the host's memory (their places in the work
+   RAM, struct game, are where world_project puts them) */
+struct world
+{
+	uint32_t waiting_task_stack;
+	uint16_t vblanks_since_start;
+	uint8_t debug_timer_rounds;
+	uint16_t sprite_list_buffers;
+	uint8_t sprite_lists_set_up;
+	uint8_t single_task;
+	uint8_t game_frame_count;
+	uint8_t send_video_registers;
+	uint8_t task_swapping;
+	uint8_t second_task_waiting;
+	uint8_t timer_interrupts_left;
+	uint8_t vblank_counter;
+	uint8_t cleared_on_race_over;
+	uint8_t car_numbers[0x8];
+	uint16_t link_wait_frames_start;
+	uint16_t total_time_count;
+	uint8_t player_count;
+	uint8_t link_off;
+	uint8_t link_failed;
+	uint16_t link_wait_frames;
+	uint16_t network_check_blink_counter;
+	uint8_t isdn_players_this_side;
+	uint8_t isdn_players_other_side;
+	uint32_t link_wait_count;
+	uint8_t chute_entry_offset;
+	uint8_t seat1_coin_units;
+	uint8_t seat2_coin_units;
+	uint8_t wheel_motor[0x2];
+	uint8_t switches;
+	uint8_t previous_switches;
+	uint8_t switches_pressed;
+	uint8_t switches_released;
+	uint8_t second_io_chip_port_f;
+	uint8_t seat_1_player;
+	uint8_t seat_1_wheel;
+	uint8_t seat_1_gas;
+	uint8_t seat_1_brake;
+	uint8_t seat_2_player;
+	uint8_t seat_2_wheel;
+	uint8_t seat_2_gas;
+	uint8_t seat_2_brake;
+	uint8_t lcd_send_buffer_1[0x10];
+	uint8_t lcd_send_buffer_2[0x10];
+	uint16_t lcd_restart_frames;
+	uint8_t lcd_send_step;
+	uint8_t lcd_busy;
+	uint8_t lcd_init_step;
+	uint8_t test_mode_on;
+	uint8_t test_mode_flags;
+	uint8_t test_mode_cursor;
+	uint8_t test_mode_page_cursor;
+	uint32_t test_mode_routine;
+	uint8_t test_mode_buttons;
+	uint8_t test_mode_buttons_previous;
+	uint8_t test_mode_buttons_pressed;
+	uint8_t test_mode_buttons_released;
+	int8_t test_mode_blink_timer;
+	uint8_t sound_test_number_a;
+	uint8_t sound_test_number_b;
+	uint8_t test_mode_sound_queue_write;
+	uint8_t test_mode_sound_queue_read;
+	uint16_t test_mode_sound_queue[0x10];
+	uint8_t test_mode_privilege_mode;
+};
+extern struct world *world;
+void world_project(void);
+void world_unproject(void);
+void world_clear(void);
 
 #endif
