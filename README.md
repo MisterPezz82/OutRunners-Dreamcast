@@ -14,8 +14,12 @@ Dreamcast port. Upstream's own README is kept at [docs/UPSTREAM_README.md](docs/
 
 ## Status
 
-**Version 0.5.** Download it from [Releases](https://github.com/MisterPezz82/OutRunners-Dreamcast/releases).
+**Version 0.5.1.** Download it from [Releases](https://github.com/MisterPezz82/OutRunners-Dreamcast/releases).
 Played on a Dreamcast with GDEMU during development.
+
+New in 0.5.1: **a sharp picture at 240p.** On RGB/SCART, S-Video and composite the picture was blurred: the
+PowerVR's flicker filter, meant for 480i, was blending each line with its neighbours. It is now off in 1 player
+(2 PLAYERS, at 480i, keeps it). VGA was not affected.
 
 New in 0.5, brought up to the PC version 1.4.0 ([cheviman](https://github.com/cheviman/outrunners-port)):
 - **OPTIONS > SOUND:** MUSIC, EFFECTS and VOICE volumes set apart, so the DJ can be turned down under the
@@ -65,7 +69,7 @@ You need:
   compiler and [mkdcdisc](https://gitlab.com/simulant/mkdcdisc) 0.0.4 or later.
 
 Using the release package
-([Releases](https://github.com/MisterPezz82/OutRunners-Dreamcast/releases), `OutRunners-DC-0.5.zip`):
+([Releases](https://github.com/MisterPezz82/OutRunners-Dreamcast/releases), `OutRunners-DC-0.5.1.zip`):
 - **Windows:** drag `orunners.zip` onto `make_disc.bat`, or run it and choose the zip.
 - **Linux/WSL:** `./make_disc.sh /path/to/orunners.zip`
 

@@ -1,5 +1,5 @@
-OutRunners for Dreamcast - version 0.5
-=====================================
+OutRunners for Dreamcast - version 0.5.1
+========================================
 
 A native Dreamcast port of the OutRunners arcade game, built on the C reconstruction of the game
 (https://github.com/cheviman/outrunners-port), with its own PowerVR renderer and AICA sound.
@@ -135,6 +135,9 @@ Dreamcast, that is a bug worth reporting.
 
 Status
 ------
+Version 0.5.1: a sharp picture at 240p. With an RGB/SCART, S-Video or composite cable the picture
+was blurred: the PowerVR's flicker filter, meant for 480i, was blending each line with its
+neighbours. It is now off in 1 player (2 PLAYERS, at 480i, keeps it). VGA was not affected.
 Version 0.5: brought up to the PC version 1.4.0 (Sebastian Toyos, cheviman): OPTIONS > SOUND's MUSIC,
 EFFECTS and VOICE apart (the DJ can be turned down under the songs; here on the Dreamcast's own sound
 chip), the radio's MUSIC button going round the songs and the station, REVERSE's start at AUSTRALIA

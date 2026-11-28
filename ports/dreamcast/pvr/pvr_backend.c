@@ -593,6 +593,11 @@ static int pvr_setup(int screens)
 	view_y = screens > 1 ? (480.0f - 224.0f) / 2.0f : OY;
 	if (pvr_init(&params) != 0)
 		return -1;
+	/* KOS 2.2.1 sets the PowerVR's vertical scaler to 0x401 on any non-VGA cable: its flicker filter,
+	   which blends each line with its neighbours. Right for 480i (2 PLAYERS), but in 240p it blurs the
+	   picture, so 1 player writes 1:1 (0x400) instead, as KOS does on VGA */
+	if (screens < 2 && dc_video_choice != DC_VIDEO_480P)
+		PVR_SET(PVR_SCALER_CFG, 0x400);
 	pvr_set_bg_color(0.0f, 0.0f, 0.0f);
 	pvr_set_pal_format(PVR_PAL_ARGB1555);    /* (the paletted sprite textures' banks) */
 	for (int i = 0; i < 2; i++) if (!jobs[i].stage) jobs[i].stage = memalign(32, STAGE_BYTES);    /* (without, writes drain) */
